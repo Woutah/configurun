@@ -15,9 +15,8 @@ if __name__ == "__main__":
 
 
 import typing
-
+from MLQueue.windows.widgets.NetworkLoginWidget import NetworkLoginWidget
 from MLQueue.windows.ApplyMachineLearningWindow import ApplyMachineLearningWindow
-from gui.NetworkLoginWidget.NetworkLoginWidget import NetworkLoginWidget
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6Widgets.Utility.catchExceptionInMsgBoxDecorator import \
     catchExceptionInMsgBoxDecorator
@@ -26,13 +25,8 @@ from PySide6Widgets.Utility.DataClassEditorsDelegate import \
 # from MachineLearning.framework.
 from res import Paths
 
-from MLQueue.classes.RunQueue import RunQueue
 from MLQueue.classes.RunQueueClient import RunQueueClient
-from MLQueue.windows.models.MLQueueModel import MLQueueModel
-# from gui.ApplyMachineLearningWindow.ApplyMachineLearningWindow_ui import Ui_ApplyMachineLearningWindow
-from MLQueue.windows.ui.ApplyMachineLearningWindow_ui import \
-    Ui_ApplyMachineLearningWindow
-from MLQueue.windows.widgets.MLQueueWidget import MLQueueWidget
+
 
 
 class NetworkApplyMachineLearningWindow(ApplyMachineLearningWindow):
