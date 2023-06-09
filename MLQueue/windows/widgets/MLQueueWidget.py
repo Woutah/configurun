@@ -1,5 +1,4 @@
 from PySide6 import QtWidgets, QtGui, QtCore
-# from gui.MLQueueWidget.MLQueueWidget_ui import Ui_MLQueueWidget
 from MLQueue.windows.ui.MLQueueWidget_ui import Ui_MLQueueWidget
 from MLQueue.windows.views.MLQueueView import MLQueueView
 from MLQueue.windows.models.MLQueueModel import MLQueueModel
@@ -104,8 +103,6 @@ class MLQueueWidget(QtWidgets.QWidget):
 			model._run_queue.start_autoprocessing()
 
 	def setupNewmodel(self):
-		# if self.selectionOptionsChangedConnection is not None:
-		# 	self.selectionOptionsChangedConnection.disconnect() #Disconnect the old connection to old model
 
 		if len(self.queueItemsChangedOptionConnections) > 0:
 			for connection in self.queueItemsChangedOptionConnections:

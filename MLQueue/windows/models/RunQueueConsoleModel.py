@@ -395,22 +395,6 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 			return QtCore.QModelIndex()
 
 
-# 	def resetModel(self):
-# 		# self._item_list = []
-# 		self.modelReset.emit()
-
-# 	def columnCount(self, parent : QtCore.QModelIndex = QtCore.QModelIndex()) -> int:
-# 		return 3
-	
-		
-# 	def removeRow(self, row: int, parent : QtCore.QModelIndex) -> bool:
-# 		self.beginRemoveRows(parent, row, row)
-# 		# self._item_list.pop(row)
-# 		del self._item_list[row]
-# 		self.endRemoveRows()
-# 		self.modelReset.emit() #Why is this needed?
-
-
 if __name__ == "__main__":
 	print("Now testing RunQueueConsoleModel")
 	from PySide6Widgets.Widgets.ConsoleWidget import ConsoleWidget
