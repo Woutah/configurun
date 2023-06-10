@@ -6,44 +6,35 @@ import logging
 import socket
 # import pycryptodome
 import sys
-import time
-from dataclasses import dataclass
 
-from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
 
 from MLQueue.classes.RunQueue import RunQueue
 
 log = logging.getLogger(__name__)
-import enum
 import hashlib
-import os
-import pickle
 #Import threading lock
 import threading
 import typing
 from abc import ABC, abstractmethod
 from ctypes import c_uint32 as uint32
 
-from MLQueue.classes.RunQueueDataTypes import (TransmissionType,
-	pickledDataType,
-	stateMsgType,
-	RSA_KEY_SIZE_BITS,
-	clientData,
-	PickleTransmissionData,
-	Transmission,
-	PubKeyTransmissionData,
-	LoginTransmissionData,
-	StateTransmissionData,
-	AESSessionKeyTransmissionData,
-	AES_EMPTY_KEY,
-
-)
 from PySide6 import QtCore
 
+from MLQueue.classes.RunQueueDataTypes import (AES_EMPTY_KEY,
+                                               RSA_KEY_SIZE_BITS,
+                                               AESSessionKeyTransmissionData,
+                                               LoginTransmissionData,
+                                               PickledDataType,
+                                               PickleTransmissionData,
+                                               PubKeyTransmissionData,
+                                               StateMsgType,
+                                               StateTransmissionData,
+                                               Transmission, TransmissionType,
+                                               ClientData)
 
-	
 
 class RunQueueServer():
 	"""
@@ -51,9 +42,9 @@ class RunQueueServer():
 	RunQueueClient will run client-side and will emulate an instance of the RunQueue class by interfacing with the
 	actual runqueue running on the server.
 
-	NOTE: this class assumes that all information for the runqueue is transmitted to the ui via signals - or by 
+	NOTE: this class assumes that all information for the runqueue is transmitted to the ui via signals - or by
 	the ui explicitly calling the functions of the runqueue. All signals in the runqueue are automatically connected
-	to the emit_signal function of this class. All function calls on the client side are automatically forwarded to the 
+	to the emit_signal function of this class. All function calls on the client side are automatically forwarded to the
 	server side.
 
 	Call RunQueueServer.run() after instantiating the class to start the server.
@@ -67,8 +58,8 @@ class RunQueueServer():
 		used_host_name = socket.gethostname() if (hostname is None or len(hostname) == 0) else hostname
 		log.info(f"Binding server to {used_host_name}:{port}")
 		self._socket.bind(( #Bind the socket to the given hostname and port
-				used_host_name, 
-		    	port 
+				used_host_name,
+		    	port
 		))
 
 		#Generate a public/private key pair for the server
@@ -83,11 +74,11 @@ class RunQueueServer():
 
 		self.set_password_hash(self.get_password_hash("password"))
 
-		self._client_dict : dict[socket.socket, clientData]= {}  
+		self._client_dict : dict[socket.socket, ClientData]= {}
 		self._client_list_lock = threading.Lock()
 
 		self._connection_listener_thread = None
-		
+
 
 		#============= Manage signal-triggered events =============
 		#Go over all signal (QtCore.Signal) and link them to emit_signal
@@ -95,9 +86,9 @@ class RunQueueServer():
 			if isinstance(self._run_queue.__class__.__dict__[signal_name], QtCore.Signal):
 				signal = getattr(self._run_queue, signal_name)
 				signal.connect(lambda *args, signal_name=signal_name: self.emit_signal(signal_name, *args))
-				
+
 		log.info("Initialized RunQueueServer")
-	
+
 	def run(self):
 		"""Starts the server and listens for connections
 		"""
@@ -111,7 +102,7 @@ class RunQueueServer():
 		"""Emits a QtCore.Signal to the server
 
 		Args:
-			signal_name (str): The signal name 
+			signal_name (str): The signal name
 			args*: The arguments to the signal
 		"""
 		#Print the signal name and args (but max 100 characters)
@@ -120,9 +111,9 @@ class RunQueueServer():
 		if self._socket is None:
 			log.error("Cannot emit signal - server is not running")
 			return
-		
+
 		pickle_data = PickleTransmissionData(
-			(pickledDataType.signal_emit, (signal_name, args))
+			(PickledDataType.SIGNAL_EMIT, (signal_name, args))
 		)
 		for client in self._client_dict.values(): #Send all clients the signal
 			Transmission.send(
@@ -131,7 +122,7 @@ class RunQueueServer():
 				client.client_session_aes_key
 			)
 
-	
+
 	def set_password_hash(self, password_hash : str, invalidate_clients : bool = False):
 		"""Sets the password hash to the given value
 		if invalidate_clients is True, all clients will be disconnected
@@ -141,7 +132,7 @@ class RunQueueServer():
 			invalidate_clients (bool, optional): If True, all clients will be disconnected. Defaults to False.
 		"""
 		if invalidate_clients:
-			raise NotImplementedError("Invalidating clients is not yet implemented") 
+			raise NotImplementedError("Invalidating clients is not yet implemented")
 		self._password_hash = password_hash
 
 	@staticmethod
@@ -152,25 +143,25 @@ class RunQueueServer():
 			password (str): The password to hash
 		"""
 		return hashlib.sha512(RunQueueServer._salt + password.encode('utf-8')).hexdigest()
-	
+
 
 	def _listen_for_connections(self):
 		"""To be ran in a separate thread.
 		Continually listens for new connections and launches a new thread to authenticate them if found using
 		_connection_setup and a new thread.
 
-		#TODO: stopflag/create separate listener class with a qt signal 
+		#TODO: stopflag/create separate listener class with a qt signal
 		"""
 		while(True):
-			self._socket.listen(5) #TODO: maybe increase the backlog?			
+			self._socket.listen(5) #TODO: maybe increase the backlog?
 			#Check if there are any new connections
-			client, address = self._socket.accept() #TODO: as soon as a client connects, start a new thread to handle 
+			client, address = self._socket.accept() #TODO: as soon as a client connects, start a new thread to handle
 				#  it as to not block other clients from connecting
 			log.info(f"Initial (unauthenticated) connection from {address} has been established - now delegating to \
 	    				a new thread to handle the connection")
 			authenticator_thread = threading.Thread(target=self._connection_setup, args=(client, address))
 			authenticator_thread.start()
-			
+
 
 	def _connection_setup(self, client_sock : socket.socket, address : str):
 		"""Continuously accept connections and try to initiate a handshake
@@ -185,13 +176,13 @@ class RunQueueServer():
 		Args:
 			client_sock (socket.socket): The client socket
 			address (str): The client address
-			
+
 		"""
 		log.info(f"Started authentication process of new client ({address})")
 		#Attempt to get client public key
 		received = Transmission.receive(client_sock) #First message should be a TransmissionType.pubkey
 		client_public_key = None
-		if received.transmission_type == TransmissionType.pub_key:
+		if received.transmission_type == TransmissionType.PUB_KEY:
 			try:
 				pubkey_data = PubKeyTransmissionData.from_transmission_bytes(received.transmission_data)
 			except Exception as e:
@@ -199,7 +190,7 @@ class RunQueueServer():
 				client_sock.close()
 				return
 			client_public_key = pubkey_data.pubkey
-		elif received.transmission_type == TransmissionType.state:
+		elif received.transmission_type == TransmissionType.STATE:
 			try:
 				state_data = StateTransmissionData.from_transmission_bytes(received.transmission_data)
 				log.warning(f"Authentication of {address}: Received a state message from {address}: {state_data.state_msg_type.name} - {state_data.state_msg}... But first message should be a public key. Closing connection...")
@@ -216,7 +207,7 @@ class RunQueueServer():
 			Transmission.send(
 				client_sock,
 				StateTransmissionData(
-					stateMsgType.error,
+					StateMsgType.ERROR,
 					"Failure - no public key received from client - first response message must be a public key"
 				)
 			)
@@ -227,7 +218,7 @@ class RunQueueServer():
 		client_public_key = RSA.import_key(client_public_key)
 
 		rsa_cipher = PKCS1_OAEP.new(client_public_key)
-		
+
 		#Generate a random AES-session key
 		aes_session_key = get_random_bytes(32)
 
@@ -235,7 +226,7 @@ class RunQueueServer():
 		Transmission.send(
 			client_sock,
 			AESSessionKeyTransmissionData(
-				encrypted_session_key=rsa_cipher.encrypt(aes_session_key) #Encrypt 
+				encrypted_session_key=rsa_cipher.encrypt(aes_session_key) #Encrypt
 			)
 		)
 
@@ -246,7 +237,7 @@ class RunQueueServer():
 			client_sock,
 			aes_session_key
 		)
-		if received.transmission_type != TransmissionType.login:
+		if received.transmission_type != TransmissionType.LOGIN:
 			log.error(f"Error during Authentication of {address}: Expected TransmissionType.login - received {received.transmission_type.name}({received.transmission_type}) - disconnecting...")
 			client_sock.close()
 			return
@@ -255,7 +246,7 @@ class RunQueueServer():
 			login_info = LoginTransmissionData.from_transmission_bytes(received.transmission_data)
 
 		hashed_password = self.get_password_hash(login_info.password)
-		log.info(f"Authentication of {address} - Received hashed pw {address}: {hashed_password}") #TODO: Also implement client-side hashing of the password - send a salt back with the AES-session key? Traffic is encrypted - but server probably shouldn't know the plaintext password attempts. 
+		log.info(f"Authentication of {address} - Received hashed pw {address}: {hashed_password}") #TODO: Also implement client-side hashing of the password - send a salt back with the AES-session key? Traffic is encrypted - but server probably shouldn't know the plaintext password attempts.
 
 
 		#Check if the password hash is correct
@@ -264,7 +255,7 @@ class RunQueueServer():
 			Transmission.send(
 				client_sock,
 				StateTransmissionData(
-					stateMsgType.login_error,
+					StateMsgType.LOGIN_ERROR,
 					"Failure - invalid password hash received from client"
 				),
 				aes_session_key
@@ -275,7 +266,7 @@ class RunQueueServer():
 			Transmission.send(
 				client_sock,
 				StateTransmissionData(
-					stateMsgType.login_accepted,
+					StateMsgType.LOGIN_ACCEPTED,
 					"Success - client authenticated"
 				),
 				aes_session_key
@@ -291,7 +282,7 @@ class RunQueueServer():
 
 		with self._client_list_lock:
 			assert(client_sock not in self._client_dict) #Assume connection is not already authenticated
-			self._client_dict[client_sock] = clientData(
+			self._client_dict[client_sock] = ClientData(
 				client_socket = client_sock,
 				client_public_key = client_public_key,
 				client_session_aes_key = aes_session_key
@@ -299,14 +290,14 @@ class RunQueueServer():
 		client_thread.start()
 
 		return #Should end the authentication thread
-	
 
-	def list_authenticated_clients(self) -> typing.List[clientData]:
+
+	def list_authenticated_clients(self) -> typing.List[ClientData]:
 		"""Returns a list of all currently connected authenticated clients
 		"""
 		with self._client_list_lock:
 			return list(self._client_dict.values())
-		
+
 
 	def _handle_pickled_data(self,
 			client : socket.socket,
@@ -323,7 +314,7 @@ class RunQueueServer():
 		# assert(unpickled_data[0] == pickledDataType.function_call)
 
 		error_msg = None
-		if unpickled_data[0] == pickledDataType.method_call:
+		if unpickled_data[0] == PickledDataType.METHOD_CALL:
 			function_data = unpickled_data[1]
 			#Handle a function call
 			method_call_id = function_data[0] #So client can identify which response belongs to which call
@@ -340,13 +331,13 @@ class RunQueueServer():
 			Transmission.send(
 				client,
 				PickleTransmissionData(
-					(pickledDataType.method_return, (method_call_id, result)) #return the call_id and the results
+					(PickledDataType.METHOD_RETURN, (method_call_id, result)) #return the call_id and the results
 				),
 				aes_cypher_key=aes_session_key,
 			)
-		elif unpickled_data[0] == pickledDataType.signal_emit:
+		elif unpickled_data[0] == PickledDataType.SIGNAL_EMIT:
 			error_msg = f"Received a signal emit from client - this should not be possible - ignoring transmission"
-		elif unpickled_data[0] == pickledDataType.method_return:
+		elif unpickled_data[0] == PickledDataType.METHOD_RETURN:
 			error_msg = f"Received a function return from client - this should not be possible - ignoring transmission"
 		else:
 			error_msg = f"Received a pickled object with unknown type: {unpickled_data[0]} - ignoring transmission"
@@ -355,7 +346,7 @@ class RunQueueServer():
 			Transmission.send(
 				client,
 				StateTransmissionData(
-					stateMsgType.error,
+					StateMsgType.ERROR,
 					error_msg
 				),
 				aes_cypher_key=aes_session_key,
@@ -367,14 +358,14 @@ class RunQueueServer():
 
 	def _client_listener(self, client : socket.socket, client_address : str, aes_session_key : bytes):
 		"""
-		NOTE: this function assumes that the client has already been authenticated and should only be called when this 
+		NOTE: this function assumes that the client has already been authenticated and should only be called when this
 		is the case. Listens to the given client and handles all incoming requests
 
 		Args:
 			client (socket.socket): The client to listen to
-			aes_session_key (bytes): The AES session key used to encrypt data between the client and the server 
+			aes_session_key (bytes): The AES session key used to encrypt data between the client and the server
 				(required - all data should be authenticated)
-		
+
 		"""
 		assert (aes_session_key is not None) and (aes_session_key != AES_EMPTY_KEY), "Session_key can't be null/empty \
 			when listening to a client"
@@ -385,7 +376,7 @@ class RunQueueServer():
 				log.info(f"Received transmission from client {client_address} with TransmissionType: \
 	     			{received.transmission_type.name}({received.transmission_type})")
 
-				if received.transmission_type == TransmissionType.pickled_object:
+				if received.transmission_type == TransmissionType.PICKLED_OBJECT:
 					try:
 						pickled_data = PickleTransmissionData.from_transmission_bytes(received.transmission_data)
 					except Exception as e:
@@ -393,7 +384,7 @@ class RunQueueServer():
 						Transmission.send(
 							client,
 							StateTransmissionData(
-								stateMsgType.error,
+								StateMsgType.ERROR,
 								f"Failed to unpickle data from client {client_address}: {e}"
 							)
 						)
@@ -406,7 +397,7 @@ class RunQueueServer():
 						)
 					except Exception as e:
 						log.error(f"Failed to handle pickled data from client {client_address}: {e} ")
-				elif received.transmission_type == TransmissionType.state:
+				elif received.transmission_type == TransmissionType.STATE:
 					data = StateTransmissionData.from_transmission_bytes(received.transmission_data)
 					log.info(f"State Client : {data.state_msg_type.name} - {data.state_msg}")
 				else:
@@ -431,7 +422,7 @@ if __name__ == "__main__":
 	logging.basicConfig(
 		handlers=[handler],
 		level=logging.DEBUG) #Without time
-	
+
 	runqueue = RunQueue()
 	server = RunQueueServer(runqueue)
 	#Create a qt application to run the runqueue in

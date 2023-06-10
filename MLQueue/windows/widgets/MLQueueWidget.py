@@ -1,8 +1,8 @@
 from PySide6 import QtWidgets, QtGui, QtCore
 from MLQueue.windows.ui.MLQueueWidget_ui import Ui_MLQueueWidget
-from MLQueue.windows.views.MLQueueView import MLQueueView
-from MLQueue.windows.models.MLQueueModel import MLQueueModel
-from MLQueue.classes.RunQueue import RunQueue, RunQueueItemStatus, QueueItemActions
+from MLQueue.windows.views.RunQueueTreeView import RunQueueTreeView
+from MLQueue.windows.models.RunQueueTableModel import RunQueueTableModel
+from MLQueue.classes.RunQueue import RunQueue, RunQueueItemStatus, RunQueueItemActions
 import logging
 log = logging.getLogger(__name__)
 
@@ -23,24 +23,24 @@ class MLQueueWidget(QtWidgets.QWidget):
 
 		#=============Link buttons to functions================
 		self.ui.MoveUpInQueueBtn.clicked.connect(
-			lambda *_: self.queue_view.doActionOnSelection(QueueItemActions.MoveUp))
+			lambda *_: self.queue_view.do_action_on_selection(RunQueueItemActions.MOVEUP))
 		self.ui.MoveDownInQueueBtn.clicked.connect(
-			lambda *_: self.queue_view.doActionOnSelection(QueueItemActions.MoveDown))
+			lambda *_: self.queue_view.do_action_on_selection(RunQueueItemActions.MOVEDOWN))
 		self.ui.CancelStopButton.clicked.connect(
-			lambda *_: self.queue_view.doActionOnSelection(QueueItemActions.Stop))
+			lambda *_: self.queue_view.do_action_on_selection(RunQueueItemActions.STOP))
 		self.ui.DeleteButton.clicked.connect(
-			lambda *_: self.queue_view.doActionOnSelection(QueueItemActions.Delete))
+			lambda *_: self.queue_view.do_action_on_selection(RunQueueItemActions.DELETE))
 		self.ui.StartRunningQueueBtn.clicked.connect(
 			self.toggle_queue_autoprocessing)
 
 		self._action_btn_dict = {
-			QueueItemActions.MoveUp: self.ui.MoveUpInQueueBtn,
-			QueueItemActions.MoveDown: self.ui.MoveDownInQueueBtn, 
-			QueueItemActions.Cancel: self.ui.CancelStopButton, #TODO: is it a good idea to have cancel and stop be the
-			 # same button? Maybe make difference more apparent to user 
+			RunQueueItemActions.MOVEUP: self.ui.MoveUpInQueueBtn,
+			RunQueueItemActions.MOVEDOWN: self.ui.MoveDownInQueueBtn,
+			RunQueueItemActions.CANCEL: self.ui.CancelStopButton, #TODO: is it a good idea to have cancel and stop be the
+			 # same button? Maybe make difference more apparent to user
 			 # (cancel = dequeue, stop = stop if currently running and dequeue)
-			QueueItemActions.Stop: self.ui.CancelStopButton,
-			QueueItemActions.Delete: self.ui.DeleteButton
+			RunQueueItemActions.STOP: self.ui.CancelStopButton,
+			RunQueueItemActions.DELETE: self.ui.DeleteButton
 		}
 
 		self.queueItemsChangedOptionConnections = []
@@ -49,11 +49,13 @@ class MLQueueWidget(QtWidgets.QWidget):
 	def _queue_run_btn_set_state(self, is_running : bool):
 		self.ui.StartRunningQueueBtn.setChecked(is_running)
 		self.ui.StartRunningQueueBtn.setToolTip("Stop queue" if is_running else "Start running queue")
-			
+
 	@catchExceptionInMsgBoxDecorator
 	def toggle_queue_autoprocessing(self, confirm_on_stop: bool = True):
 		model = self.queue_view.model()
-		assert(type(model) == MLQueueModel)
+		assert(type(model) == RunQueueTableModel)
+		if model._run_queue is None:
+			return
 
 		self._queue_run_btn_set_state(model._run_queue.is_autoprocessing_enabled())
 
@@ -98,7 +100,7 @@ class MLQueueWidget(QtWidgets.QWidget):
 			raise NotImplementedError("Stopping queue not implemented yet")
 			#TODO: cancel all currently running tasks
 			#TODO: save queue to file
-			
+
 		else:
 			model._run_queue.start_autoprocessing()
 
@@ -111,15 +113,15 @@ class MLQueueWidget(QtWidgets.QWidget):
 
 		model = self.queue_view.model()
 
-		if type(model) != MLQueueModel:
+		if type(model) != RunQueueTableModel:
 			self.update_available_options()
 			log.warning("MLQueueWidget: Model is not of type MLQueueModel. Cannot setup new model.")
 			return
 
-		self.queueItemsChangedOptionConnections.append( #When any data changes, update the available options 
+		self.queueItemsChangedOptionConnections.append( #When any data changes, update the available options
 			model.dataChanged.connect(lambda *_: self.update_available_options())
-		) 
-	
+		)
+
 		self.queueItemsChangedOptionConnections.append(
 			model.layoutChanged.connect(lambda *_: self.update_available_options())
 		) #When any rows are removed, update the available options (maybe selected item changed)
@@ -134,33 +136,32 @@ class MLQueueWidget(QtWidgets.QWidget):
 		)
 
 		self.update_available_options()
-		
+
 
 	@catchExceptionInMsgBoxDecorator
-	def stop_queue(self):
-		raise NotImplementedError("MLQueueWidget: stop_queue not implemented yet")	
+	def stop_autoqueue(self):
+		""" Stops the auto-requeueing of items in the RunQueue """
+		raise NotImplementedError("MLQueueWidget: stop_queue not implemented yet")
 
 	def update_available_options(self):
-		"""
-		Updates the available options in the user interface.
-		"""
+		""" Updates the available options in the user interface. """
 		try:
 			selection = self.queue_view.selectionModel().selectedRows()
-		except AttributeError as e: #If no model is set
-			log.debug(f"Could not get selection: {e}")
+		except AttributeError as attr_ex: #If no model is set
+			log.debug(f"Could not get selection: {attr_ex}")
 			return
-		
+
 		cur_available_actions = []
 		if len(selection) > 0: #If there is a selection
 			selection = selection[0] #Only allow one selection at a time (TODO: maybe change this?)
 			try:
 				model = self.queue_view.model()
-				assert(type(model) == MLQueueModel)
+				assert(isinstance(model, RunQueueTableModel))
 				cur_available_actions = model.get_actions(selection)
-			except AttributeError as e:
-				log.debug(f"Could not get available actions: {e}")
+			except AttributeError as attr_ex:
+				log.debug(f"Could not get available actions: {attr_ex}")
 				cur_available_actions = []
-		
+
 		for btn in self._action_btn_dict.values():
 			btn.setEnabled(False)
 
@@ -169,10 +170,11 @@ class MLQueueWidget(QtWidgets.QWidget):
 				self._action_btn_dict[action].setEnabled(True)
 
 
-		
+
 
 if __name__ == "__main__":
-	import sys, datetime
+	import sys
+	import datetime
 	app = QtWidgets.QApplication(sys.argv)
 	widget = QtWidgets.QWidget()
 	ui = MLQueueWidget(widget)
@@ -199,7 +201,7 @@ if __name__ == "__main__":
 	# run_queue.add_to_queue("ItemFailed", "TheConfig")
 	# run_queue.all_dict[7].status = RunQueueItemStatus.Failed
 	# run_queue._queue.remove(7)
-	model = MLQueueModel(run_queue)
+	model = RunQueueTableModel(run_queue)
 
 
 	ui.queue_view.setModel(model)

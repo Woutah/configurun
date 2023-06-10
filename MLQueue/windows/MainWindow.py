@@ -1,5 +1,5 @@
 """
-Contains the ApplyMachineLearningWindow class, which is a window which provides the user with several tools to
+Contains the main window class, which is a window which provides the user with several tools to
 edit/manage/run machine learning settings.
 
 Also contains OptionsSource, which is used to determine if the current file should be saved to a file or to the queue.
@@ -32,7 +32,7 @@ from PySide6Widgets.Utility.DataClassEditorsDelegate import \
     DataClassEditorsDelegate
 
 from MLQueue.classes.RunQueue import RunQueue
-from MLQueue.windows.models.MLQueueModel import MLQueueModel
+from MLQueue.windows.models.RunQueueTableModel import RunQueueTableModel
 from MLQueue.windows.models.RunQueueConsoleModel import RunQueueConsoleModel
 from MLQueue.windows.ui.ApplyMachineLearningWindow_ui import \
     Ui_ApplyMachineLearningWindow
@@ -49,7 +49,7 @@ class OptionsSource(Enum):
 
 
 
-class ApplyMachineLearningWindow():
+class MainWindow():
 	"""
 	A QT window which provides the user with several tools to edit/manage/run machine learning settings.
 	"""
@@ -254,7 +254,7 @@ class ApplyMachineLearningWindow():
 			run_queue (RunQueue): the new runQueue
 		"""
 		self._run_queue = run_queue
-		self.ml_queue_model = MLQueueModel(self._run_queue)
+		self.ml_queue_model = RunQueueTableModel(self._run_queue)
 
 	def update_ui_by_connection_state(self, new_connection_state : bool) -> None:
 		"""Updates the UI based on the connection state (disabled certain buttons, etc).
@@ -369,13 +369,13 @@ class ApplyMachineLearningWindow():
 		if self.window.isWindowModified():
 			msg = QtWidgets.QMessageBox()
 			msg.setWindowTitle("Warning")
-			msg.setIcon(QtWidgets.QMessageBox.Icon.Warning) #type: ignore
+			msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
 			msg.setText("The current config has unsaved changed, do you want to overwrite them with this new config?")
-			msg.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No) #type: ignore
-			msg.setDefaultButton(QtWidgets.QMessageBox.No) #type: ignore
-			msg.setEscapeButton(QtWidgets.QMessageBox.No) #type: ignore
+			msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No)
+			msg.setDefaultButton(QtWidgets.QMessageBox.StandardButton.No)
+			msg.setEscapeButton(QtWidgets.QMessageBox.StandardButton.No)
 			ret = msg.exec()
-			if ret == QtWidgets.QMessageBox.No: #type: ignore
+			if ret == QtWidgets.QMessageBox.StandardButton.No:
 				self._config_file_picker_model.setHightLightPath(self._cur_file_path) #Hightlight path -> original
 				return False
 
@@ -399,18 +399,18 @@ class ApplyMachineLearningWindow():
 							file corruption."
 					msg.setInformativeText(txt)
 					msg.setDetailedText(str(problem_dict))
-					msg.setStandardButtons(QtWidgets.QMessageBox.Ok) #type: ignore
-					msg.setDefaultButton(QtWidgets.QMessageBox.Ok) #type: ignore
+					msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok) #type: ignore
+					msg.setDefaultButton(QtWidgets.QMessageBox.StandardButton.Ok) #type: ignore
 					msg.exec()
 				self._config_file_picker_model.setHightLightPath(new_path)
 				return True
-		except Exception as exception:
+		except Exception as exception: #pylint: disable=broad-except #Allow broad-exception, catch all and display
 			msg = QtWidgets.QMessageBox()
 			msg.setWindowTitle("Error")
-			msg.setIcon(QtWidgets.QMessageBox.Critical) #type: ignore
+			msg.setIcon(QtWidgets.QMessageBox.Icon.Critical) #type: ignore
 			msg.setText(f"Could not load config from {new_path}")
 			msg.setInformativeText(f"Error: {exception}")
-			msg.setStandardButtons(QtWidgets.QMessageBox.Ok) #type: ignore
+			msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok) #type: ignore
 			msg.exec()
 			log.error(f"Could not load config from {new_path}. Error: {exception}")
 			self._cur_file_path = None
@@ -473,7 +473,6 @@ class ApplyMachineLearningWindow():
 		name += ("_" + self._options.data_class) if self._options.data_class else ""
 		name += ("_" + self._options.task) if self._options.task else ""
 		name += ("_" + self._options.model) if self._options.model else ""
-		#TODO: maybe add the first x changed-from-default settings to the name?
 		return name
 
 	@catchExceptionInMsgBoxDecorator
@@ -552,8 +551,8 @@ class ApplyMachineLearningWindow():
 
 if __name__ == "__main__":
 	app = QtWidgets.QApplication([])
-	window = QtWidgets.QMainWindow()
+	main_window = QtWidgets.QMainWindow()
 	queue = RunQueue()
-	ml_window = ApplyMachineLearningWindow(run_queue=queue, window=window)
-	window.show()
+	ml_window = MainWindow(run_queue=queue, window=main_window)
+	main_window.show()
 	app.exec()

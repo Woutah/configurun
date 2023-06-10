@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (QApplication, QHBoxLayout, QHeaderView, QPushButt
     QSizePolicy, QSpacerItem, QToolButton, QVBoxLayout,
     QWidget)
 
-from MLQueue.windows.views.MLQueueView import MLQueueView
+from MLQueue.windows.views.RunQueueTreeView import RunQueueTreeView
 from PySide6Widgets.Widgets.SquareFrame import SquareFrame
 import app_resources_rc
 
@@ -188,7 +188,7 @@ class Ui_MLQueueWidget(object):
 
         self.QueueViewLayout = QVBoxLayout()
         self.QueueViewLayout.setObjectName(u"QueueViewLayout")
-        self.queueView = MLQueueView(MLQueueWidget)
+        self.queueView = RunQueueTreeView(MLQueueWidget)
         self.queueView.setObjectName(u"queueView")
 
         self.QueueViewLayout.addWidget(self.queueView)

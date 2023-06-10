@@ -1,31 +1,26 @@
-
+"""
+Implements the RunQueueTableModel class. Enabling the user to display a RunQueue in a QT-view (e.g. QTableView).
+"""
 
 from PySide6 import QtCore, QtGui, QtWidgets
 import typing
 # from MachineLearning.framework.RunQueue import RunQueue, RunQueueItem, RunQueueItemStatus, QueueItemActions
-from MLQueue.classes.RunQueue import RunQueue, RunQueueItem, RunQueueItemStatus, QueueItemActions
+from MLQueue.classes.RunQueue import RunQueue, RunQueueItem, RunQueueItemStatus, RunQueueItemActions
 # from MachineLearning.framework.RunQueueClient import RunQueueClient
-from MLQueue.classes.RunQueueClient import RunQueueClient
 import logging
 log = logging.getLogger(__name__)
 
 
-class MLQueueModel(QtCore.QAbstractTableModel):
+class RunQueueTableModel(QtCore.QAbstractTableModel):
 
 	"""
-	Class that resides between the RunQueue and the view (QTableView) and provides the data for the view in a convenient
-	way. Since Runqueue can also interface over a network - this class can be used to somewhat buffer the data and
-	increase responsiveness of the UI.
+	Class that resides between the RunQueue and the view (QTableView) and provides the data for the view in a 
+	convenient way. Since Runqueue can also interface over a network - this class can be used to somewhat 
+	buffer the data and increase responsiveness of the UI.
 	"""
-	# currentActionListChanged = QtCore.Signal(object) #Emits a list of actions (List[QueueItemActions]) that can be \
-	#  performed on the current selection, can be used to enable/disable buttons
 	
-	#All processes' stdout/stderr will be redirected to a file, this signal will be emitted when a new file is created 
-	# (and thus when a new process is started) #NOTE: for now, both in the same file
-	newRunConsoleOutputPath = QtCore.Signal(int, str, str) #id, name, path 
 
-
-	def set_run_queue(self, run_queue : RunQueue) -> None:
+	def set_run_queue(self, new_run_queue : RunQueue) -> None:
 		"""Sets the runqueue of this model to the given run_queue. This will disconnect all signals from the previous
 		run_queue and connect the signals from the new run_queue
 
@@ -37,13 +32,8 @@ class MLQueueModel(QtCore.QAbstractTableModel):
 			an authenticated server is connected.
 		"""
 		self.beginResetModel() #Invalidate all data in current views
-		if self. _run_queue_consoleoutput_signal_connection is not None:
-			self._run_queue.newRunConsoleOutputPath.disconnect(self._run_queue_consoleoutput_signal_connection)
+		self._run_queue = new_run_queue
 
-		self._run_queue = run_queue
-		self._run_queue_consoleoutput_signal_connection = run_queue.newRunConsoleOutputPath.connect(
-										self.newRunConsoleOutputPath.emit
-									)
 		#============= Signal connections linking UI to RunQueue =============
 		if self._queue_changed_signal_connection is not None:
 			self._run_queue.queueChanged.disconnect(self._queue_changed_signal_connection)
@@ -74,7 +64,7 @@ class MLQueueModel(QtCore.QAbstractTableModel):
 		"""Private variant of reset_model, does not emit the beginResetModel and endResetModel signals
 		"""
 		if self._run_queue is not None:
-			self._cur_queue_copy = self._run_queue.get_queue_snapshot_copy() 
+			self._cur_queue_copy = self._run_queue.get_queue_snapshot_copy()
 			self._cur_run_list_copy = self._run_queue.get_run_list_snapshot_copy()
 			if self._cur_queue_copy is None:
 				self._cur_queue_copy = []
@@ -84,7 +74,7 @@ class MLQueueModel(QtCore.QAbstractTableModel):
 
 	def __init__(self, run_queue : RunQueue, parent: typing.Optional[QtCore.QObject] = None) -> None:
 		super().__init__(parent)
-			
+
 		# self._cur_queue_copy = None
 		# self._cur_run_list_copy = None
 		# self._run_queue = run_queue
@@ -97,11 +87,12 @@ class MLQueueModel(QtCore.QAbstractTableModel):
 		self._run_list_changed_signal_connection = None
 		self._run_item_changed_signal_connection = None
 		self._queue_reset_signal_connection = self
+		self._run_queue = run_queue
+		self._cur_queue_copy = []
+		self._cur_run_list_copy = {}
+
 		self.set_run_queue(run_queue)
-		#=========== Moved to set_run_queue ===========
-		# self._run_queue = run_queue
-		# self._run_queue_consoleoutput_signal = self._run_queue.newRunConsoleOutputPath.connect(self.newRunConsoleOutputPath.emit)
-		
+
 
 
 		self._cur_actions = [] #The actions possible for the currently hightlighted item
@@ -140,7 +131,7 @@ class MLQueueModel(QtCore.QAbstractTableModel):
 		}
 
 		#=== Font for Highlighting ===
-		
+
 		self._highlight_font = QtGui.QFont()
 		self._highlight_font.setBold(True)
 
@@ -152,8 +143,8 @@ class MLQueueModel(QtCore.QAbstractTableModel):
 		#============= Connect changes to the queue to the model =============
 		# self._run_queue.queueChanged.connect(self._update_current_action_list) #Update list when the queue changes
 		# self._run_queue.runListChanged.connect(self._update_current_action_list) #Update list when run list changes
-		# self._run_queue.runItemChanged.connect(self._update_current_action_list) #Update list when  run item changes 
-	
+		# self._run_queue.runItemChanged.connect(self._update_current_action_list) #Update list when  run item changes
+
 
 	column_names = { #Used to map column index to a name/property of a RunQueueItem
 		0: ("name", "Name"),
@@ -178,7 +169,7 @@ class MLQueueModel(QtCore.QAbstractTableModel):
 	# 		self._cur_actions = actions
 	# 		self.currentActionListChanged.emit(self._cur_actions)
 
-	
+
 
 	def rowCount(self, parent: typing.Union[QtCore.QModelIndex, QtCore.QPersistentModelIndex, None] = None) -> int:
 		return len(self._cur_run_list_copy)
@@ -186,12 +177,12 @@ class MLQueueModel(QtCore.QAbstractTableModel):
 		# return super().rowCount(parent)
 	def columnCount(self, parent: typing.Union[QtCore.QModelIndex, QtCore.QPersistentModelIndex, None] = None) -> int:
 		return len(self.column_names)
-	
+
 	def _queue_changed(self, queue_copy):
 		self._cur_queue_copy = queue_copy
 		self.layoutChanged.emit()
 		self.dataChanged.emit(
-			self.index(0, 0), 
+			self.index(0, 0),
 			self.index(self.rowCount(), self.columnCount())
 		) #TODO: Only emit changed. rows
 
@@ -199,43 +190,51 @@ class MLQueueModel(QtCore.QAbstractTableModel):
 		self._cur_run_list_copy = run_list_copy
 		self.layoutChanged.emit()
 		self.dataChanged.emit(
-			self.index(0, 0), 
+			self.index(0, 0),
 			self.index(self.rowCount(), self.columnCount())
 		) #TODO: Only emit for the changed rows
 
-	def _run_item_changed(self, id : int, new_item_copy : RunQueueItem):
-		row = list(self._cur_run_list_copy.keys()).index(id)
-		self._cur_run_list_copy[id] = new_item_copy
+	def _run_item_changed(self, changed_item_id : int, new_item_copy : RunQueueItem):
+		row = list(self._cur_run_list_copy.keys()).index(changed_item_id)
+		self._cur_run_list_copy[changed_item_id] = new_item_copy
 		self.dataChanged.emit(
-			self.index(row, 0), 
+			self.index(row, 0),
 			self.index(row, self.columnCount())
 		) #TODO: Only emit for the changed rows
 
-	def setHighlightIdByIndex(self, index: QtCore.QModelIndex) -> None:
+	def set_highlight_by_index(self, index: QtCore.QModelIndex) -> None:
+		"""Set the highlighted item by its index in the model
+		Args:
+			index (QtCore.QModelIndex): The index of the item to highlight
+		"""
 		if index.isValid():
 			new_id = self._cur_run_list_copy[list(self._cur_run_list_copy.keys())[index.row()]].id
 			self._prev_highlighted_id = self._highlighted_id
 			self._highlighted_id = new_id
 			self.dataChanged.emit(index, index)
 
-	def setHightlightId(self, id: int) -> None:
+	def set_highligh_by_id(self, highlight_item_id: int) -> None:
+		"""Set the highlighted item by its item id
+		Args:
+			id (int): The id of the item to highlight
+		"""
 		self._prev_highlighted_id = self._highlighted_id
-		self._highlighted_id = id
+		self._highlighted_id = highlight_item_id
 		self.dataChanged.emit(
-			self.index(0, 0), 
+			self.index(0, 0),
 			self.index(self.rowCount(), self.columnCount())
 		) #TODO: Only update the row with the new/old id
 
 	def hightlightedId(self) -> int | None:
 		return self._highlighted_id
 
-	
-	#TODO: use RunqueueItemStatus instead of id to get options for ID -> otherwise we have to "ask"remote 
-	#server for item status every time we select a row -> might not be desireable
-	def getHighlightedActions(self) -> typing.List[QueueItemActions]:
-		return self._run_queue.get_actions_for_id(self._highlighted_id) 
 
-	def get_actions(self, index : QtCore.QModelIndex) -> typing.List[QueueItemActions]:
+	#TODO: use RunqueueItemStatus instead of id to get options for ID -> otherwise we have to "ask"remote
+	#server for item status every time we select a row -> might not be desireable
+	def getHighlightedActions(self) -> typing.List[RunQueueItemActions]:
+		return self._run_queue.get_actions_for_id(self._highlighted_id)
+
+	def get_actions(self, index : QtCore.QModelIndex) -> typing.List[RunQueueItemActions]:
 		"""Retrieve the possible actions for a given index (queue item), such as delete, move up in queue, etc.
 
 		Args:
@@ -253,7 +252,13 @@ class MLQueueModel(QtCore.QAbstractTableModel):
 	def add_to_queue(self, name, config) -> None:
 		self._run_queue.add_to_queue(name, config)
 
-	def do_action(self, index : QtCore.QModelIndex, action : QueueItemActions) -> None:
+	def do_action(self, index : QtCore.QModelIndex, action : RunQueueItemActions) -> None:
+		"""Determine the id of the item at the given index and perform the given action on it
+
+		Args:
+			index (QtCore.QModelIndex): The index of the item to perform the action on
+			action (RunQueueItemActions): The action to perform
+		"""
 		if index.isValid():
 			self._run_queue.do_action_for_id(
 				self._cur_run_list_copy[list(self._cur_run_list_copy.keys())[index.row()]].id, action)
@@ -285,40 +290,40 @@ class MLQueueModel(QtCore.QAbstractTableModel):
 					# print(key, attr)
 					return attr.strftime("%Y-%m-%d %H:%M:%S")
 			return attr
-			
-	
+
+
 		elif role == QtCore.Qt.ItemDataRole.DecorationRole:
 			if index.column() == 0:
 				return self._icon_dict.get(item.status, None)
 			else:
-				return None		
+				return None
 		#Font role
 		elif role == QtCore.Qt.ItemDataRole.FontRole:
 			if item.id == self._highlighted_id:
 				return self._highlight_font
 		return None
-	
+
 	def headerData(self, section: int, orientation: QtCore.Qt.Orientation, role: int | None = None) -> typing.Any:
 		if role == QtCore.Qt.ItemDataRole.DisplayRole:
 			if orientation == QtCore.Qt.Orientation.Horizontal:
 				# if section == 0:
 				# 	return "Name"
 				# if section == 1:
-				# 	return "Status" 
+				# 	return "Status"
 				return self.column_names[section][1]
 		return None
-	
+
 
 
 if __name__ == "__main__":
-		
+	# pylint: disable=protected-access
 	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}] {levelname:<7s}   {message}", style='{')
 	handler = logging.StreamHandler()
 	handler.setFormatter(formatter)
 	logging.basicConfig(
 		handlers=[handler],
 		level=logging.DEBUG) #Without time
-	
+
 	log.info("Running small test for MLQueueModel")
 
 	run_queue = RunQueue()
@@ -327,7 +332,7 @@ if __name__ == "__main__":
 	run_queue.add_to_queue("Item3", "TheConfig")
 	run_queue.add_to_queue("Item4", "TheConfig")
 	run_queue.add_to_queue("ItemRunning", "TheConfig")
-	run_queue._all_dict[4].name = "kaas" 
+	run_queue._all_dict[4].name = "kaas"
 	run_queue.add_to_queue("ItemFinished", "TheConfig")
 	run_queue._all_dict[5].status = RunQueueItemStatus.Finished
 	run_queue.add_to_queue("ItemCancelled", "TheConfig")
@@ -335,10 +340,9 @@ if __name__ == "__main__":
 	run_queue.add_to_queue("ItemFailed", "TheConfig")
 	run_queue._all_dict[7].status = RunQueueItemStatus.Failed
 	app = QtWidgets.QApplication([])
-	model = MLQueueModel(run_queue)
+	model = RunQueueTableModel(run_queue)
 	view = QtWidgets.QTreeView()
 	view.setModel(model)
 	view.show()
 	view.resize(1200, 400)
 	app.exec()
-	

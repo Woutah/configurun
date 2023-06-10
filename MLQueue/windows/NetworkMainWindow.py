@@ -1,4 +1,5 @@
 """
+Network-equivalent of main_window.py
 Contains everything neccesary to run the UI in client-mode, enabling the user to connect to a remotely running
 RunQueueServer (see MLQueue.classes.RunQueueServer) and run machine learning tasks on it.
 """
@@ -22,25 +23,21 @@ import typing
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6Widgets.Utility.catchExceptionInMsgBoxDecorator import \
     catchExceptionInMsgBoxDecorator
-from PySide6Widgets.Utility.DataClassEditorsDelegate import \
-    DataClassEditorsDelegate
-# from MachineLearning.framework.
-from res import Paths
 
 from MLQueue.classes.RunQueueClient import RunQueueClient
-from MLQueue.windows.ApplyMachineLearningWindow import \
-    ApplyMachineLearningWindow
+from MLQueue.windows.MainWindow import \
+    MainWindow
 from MLQueue.windows.widgets.NetworkLoginWidget import NetworkLoginWidget
 
 
-class NetworkApplyMachineLearningWindow(ApplyMachineLearningWindow):
+class NetworkMainWindow(MainWindow):
 	"""
 	UI for networking differs somewhat from the local-running UI - for ease of use, we separate the code.
 	"""
 
-	def __init__(self, run_queue_client : RunQueueClient, window: QtWidgets.QMainWindow) -> None:
-		super().__init__(run_queue=run_queue_client, window=window)
-		assert(type(self._run_queue) == RunQueueClient) #Make sure we're using the right type of queue
+	def __init__(self, run_queue_client : RunQueueClient, _window: QtWidgets.QMainWindow) -> None:
+		super().__init__(run_queue=run_queue_client, window=_window)
+		# assert(type(self._run_queue) == RunQueueClient) #Make sure we're using the right type of queue
 		self._run_queue : RunQueueClient = self._run_queue #For Type hinting
 
 		#=================== Network UI ======================
@@ -107,16 +104,31 @@ class NetworkApplyMachineLearningWindow(ApplyMachineLearningWindow):
 
 
 	@catchExceptionInMsgBoxDecorator
-	def connect_to_server(self, ip : str, port : str, password : str) -> None:
-		self._run_queue.connect_to_server(server_ip=ip, server_port=int(port), password=password)
+	def connect_to_server(self, server_ip : str, server_port : str, server_password : str) -> None:
+		"""
+		Wrapper around the connect function of the run_queue which displays a message box when encountering an exception
+		Args:
+			server_ip (str): The ip of the server to connect to
+			server_port (str): The port of the server to connect to
+			server_password (str): The password to use for authentication
+		"""
+		self._run_queue.connect_to_server(server_ip=server_ip, server_port=int(server_port), password=server_password)
 		print("Connected to server!")
 
 	@catchExceptionInMsgBoxDecorator
 	def disconnect_from_server(self) -> None:
+		"""
+		Wrapper around the disconnect function of the run_queue which displays a message box on thrown exceptions.
+		"""
 		self._run_queue.disconnect_clean_server()
-		# raise NotImplementedError("Disconnecting from server not implemented yet...")
 
 	def server_connection_state_changed(self, connected : bool) -> None:
+		"""Update the UI to reflect the connection state, e.g. grey-out the task queue on disconnect as to 
+		indicate to the user that connection has been lost.
+
+		Args:
+			connected (bool): The new connection state (true=Authenticated connection)
+		"""
 		print(f"Connection state changed to {connected}, now updating UI...")
 		log.info(f"Connection state changed to {connected}, now updating UI...")
 		#=========== hide blocking overlays when connected ==========
@@ -126,12 +138,12 @@ class NetworkApplyMachineLearningWindow(ApplyMachineLearningWindow):
 
 		#Update the connection window
 		if connected:
-			ip, port, pw = self._run_queue.get_connection_info()
-			self.network_connection_widget.client_connected(ip, str(port), pw)
+			cur_ip, cur_port, cur_pw = self._run_queue.get_connection_info()
+			self.network_connection_widget.client_connected(cur_ip, str(cur_port), cur_pw)
 			self.connection_window.close()
 
 			self.ml_queue_model.reset_model() #Re-request all data from the server
-			self.window.statusBar().showMessage(f"Connected to {ip}:{port}", timeout=0) #Show message until next msg
+			self.window.statusBar().showMessage(f"Connected to {cur_ip}:{cur_port}", timeout=0) #Show message until next msg
 
 		else:
 			self.network_connection_widget.client_disconnected()
@@ -173,7 +185,7 @@ if __name__ == "__main__":
 
 	window = QtWidgets.QMainWindow()
 	runqueue_client = RunQueueClient()
-	ml_window = NetworkApplyMachineLearningWindow(runqueue_client, window)
+	ml_window = NetworkMainWindow(runqueue_client, window)
 	# window = QtWidgets.QWidget()
 	window.show()
 	app.exec()

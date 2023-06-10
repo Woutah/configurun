@@ -23,7 +23,7 @@ def get_class_implemented_methods(obj : type, exclude_parent_methods : bool = Tr
 	ret = set(
 		[method for method in dir(obj) if not method.startswith("__") and not method.endswith("__")]
 	)
-	ret = ret - parent_methods
+	ret = ret - parent_methods # type: ignore
 	return list(ret)
 
 class MethodCallInterceptorClass():
@@ -39,55 +39,59 @@ class MethodCallInterceptorClass():
 			function_name (str) : name of the function that was called
 			args : arguments to the function
 			kwargs : keyword arguments to the function
-		
+
 		returns:
 			Any : return value of the function
-		
+
 		"""
 		raise NotImplementedError()
 
 
 class MethodCallInterceptedMeta(type(QtCore.QObject)):
 	"""
-	Metaclass that intercepts all calls to the method-list provided by the user and sends them to 
-	the function: _interceptor instead. This allows the user to create a proxy-instance of a 
-	class which passes all function calls on to a remote server on which the actual instance of the 
+	Metaclass that intercepts all calls to the method-list provided by the user and sends them to
+	the function: _interceptor instead. This allows the user to create a proxy-instance of a
+	class which passes all function calls on to a remote server on which the actual instance of the
 	class is running.
 
 	NOTE: the interceptor-method (_interceptor) should be implemented in the class that uses this
-	metaclass, this is enforced	by making the class inherit from MethodIntercceptorClass, which is an abstract class 
+	metaclass, this is enforced	by making the class inherit from MethodIntercceptorClass, which is an abstract class
 	that defines the _interceptor method
 
 	args:
 		function_name (str) : name of the function that was called
 		args : arguments to the function
 		kwargs : keyword arguments to the function
-	
+
 	returns:
 		Any : return value of the function
-	
+
 	"""
-	def __new__(cls, name, bases, 
-	     		dct : dict, 
-				intercept_list : list[str], 
-				skip_intercept_list : list[str] = 
-					["__init__", 
-					"__getattr__", 
-					"__getattribute__", 
-					"__setattr__", 
-					"__get__",
-					"__set__", 
-					"__delete__"]
+	def __new__(mcs, name, bases,
+	     		dct : dict,
+				intercept_list : list[str],
+				#Use list factory to safely create a new list object:
+				skip_intercept_list : list[str] | None = None
 				):
 		"""Instantiate a new instance of the class with an interceptor
 		Args:
 			name (_type_): default __new__ arg 0
 			bases (_type_): default __new__ arg 1
 			dct (dict): default __new__ arg 2
-			intercept_list (list[str]): The list of functions that should be intercepted 
+			intercept_list (list[str]): The list of functions that should be intercepted
 			skip_intercept_list (list[str], optional): Convenience argument with a list of items that should
 				not be intercepted, even if they are present in skip_intercept_list. Defaults to [].
 		"""
+		if skip_intercept_list is None: #If no argument is provided, use an empty list
+			skip_intercept_list = [
+					"__init__",
+					"__getattr__",
+					"__getattribute__",
+					"__setattr__",
+					"__get__",
+					"__set__",
+					"__delete__"
+			]
 		new_class_dict = {}
 
 		if MethodCallInterceptorClass._interceptor.__name__ not in dct:
@@ -109,7 +113,7 @@ class MethodCallInterceptedMeta(type(QtCore.QObject)):
 		def get_call_interceptor_func(passed_attribute_name, interceptor):
 			return lambda self, *args, **kwargs: interceptor(self, passed_attribute_name, *args, **kwargs)
 
-		
+
 
 		for attribute_name, attribute in dct.items():
 			#If the attribute is a function
@@ -131,16 +135,15 @@ class MethodCallInterceptedMeta(type(QtCore.QObject)):
 				if method not in new_class_dict \
 						and method in intercept_list \
 						and method not in skip_intercept_list:
-					new_class_dict[method] = get_call_interceptor_func(method, interceptor)			
+					new_class_dict[method] = get_call_interceptor_func(method, interceptor)
 		bases = (MethodCallInterceptorClass,) + bases
 		#Make sure there are no duplicates in the bases
 		bases = tuple(set(bases))
-		return super().__new__(cls, name, bases, new_class_dict)
-
-
+		return super().__new__(mcs, name, bases, new_class_dict)
 
 
 def main():
+	# pylint: disable=unused-argument missing-function-docstring missing-class-docstring invalid-name
 	"""Test function"""
 	class TestClass():
 		"""_summary_
@@ -148,13 +151,13 @@ def main():
 		def __init__(self) -> None:
 			self.testvariable = 10
 
-		def A(self, a, b, c):
+		def a_method(self, a, b, c):
 			print("A")
 
-		def b(self):
+		def b_method(self):
 			print("b")
 
-		def c(self, *args):
+		def c_method(self, *args):
 			print(f"c: {args}")
 
 		@staticmethod
@@ -169,12 +172,12 @@ def main():
 
 	print("Start!")
 	testje = InterceptedTestClass()
-	testje.A(1,2,3)
-	testje.b()
-	testje.c(1,2,3)
+	testje.a_method(1,2,3)
+	testje.b_method()
+	testje.c_method(1,2,3)
 	testje.static()
 	print("Done!")
-	
+
 
 if __name__ == "__main__":
 	main()
