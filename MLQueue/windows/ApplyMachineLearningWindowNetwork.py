@@ -1,4 +1,7 @@
-
+"""
+Contains everything neccesary to run the UI in client-mode, enabling the user to connect to a remotely running
+RunQueueServer (see MLQueue.classes.RunQueueServer) and run machine learning tasks on it.
+"""
 
 import logging
 
@@ -15,8 +18,7 @@ if __name__ == "__main__":
 
 
 import typing
-from MLQueue.windows.widgets.NetworkLoginWidget import NetworkLoginWidget
-from MLQueue.windows.ApplyMachineLearningWindow import ApplyMachineLearningWindow
+
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6Widgets.Utility.catchExceptionInMsgBoxDecorator import \
     catchExceptionInMsgBoxDecorator
@@ -26,7 +28,9 @@ from PySide6Widgets.Utility.DataClassEditorsDelegate import \
 from res import Paths
 
 from MLQueue.classes.RunQueueClient import RunQueueClient
-
+from MLQueue.windows.ApplyMachineLearningWindow import \
+    ApplyMachineLearningWindow
+from MLQueue.windows.widgets.NetworkLoginWidget import NetworkLoginWidget
 
 
 class NetworkApplyMachineLearningWindow(ApplyMachineLearningWindow):
@@ -62,7 +66,7 @@ class NetworkApplyMachineLearningWindow(ApplyMachineLearningWindow):
 		self.ui.menusource.deleteLater()
 
 		#================== Network-specific menu ================
-		
+
 		self.menubar = self.ui.menubar
 		self.connection_menu = QtWidgets.QMenu(self.menubar)
 		self.connection_menu.setTitle("Connection...")
@@ -70,14 +74,14 @@ class NetworkApplyMachineLearningWindow(ApplyMachineLearningWindow):
 		self.open_connection_action = QtGui.QAction("Connection Settings", self.connection_menu)
 		self.connection_menu.addAction(self.open_connection_action)
 
-	
+
 		#=========== Connect/Disconnect window ==============
 		self.connection_window = QtWidgets.QMainWindow()
 		self.connection_window.setWindowTitle("Connection")
 		self.connection_window.setWindowIcon(self.window.windowIcon())
 
 		self.network_connection_parent = QtWidgets.QWidget()
-		self.network_connection_widget = NetworkLoginWidget(self.network_connection_parent, self._settings) 
+		self.network_connection_widget = NetworkLoginWidget(self.network_connection_parent, self._settings)
 		# self.connection_window.setCentralWidget(self.network_connection_widget)
 		self.connection_window.setCentralWidget(self.network_connection_parent)
 		self.server_connection_state_changed(self._run_queue.is_connected_and_authenticated()) #Set initial state
@@ -119,7 +123,7 @@ class NetworkApplyMachineLearningWindow(ApplyMachineLearningWindow):
 		self.console_overlay_widget.setOverlayHidden(connected)
 		self.ml_overlay_widget.setOverlayHidden(connected)
 
-		
+
 		#Update the connection window
 		if connected:
 			ip, port, pw = self._run_queue.get_connection_info()
@@ -137,9 +141,9 @@ class NetworkApplyMachineLearningWindow(ApplyMachineLearningWindow):
 
 
 
-	def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+	def close_event(self, event: QtGui.QCloseEvent) -> None:
 		self.network_connection_widget.save_histories() #Also save file-edit history
-		return super().closeEvent(event)
+		return super().close_event(event)
 
 
 	@staticmethod
@@ -158,7 +162,6 @@ class NetworkApplyMachineLearningWindow(ApplyMachineLearningWindow):
 
 
 if __name__ == "__main__":
-	
 	# formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}] {levelname:<7s}   {message}", style='{')
 	# log.propagate = False
 	# handler = logging.StreamHandler()
@@ -174,4 +177,3 @@ if __name__ == "__main__":
 	# window = QtWidgets.QWidget()
 	window.show()
 	app.exec()
-
