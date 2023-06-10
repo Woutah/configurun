@@ -3,13 +3,15 @@ instance, but instead sends all function calls to a server on which the actual R
 """
 
 import logging
-#Import socket
+import queue
 import socket
+import threading
 import time
 import traceback
 
-from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
+from PySide6 import QtCore
 
 from MLQueue.classes.MethodCallInterceptor import (
     MethodCallInterceptedMeta, get_class_implemented_methods)
@@ -26,11 +28,6 @@ from MLQueue.classes.RunQueueDataTypes import (RSA_KEY_SIZE_BITS,
                                                Transmission, TransmissionType)
 
 log = logging.getLogger(__name__)
-import queue
-import threading
-import typing
-
-from PySide6 import QtCore
 
 
 def get_pyqt_signal_names(the_object : type) -> list[QtCore.SignalInstance]:
@@ -101,6 +98,9 @@ class RunQueueClient(RunQueue,
 
 		self._disconnect_flag = True #Whether to stop listening to the server
 
+	def force_stop(self):
+		#TODO: implement
+		raise NotImplementedError("Not implemented yet")
 
 	def is_connected(self):
 		"""Returns whether the client is currently trying to connect to the server or is connected to the server
@@ -179,8 +179,8 @@ class RunQueueClient(RunQueue,
 			ret = return_queue.get(block=True, timeout=timeout)
 			log.info(f"Received response from server for method call with id {function_response_id}, response: {ret}")
 		except (TimeoutError, queue.Empty) as exception: #If the queue is empty, then the server did not respond in time
-			raise TimeoutError(f"Timeout while waiting ({timeout}s) for response of method call with id {function_response_id}") \
-				from exception
+			raise TimeoutError(f"Timeout while waiting ({timeout}s) for response of method call with \
+		    	id {function_response_id}") from exception
 		finally: #Always clean up the queue to no longer listen for this id
 			with self._method_reponse_dict_lock:
 				del self._method_response_dict[function_response_id]
@@ -351,7 +351,7 @@ class RunQueueClient(RunQueue,
 					try:
 						data = PickleTransmissionData.from_transmission_bytes(received.transmission_data)
 						unpickled_data = data.unpickled_data #type: ignore
-						assert isinstance(unpickled_data, typing.Iterable), "First element is the type of the data, \
+						assert isinstance(unpickled_data, tuple), "First element is the type of the data, \
 							should be tuple"
 
 						if unpickled_data[0] == PickledDataType.METHOD_RETURN:

@@ -26,8 +26,13 @@ class RunQueueConsoleItem(BaseConsoleItem):
 	dataChanged = QtCore.Signal() #When the metadata of the item changes (e.g. last-edit-date, name, runState not txt)
 	filledTextPositionsChanged = QtCore.Signal(object) #Emitted when the receieved text is filled in the buffer
 
-	def __init__(self, item_id :int, name : str, path : str | None = None, active_state : bool = True, *args, **kwargs):
-		super().__init__(*args, **kwargs)
+	def __init__(self,
+	    	item_id :int,
+			name : str,
+			path : str | None = None,
+			active_state : bool = True
+			):
+		super().__init__()
 		self._edit_mutex = threading.Lock() #When adding from/to the buffer, lock this mutex
 		self._current_text : str = ""
 		self._name : str = name
@@ -57,15 +62,26 @@ class RunQueueConsoleItem(BaseConsoleItem):
 		   QtGui.QIcon.Mode.Normal,
 		   QtGui.QIcon.State.Off)
 
+	def get_id(self) -> int:
+		"""Returns the id of this item - id is set at creation and should be unique for each item"""
+		return self._id
 
 	def set_active_state(self, new_active_state : bool):
 		"""Sets the active state of the item (e.g. whether it is running or not)
 
 		Args:
 			new_active_state (bool): The new state
-		"""		
-		self._active_state = active_state
+		"""
+		self._active_state = new_active_state
 		self.dataChanged.emit()
+
+	def get_active_state(self) -> bool:
+		"""Returns the active state of the item (e.g. whether it is running or not)
+
+		Returns:
+			bool: The active state of the item
+		"""
+		return self._active_state
 
 	# def set_runqueue(self, run_queue : RunQueue):
 	# 	self._run_queue = run_queue
@@ -82,11 +98,13 @@ class RunQueueConsoleItem(BaseConsoleItem):
 	def on_commandline_output(self,
 			   					item_id : int,
 								name : str,
-								output_path : str, 
+								output_path : str,
 								edit_dt : datetime.datetime,
 								filepos : int,
 								msg : str
 							): # pylint: disable=unused-argument
+		"""Called when new command line output is received, inserts the new text into the buffer and emits 
+		the currentTextChanged signal if the buffer changed"""
 		if item_id != self._id: #Skip if not the correct id
 			return
 		if name != self._name:
@@ -99,7 +117,7 @@ class RunQueueConsoleItem(BaseConsoleItem):
 				self._last_edited = edit_dt
 				data_changed = True
 
-			textgap_changed = False
+			filled_text_positions_changed = False
 
 			cur_filepositions = copy.copy(self._filled_filepositions)
 
@@ -110,21 +128,21 @@ class RunQueueConsoleItem(BaseConsoleItem):
 						break
 					else:
 						self._filled_filepositions[i] = (cur_min, filepos + len(msg))
-						textgap_changed = True
+						filled_text_positions_changed = True
 						break
 				elif i+1 < len(cur_filepositions): #If the next item is not the last item
 					if filepos >= cur_max and filepos + len(msg) <= cur_filepositions[i+1][0]: #If filling in between 2
 						self._filled_filepositions.insert(i+1, (filepos, filepos + len(msg)))
-						textgap_changed = True
+						filled_text_positions_changed = True
 						break
 				else: #If the last item, and filepos > max (already checked above)
 					self._filled_filepositions.append((filepos, filepos + len(msg)))
-					textgap_changed = True
+					filled_text_positions_changed = True
 
 			#===== Iterate over all filled filepositions and merge overlapping ones=======
-			if textgap_changed:
+			if filled_text_positions_changed:
 				i = 0
-				while(i < len(self._filled_filepositions)-1):
+				while i < (len(self._filled_filepositions)-1):
 					if self._filled_filepositions[i][1] >= self._filled_filepositions[i+1][0]:
 						# new_filled.append((cur_filepositions[i][0], cur_filepositions[i+1][1]))
 						self._filled_filepositions[i] = (
@@ -132,9 +150,9 @@ class RunQueueConsoleItem(BaseConsoleItem):
 						del self._filled_filepositions[i+1]
 						continue
 					i+=1
-			if textgap_changed:
-				self.textGapChanged.emit(self._filled_filepositions)
-			
+			if filled_text_positions_changed:
+				self.filledTextPositionsChanged.emit(self._filled_filepositions)
+
 			#=========== Insert actual text into the buffer ===========
 			#TODO: make use of a ringbuffer of user-specified size
 			new_text = self._current_text[:filepos] if len(self._current_text) > filepos else \
@@ -182,7 +200,7 @@ class RunQueueConsoleItem(BaseConsoleItem):
 class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 	"""
 	A RunQueue model that synchronizes with text-output from running items in the runqueue by requesting all text-data
-	from the runqueue upon connection, and then subscribing to any changes to the text-output of the items 
+	from the runqueue upon connection, and then subscribing to any changes to the text-output of the items
 	running in the runqueue.
 	"""
 
@@ -200,7 +218,12 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 		self._active_ids_signal : QtCore.SignalInstance | None = None
 		self._queue_reset_signal : QtCore.SignalInstance | None = None
 
-	def setRunQueue(self, run_queue : RunQueue):
+	def set_run_queue(self, run_queue : RunQueue):
+		"""Set the runqueue to synchronize with
+
+		Args:
+			run_queue (RunQueue): The new runqueue to synchronize with
+		"""
 		self._run_queue = run_queue
 		if self._new_cmd_text_signal is not None:
 			self._new_cmd_text_signal.disconnect()
@@ -210,7 +233,7 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 			self._queue_reset_signal.disconnect()
 
 		self._active_ids_signal = self._run_queue.currentlyRunningIdsChanged.connect(self.running_ids_changed)
-		self._new_cmd_text_signal = self._run_queue.newCommandLineOutput.connect(self.newCommandLineOutput)
+		self._new_cmd_text_signal = self._run_queue.newCommandLineOutput.connect(self.new_command_line_output)
 		self._queue_reset_signal = self._run_queue.queueResetTriggered.connect(self.reset) #Upon queue reset ->
 			# re-request all data from the runqueue
 
@@ -234,7 +257,7 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 					if cur_id in self._ignored_ids:
 						continue
 					item = RunQueueConsoleItem(cur_id, name, path, running)
-					self.appendRow(item)
+					self.append_row(item)
 
 					all_txt, last_edit_dt = self._run_queue.get_command_line_output(cur_id, -1, file_size)
 					item.on_commandline_output( #Append all text to the item
@@ -260,7 +283,7 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 		"""
 		return list(self._ignored_ids)
 
-	def newCommandLineOutput(self, 
+	def new_command_line_output(self,
 			  				item_id : int,
 							item_name : str,
 							item_path : str,
@@ -281,7 +304,7 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 			return
 		if item_id not in self._id_item_map:
 			item = RunQueueConsoleItem(item_id, item_name, item_path)
-			self.appendRow(item)
+			self.append_row(item)
 
 		self._id_item_map[item_id].on_commandline_output(item_id, item_name, item_path, item_edit_dt, item_filepos, item_msg)
 
@@ -289,35 +312,42 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 		"""Called when the running ids changed, updates the console-items to reflect the active/inactive state"""
 		with self._id_item_map_mutex:
 			for cur_id in self._id_item_map:
-				self._id_item_map[cur_id]._active_state = cur_id in runnings_ids
+				self._id_item_map[cur_id].set_active_state(cur_id in runnings_ids)
 
 
-	def columnCount(self, parent : QtCore.QModelIndex = QtCore.QModelIndex()) -> int:
+	def columnCount(self, parent : QtCore.QModelIndex = QtCore.QModelIndex()) -> int: #pylint: disable=unused-argument
 		return 3
 
-	def rowCount(self, parent : QtCore.QModelIndex = QtCore.QModelIndex()) -> int:
+	def rowCount(self, parent : QtCore.QModelIndex = QtCore.QModelIndex()) -> int: # pylint: disable=unused-argument
 		return len(self._id_item_map)
 
-	def un_ignore_id(self, id : int):
-		log.debug(f"Un-ignoring id {id}")
+	def un_ignore_id(self, item_id : int):
+		"""Un-ignore the item with the passed id. Re-synchronizes text-data with the runqueue and re-adds the item
+		to the model for the view to display
+		TODO: We request the whole text file, but this might take a long while for very large files. Instead
+		we should only request the missing data (e.g. the last 1000 chars) and append that to the current text
+		Args:
+			item_id (int): The item to un-ignore
+		"""
+		log.debug(f"Un-ignoring id {item_id}")
 		with self._id_item_map_mutex:
-			if id not in self._ignored_ids:
+			if item_id not in self._ignored_ids:
 				return #Already un-ignored
-			self._ignored_ids.remove(id)
+			self._ignored_ids.remove(item_id)
 
 		if self._run_queue is not None:
 			cur_queue = self._run_queue.get_command_line_info_list()
-			if id in cur_queue:
-				name, path, file_size, currently_running = cur_queue[id]
-				item = RunQueueConsoleItem(id, name, path, currently_running)
-				self.appendRow(item)
+			if item_id in cur_queue:
+				name, path, file_size, currently_running = cur_queue[item_id]
+				item = RunQueueConsoleItem(item_id, name, path, currently_running)
+				self.append_row(item)
 				self.dataChanged.emit(self.index(0,0), self.index(self.rowCount()-1, self.columnCount()-1))
 
 				#TODO: instead of re-requesting all data, only request the missing data - don't delete upon ignore,
 				#instead, simply don't show/update the item in the model
-				all_txt, last_edit_dt = self._run_queue.get_command_line_output(id, -1, file_size)
+				all_txt, last_edit_dt = self._run_queue.get_command_line_output(item_id, -1, file_size)
 				item.on_commandline_output( #Append all text to the item
-					item_id=id,
+					item_id=item_id,
 					name=name,
 					output_path=path,
 					edit_dt=last_edit_dt,
@@ -326,17 +356,6 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 				) #TODO: maybe only import active items?
 
 		# item = RunQueueConsoleItem()
-
-	def request_data(self, id : int, end_fseek : int, read_bytes : int):
-		with self._id_item_map_mutex:
-			if id not in self._id_item_map:
-				log.warning(f"Could not request data for item with id {id} as it is not monitored in the model")
-				return
-
-		item = self._id_item_map[id]
-		if self._run_queue is not None:
-			self._run_queue.get_command_line_output(id, end_fseek, read_bytes)
-
 
 	# def reset(self):
 	# 	"""Re-request all data and refill model"""
@@ -354,40 +373,40 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 	# 			self.appendRow(item)
 	# 	self.endResetModel()
 
-	def appendRow(self, item : RunQueueConsoleItem):
+	def append_row(self, item : RunQueueConsoleItem):
 		"""Append a row to the model - consisting of a single ConsoleStandardItem
 		Args:
 			item (ConsoleStandardItem): The item to append (each row corresponds to 1 item)
 		"""
 		self.beginInsertRows(QtCore.QModelIndex(), self.rowCount(), self.rowCount()) #No parent, insert at end
+		cur_item_id = item.get_id()
 		with self._id_item_map_mutex:
-			assert(item._id not in self._id_item_map), "Item with this ID already in model"
-			self._id_item_map[item._id] = item
+			assert cur_item_id not in self._id_item_map, "Item with this ID already in model"
+			self._id_item_map[cur_item_id] = item
 			#TODO: only emit dataChanged for this item
 		item.dataChanged.connect(
 			# lambda *args: print(f"Data changed for item {item._id}")
-			lambda id=item._id: self.dataChanged.emit(
+			lambda item_id=cur_item_id: self.dataChanged.emit(
 				# self.index(0, 0),
 				# self.index(self.rowCount()-1, self.columnCount()-1))
-				self.index(list(self._id_item_map.keys()).index(id), 0),
-				self.index(list(self._id_item_map.keys()).index(id), self.columnCount()-1))
+				self.index(list(self._id_item_map.keys()).index(item_id), 0),
+				self.index(list(self._id_item_map.keys()).index(item_id), self.columnCount()-1))
 		)
 
 		self.endInsertRows()
 
 	def removeRow(self, row: int, parent : QtCore.QModelIndex) -> None:
 		self.beginRemoveRows(parent, row, row)
-		# self._item_list.pop(row)
-		id = list(self._id_item_map.keys())[row]
+		item_id = list(self._id_item_map.keys())[row]
 		with self._id_item_map_mutex:
-			del self._id_item_map[id]
-			self._ignored_ids.add(id)
+			del self._id_item_map[item_id]
+			self._ignored_ids.add(item_id)
 
 		ignored_list = ", ".join([str(i) for i in list(self._ignored_ids)])
-		log.info(f"Removed row with id {id} - ignorelist: {ignored_list}")
+		log.info(f"Removed row with id {item_id} - ignorelist: {ignored_list}")
 		self.modelReset.emit() #Why is this needed?
 
-	def parent(self, index : QtCore.QModelIndex) -> QtCore.QModelIndex:
+	def parent(self, index : QtCore.QModelIndex) -> QtCore.QModelIndex: #pylint: disable=unused-argument
 		return QtCore.QModelIndex() #No parents
 
 	def data(self, index : QtCore.QModelIndex, role : QtCore.Qt.ItemDataRole = QtCore.Qt.ItemDataRole.DisplayRole):
@@ -431,18 +450,19 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 
 
 if __name__ == "__main__":
-	print("Now testing RunQueueConsoleModel")
+	#pylint: disable=ungrouped-imports, protected-access, redefined-outer-name, missing-function-docstring, invalid-name
 	from PySide6Widgets.Widgets.ConsoleWidget import ConsoleWidget
 	app = QtWidgets.QApplication([])
 	model = RunQueueConsoleModel()
+	print("Now running a test-instance of RunQueueConsoleModel")
 
 	widget = ConsoleWidget()
 	# widget = QtWidgets.QTableView()
 	widget.setModel(model)
 	widget.show()
-	model.appendRow(RunQueueConsoleItem(1, "test1"))
+	model.append_row(RunQueueConsoleItem(1, "test1"))
 	# app.exec()
-	model.newCommandLineOutput(
+	model.new_command_line_output(
 		item_id=2,
 		item_name="test2",
 		item_path="",
@@ -451,7 +471,7 @@ if __name__ == "__main__":
 		item_msg = "testmsg2"
 	)
 	samedt = datetime.datetime.now()
-	model.newCommandLineOutput(
+	model.new_command_line_output(
 		item_id=3,
 		item_name="test3",
 		item_path="",
@@ -459,7 +479,7 @@ if __name__ == "__main__":
 		item_filepos=0,
 		item_msg = "testmsg3"
 	)
-	model.newCommandLineOutput(
+	model.new_command_line_output(
 		item_id=4,
 		item_name="test4",
 		item_path="",
@@ -474,10 +494,10 @@ if __name__ == "__main__":
 	def testfunc(model : RunQueueConsoleModel, start_pos):
 		i = 10
 		cur_pos = start_pos
-		while(True):
+		while True:
 			i+= 1
 			new_msg = f"Currently logging {i}\n"
-			model.newCommandLineOutput(
+			model.new_command_line_output(
 				item_id=1,
 				item_name="test1",
 				item_path="",
@@ -508,6 +528,3 @@ if __name__ == "__main__":
 	thread2.start()
 
 	app.exec()
-
-
-

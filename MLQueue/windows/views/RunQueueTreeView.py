@@ -6,7 +6,6 @@ import typing
 
 from PySide6 import QtCore, QtWidgets
 
-
 from MLQueue.classes.RunQueue import (RunQueueItemActions, RunQueue,
                                       RunQueueItemStatus)
 from MLQueue.windows.models.RunQueueTableModel import RunQueueTableModel
@@ -116,7 +115,7 @@ class RunQueueTreeView(QtWidgets.QTreeView):
 		if isinstance(cur_model, RunQueueTableModel):
 			try:
 				cur_model.do_action(self.currentIndex(), action)
-			except Exception as exception:
+			except Exception as exception: # pylint: disable=broad-exception-caught
 				log.error(f"Failed to perform action {str(action)}: {exception}")
 				#Create qt message box with this notification
 				msg = QtWidgets.QMessageBox()
@@ -146,15 +145,15 @@ if __name__ == "__main__":
 
 	run_queue.add_to_queue("ItemRunning", "TheConfig")
 	run_queue._queue.remove(4)
-	run_queue._all_dict[4].status = RunQueueItemStatus.Running
+	run_queue._all_dict[4].status = RunQueueItemStatus.RUNNING
 	run_queue.add_to_queue("ItemFinished", "TheConfig")
-	run_queue._all_dict[5].status = RunQueueItemStatus.Finished
+	run_queue._all_dict[5].status = RunQueueItemStatus.FINISHED
 	run_queue._queue.remove(5)
 	run_queue.add_to_queue("ItemCancelled", "TheConfig")
-	run_queue._all_dict[6].status = RunQueueItemStatus.Stopped
+	run_queue._all_dict[6].status = RunQueueItemStatus.STOPPED
 	run_queue._queue.remove(6)
 	run_queue.add_to_queue("ItemFailed", "TheConfig")
-	run_queue._all_dict[7].status = RunQueueItemStatus.Failed
+	run_queue._all_dict[7].status = RunQueueItemStatus.FAILED
 
 	run_queue._queue.remove(7)
 

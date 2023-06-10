@@ -191,7 +191,7 @@ class MainWindow():
 
 		#==================Console ================
 		self._console_item_model = RunQueueConsoleModel()
-		self._console_item_model.setRunQueue(self._run_queue)
+		self._console_item_model.set_run_queue(self._run_queue)
 		self.ui.consoleWidget.setModel(self._console_item_model)
 
 		#Connect right click on console-widget to a context menu

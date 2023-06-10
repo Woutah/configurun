@@ -1,31 +1,32 @@
+"""
+Forms a pair with RunQueueClient - this class runs on the server side and handles all incoming connections.
+It contains a RunQueue object to/from which all data is transmitted/received using the connected clients.
+"""
 
 
-
+import hashlib
 import logging
 # import struct
 import socket
 # import pycryptodome
 import sys
+#Import threading lock
+import threading
+import typing
 
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
 
-from MLQueue.classes.RunQueue import RunQueue
-
 log = logging.getLogger(__name__)
-import hashlib
-#Import threading lock
-import threading
-import typing
-from abc import ABC, abstractmethod
-from ctypes import c_uint32 as uint32
 
 from PySide6 import QtCore
 
+from MLQueue.classes.RunQueue import RunQueue
 from MLQueue.classes.RunQueueDataTypes import (AES_EMPTY_KEY,
                                                RSA_KEY_SIZE_BITS,
                                                AESSessionKeyTransmissionData,
+                                               ClientData,
                                                LoginTransmissionData,
                                                PickledDataType,
                                                PickleTransmissionData,
@@ -33,7 +34,8 @@ from MLQueue.classes.RunQueueDataTypes import (AES_EMPTY_KEY,
                                                StateMsgType,
                                                StateTransmissionData,
                                                Transmission, TransmissionType,
-                                               ClientData)
+											   AuthenticationException
+											   )
 
 
 class RunQueueServer():
@@ -152,7 +154,7 @@ class RunQueueServer():
 
 		#TODO: stopflag/create separate listener class with a qt signal
 		"""
-		while(True):
+		while True:
 			self._socket.listen(5) #TODO: maybe increase the backlog?
 			#Check if there are any new connections
 			client, address = self._socket.accept() #TODO: as soon as a client connects, start a new thread to handle
@@ -185,25 +187,31 @@ class RunQueueServer():
 		if received.transmission_type == TransmissionType.PUB_KEY:
 			try:
 				pubkey_data = PubKeyTransmissionData.from_transmission_bytes(received.transmission_data)
-			except Exception as e:
-				log.info(f"Error during Authentication of {address}: First transmission from client should be a public key, but failed to parse it as such. {type(e)}: {e} - disconnecting...")
+			except AuthenticationException as auth_exception:
+				log.info(f"Error during Authentication of {address}: First transmission from client should be a public\
+	     			key, but failed to parse it as such. {auth_exception} - disconnecting...")
 				client_sock.close()
 				return
 			client_public_key = pubkey_data.pubkey
 		elif received.transmission_type == TransmissionType.STATE:
 			try:
 				state_data = StateTransmissionData.from_transmission_bytes(received.transmission_data)
-				log.warning(f"Authentication of {address}: Received a state message from {address}: {state_data.state_msg_type.name} - {state_data.state_msg}... But first message should be a public key. Closing connection...")
+				log.warning(f"Authentication of {address}: Received a state message from {address}: \
+					{state_data.state_msg_type.name} - {state_data.state_msg}... But first message should be a public \
+					key. Closing connection...")
 				client_sock.close()
-			except Exception as e:
-				log.warning(f"First connection should be a public key - failed to parse {address}: {e} - disconnecting...")
+			except Exception as exception: # pylint: disable=broad-exception-caught
+				log.warning(f"First connection should be a public key - failed to parse {address}: {exception} - \
+					disconnecting...")
 				client_sock.close()
 				return
 		else:
-			log.warning(f"Error during Authentication of {address}: Received a message with TransmissionType: {received.transmission_type} - expected TransmissionType.pub_key - disconnecting...")
+			log.warning(f"Error during Authentication of {address}: Received a message with TransmissionType: \
+	       		{received.transmission_type} - expected TransmissionType.pub_key - disconnecting...")
 
 		if client_public_key is None:
-			log.error(f"Error during Authentication of {address}: No public key received in pubkey transmission - disconnecting...")
+			log.error(f"Error during Authentication of {address}: No public key received in pubkey transmission - \
+	     		disconnecting...")
 			Transmission.send(
 				client_sock,
 				StateTransmissionData(
@@ -238,7 +246,8 @@ class RunQueueServer():
 			aes_session_key
 		)
 		if received.transmission_type != TransmissionType.LOGIN:
-			log.error(f"Error during Authentication of {address}: Expected TransmissionType.login - received {received.transmission_type.name}({received.transmission_type}) - disconnecting...")
+			log.error(f"Error during Authentication of {address}: Expected TransmissionType.login - received \
+	     		{received.transmission_type.name}({received.transmission_type}) - disconnecting...")
 			client_sock.close()
 			return
 		else:
@@ -246,7 +255,9 @@ class RunQueueServer():
 			login_info = LoginTransmissionData.from_transmission_bytes(received.transmission_data)
 
 		hashed_password = self.get_password_hash(login_info.password)
-		log.info(f"Authentication of {address} - Received hashed pw {address}: {hashed_password}") #TODO: Also implement client-side hashing of the password - send a salt back with the AES-session key? Traffic is encrypted - but server probably shouldn't know the plaintext password attempts.
+		log.info(f"Authentication of {address} - Received hashed pw {address}: {hashed_password}")
+			#TODO: Also implement client-side hashing of the password - send a salt back with the AES-session key?
+			# Traffic is encrypted - but server probably shouldn't know the plaintext password attempts.
 
 
 		#Check if the password hash is correct
@@ -281,7 +292,7 @@ class RunQueueServer():
 		client_thread = threading.Thread(target=self._client_listener, args=(client_sock, address, aes_session_key))
 
 		with self._client_list_lock:
-			assert(client_sock not in self._client_dict) #Assume connection is not already authenticated
+			assert client_sock not in self._client_dict, "Connection cannot already be authenticated/running"
 			self._client_dict[client_sock] = ClientData(
 				client_socket = client_sock,
 				client_public_key = client_public_key,
@@ -309,7 +320,7 @@ class RunQueueServer():
 		"""
 		unpickled_data = pickle_transmission_data.unpickled_data
 
-		assert(type(unpickled_data) == tuple), "Pickled transmission data should (in this case) always be a tuple of \
+		assert isinstance(unpickled_data, tuple), "Pickled transmission data should (in this case) always be a tuple of \
 			the form (pickledDataType, data)"
 		# assert(unpickled_data[0] == pickledDataType.function_call)
 
@@ -324,8 +335,10 @@ class RunQueueServer():
 			log.debug(f"Received a function call from a client: {function_name}(self, {args}, {kwargs})")
 			try:
 				result = getattr(self._run_queue, function_name)(*args, **kwargs)
-			except Exception as e:
-				result = e
+			except Exception as exception: # pylint: disable=broad-exception-caught
+				result = exception
+				log.warning(f"Client {client_address} called function {function_name}, which result in \
+	     			{type(exception)}: {exception}")
 
 			#Send the result back to the client
 			Transmission.send(
@@ -336,9 +349,9 @@ class RunQueueServer():
 				aes_cypher_key=aes_session_key,
 			)
 		elif unpickled_data[0] == PickledDataType.SIGNAL_EMIT:
-			error_msg = f"Received a signal emit from client - this should not be possible - ignoring transmission"
+			error_msg = "Received a signal emit from client - this should not be possible - ignoring transmission"
 		elif unpickled_data[0] == PickledDataType.METHOD_RETURN:
-			error_msg = f"Received a function return from client - this should not be possible - ignoring transmission"
+			error_msg = "Received a function return from client - this should not be possible - ignoring transmission"
 		else:
 			error_msg = f"Received a pickled object with unknown type: {unpickled_data[0]} - ignoring transmission"
 
@@ -370,7 +383,7 @@ class RunQueueServer():
 		assert (aes_session_key is not None) and (aes_session_key != AES_EMPTY_KEY), "Session_key can't be null/empty \
 			when listening to a client"
 		try:
-			while(True):
+			while True: #TODO: put in a separte worker class so it shuts down automtaically when the server is closed
 				#Receive the transmission data - this should always be succesful as long as the connection is active
 				received = Transmission.receive(client, aes_session_key)
 				log.info(f"Received transmission from client {client_address} with TransmissionType: \
@@ -379,13 +392,13 @@ class RunQueueServer():
 				if received.transmission_type == TransmissionType.PICKLED_OBJECT:
 					try:
 						pickled_data = PickleTransmissionData.from_transmission_bytes(received.transmission_data)
-					except Exception as e:
-						log.error(f"Failed to unpickle data from client {client_address}: {e}")
+					except Exception as exception: # pylint: disable=broad-exception-caught
+						log.error(f"Failed to unpickle data from client {client_address}: {exception}")
 						Transmission.send(
 							client,
 							StateTransmissionData(
 								StateMsgType.ERROR,
-								f"Failed to unpickle data from client {client_address}: {e}"
+								f"Failed to unpickle data from client {client_address}: {exception}"
 							)
 						)
 						continue
@@ -395,8 +408,8 @@ class RunQueueServer():
 							aes_session_key=aes_session_key,
 							pickle_transmission_data=pickled_data
 						)
-					except Exception as e:
-						log.error(f"Failed to handle pickled data from client {client_address}: {e} ")
+					except Exception as exception: # pylint: disable=broad-exception-caught
+						log.error(f"Failed to handle pickled data from client {client_address}: {exception} ")
 				elif received.transmission_type == TransmissionType.STATE:
 					data = StateTransmissionData.from_transmission_bytes(received.transmission_data)
 					log.info(f"State Client : {data.state_msg_type.name} - {data.state_msg}")
@@ -404,14 +417,11 @@ class RunQueueServer():
 					log.error(f"Received a transmission with TransmissionType: {received.transmission_type.name}\
 	       				({received.transmission_type}) - this should not happen for authenticated clients \
 	       				- ignoring transmission.")
-		except Exception as e:
-			log.error(f"Error during client/server interaction: {e} - disconnecting client {client_address}")
+		except Exception as exception: # pylint: disable=broad-exception-caught
+			log.error(f"Error during client/server interaction: {exception} - disconnecting client {client_address}")
 			with self._client_list_lock: #Remove the client from the list of authenticated clients
 				del self._client_dict[client]
-			try:
-				client.close() #Try to close connection (if not already closed)
-			except:
-				pass
+			client.close() #Try to close connection (if not already closed)
 
 
 
@@ -425,8 +435,6 @@ if __name__ == "__main__":
 
 	runqueue = RunQueue()
 	server = RunQueueServer(runqueue)
-	#Create a qt application to run the runqueue in
-	import PySide6.QtWidgets as QtWidgets
 	app = QtCore.QCoreApplication(sys.argv) #Run the main event-loop (used for signals)
 	#Create a runqueue client to run the runqueue in
 	server.run()

@@ -2,23 +2,28 @@
 Implements the RunQueueTableModel class. Enabling the user to display a RunQueue in a QT-view (e.g. QTableView).
 """
 
-from PySide6 import QtCore, QtGui, QtWidgets
-import typing
-# from MachineLearning.framework.RunQueue import RunQueue, RunQueueItem, RunQueueItemStatus, QueueItemActions
-from MLQueue.classes.RunQueue import RunQueue, RunQueueItem, RunQueueItemStatus, RunQueueItemActions
 # from MachineLearning.framework.RunQueueClient import RunQueueClient
 import logging
+import typing
+
+from PySide6 import QtCore, QtGui, QtWidgets
+
+# from MachineLearning.framework.RunQueue import RunQueue, RunQueueItem, RunQueueItemStatus, QueueItemActions
+from MLQueue.classes.RunQueue import (RunQueue, RunQueueItem,
+                                      RunQueueItemActions, RunQueueItemStatus)
+
 log = logging.getLogger(__name__)
 
 
 class RunQueueTableModel(QtCore.QAbstractTableModel):
 
 	"""
-	Class that resides between the RunQueue and the view (QTableView) and provides the data for the view in a 
-	convenient way. Since Runqueue can also interface over a network - this class can be used to somewhat 
+	Class that resides between the RunQueue and the view (QTableView) and provides the data for the view in a
+	convenient way. Since Runqueue can also interface over a network - this class can be used to somewhat
 	buffer the data and increase responsiveness of the UI.
 	"""
-	
+
+	autoProcessingStateChanged = QtCore.Signal(bool)
 
 	def set_run_queue(self, new_run_queue : RunQueue) -> None:
 		"""Sets the runqueue of this model to the given run_queue. This will disconnect all signals from the previous
@@ -41,18 +46,50 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 			self._run_queue.runListChanged.disconnect(self._run_list_changed_signal_connection)
 		if self._run_item_changed_signal_connection is not None:
 			self._run_queue.runItemChanged.disconnect(self._run_item_changed_signal_connection)
+		if self._autoprocessing_state_signal_connection is not None:
+			self._run_queue.autoProcessingStateChanged.disconnect(self._autoprocessing_state_signal_connection)
 
 		self._queue_changed_signal_connection = self._run_queue.queueChanged.connect(self._queue_changed)
 		self._run_list_changed_signal_connection = self._run_queue.runListChanged.connect(self._run_list_changed)
 		self._run_item_changed_signal_connection = self._run_queue.runItemChanged.connect(self._run_item_changed)
 		self._queue_reset_signal_connection = self._run_queue.queueResetTriggered.connect(self.reset_model)
+		self._autoprocessing_state_signal_connection = self._run_queue.autoProcessingStateChanged.connect(
+			self.autoprocessing_state_changed)
 
-		self._cur_queue_copy = []
-		self._cur_run_list_copy = {}
+		self._cur_queue_copy = self._run_queue.get_queue_snapshot_copy()
+		self._cur_run_list_copy = self._run_queue.get_run_list_snapshot_copy()
+		self._cur_autoprocessing_state = self._run_queue.is_autoprocessing_enabled()
+
 
 		# if also_instantiate:
 		self._reset_model()
 		self.endResetModel()
+
+	def stop_autoprocessing(self):
+		"""Signal current runqueue to stop autoqueueing"""
+		self._run_queue.stop_autoqueueing()
+
+	def start_autoprocessing(self):
+		"""Signal current runqueue to start autoprocessing items in the runqueue"""
+		self._run_queue.start_autoprocessing()
+
+	def autoprocessing_state_changed(self, new_state : bool) -> None:
+		"""Synchronizes autoprocessing state to RunQueue
+		"""
+		self.autoProcessingStateChanged.emit(new_state) #Emit signal to UI
+		self._cur_autoprocessing_state = new_state
+
+	def get_running_configuration_count(self) -> int:
+		"""Return the number of configs currently running
+
+		Returns:
+			int: The number of configs currently running
+		"""
+		return self._run_queue.get_running_configuration_count()
+
+	def is_autoprocessing_enabled(self) -> bool:
+		"""Return whether autoprocessing is enabled in the current runqueue"""
+		return self._cur_autoprocessing_state
 
 	def reset_model(self) -> None:
 		"""Reset the model, this will emit the beginResetModel and endResetModel signals"""
@@ -72,20 +109,17 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 				self._cur_run_list_copy = {}
 
 
-	def __init__(self, run_queue : RunQueue, parent: typing.Optional[QtCore.QObject] = None) -> None:
+	def __init__(self,
+	    	run_queue : RunQueue,
+			parent: typing.Optional[QtCore.QObject] = None
+		) -> None:
 		super().__init__(parent)
 
-		# self._cur_queue_copy = None
-		# self._cur_run_list_copy = None
-		# self._run_queue = run_queue
-		# self._run_queue_consoleoutput_signal_connection = None
-		# self._queue_changed_signal_connection = None
-		# self._run_list_changed_signal_connection = None
-		# self._run_item_changed_signal_connection = None
 		self._run_queue_consoleoutput_signal_connection = None
 		self._queue_changed_signal_connection = None
 		self._run_list_changed_signal_connection = None
 		self._run_item_changed_signal_connection = None
+		self._autoprocessing_state_signal_connection = None
 		self._queue_reset_signal_connection = self
 		self._run_queue = run_queue
 		self._cur_queue_copy = []
@@ -122,12 +156,12 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 
 
 		self._icon_dict = {
-			RunQueueItemStatus.Queued: self._waiting_icon,
-			RunQueueItemStatus.Running: self._running_icon,
-			RunQueueItemStatus.Finished: self._finished_icon,
-			RunQueueItemStatus.Stopped: self._stopped_icon,
-			RunQueueItemStatus.Cancelled: self._cancelled_icon,
-			RunQueueItemStatus.Failed: self._failed_icon
+			RunQueueItemStatus.QUEUED: self._waiting_icon,
+			RunQueueItemStatus.RUNNING: self._running_icon,
+			RunQueueItemStatus.FINISHED: self._finished_icon,
+			RunQueueItemStatus.STOPPED: self._stopped_icon,
+			RunQueueItemStatus.CANCELLED: self._cancelled_icon,
+			RunQueueItemStatus.FAILED: self._failed_icon
 		}
 
 		#=== Font for Highlighting ===
@@ -138,6 +172,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		#======= Other =======
 		self._highlighted_id = None
 		self._prev_highlighted_id = None
+		self._cur_autoprocessing_state = False
 
 
 		#============= Connect changes to the queue to the model =============
@@ -171,11 +206,15 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 
 
 
-	def rowCount(self, parent: typing.Union[QtCore.QModelIndex, QtCore.QPersistentModelIndex, None] = None) -> int:
+	def rowCount(self,
+	      	parent: typing.Union[QtCore.QModelIndex, QtCore.QPersistentModelIndex, None] = None #pylint: disable=unused-argument
+		) -> int:
 		return len(self._cur_run_list_copy)
 
 		# return super().rowCount(parent)
-	def columnCount(self, parent: typing.Union[QtCore.QModelIndex, QtCore.QPersistentModelIndex, None] = None) -> int:
+	def columnCount(self,
+			parent: typing.Union[QtCore.QModelIndex, QtCore.QPersistentModelIndex, None] = None #pylint: disable=unused-argument
+		) -> int:
 		return len(self.column_names)
 
 	def _queue_changed(self, queue_copy):
@@ -225,15 +264,13 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 			self.index(self.rowCount(), self.columnCount())
 		) #TODO: Only update the row with the new/old id
 
-	def hightlightedId(self) -> int | None:
+	def hightlighted_id(self) -> int | None:
+		"""return the currently highlighted item id in the model"""
 		return self._highlighted_id
 
 
 	#TODO: use RunqueueItemStatus instead of id to get options for ID -> otherwise we have to "ask"remote
 	#server for item status every time we select a row -> might not be desireable
-	def getHighlightedActions(self) -> typing.List[RunQueueItemActions]:
-		return self._run_queue.get_actions_for_id(self._highlighted_id)
-
 	def get_actions(self, index : QtCore.QModelIndex) -> typing.List[RunQueueItemActions]:
 		"""Retrieve the possible actions for a given index (queue item), such as delete, move up in queue, etc.
 
@@ -250,6 +287,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 			return []
 
 	def add_to_queue(self, name, config) -> None:
+		"""Addd a new item to the queue with the given name and config"""
 		self._run_queue.add_to_queue(name, config)
 
 	def do_action(self, index : QtCore.QModelIndex, action : RunQueueItemActions) -> None:
@@ -265,6 +303,14 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 
 
 	def get_item_status(self, index : QtCore.QModelIndex) -> RunQueueItemStatus | None:
+		"""Get the item status by index
+
+		Args:
+			index (QtCore.QModelIndex): the index for which to fetch the status
+
+		Returns:
+			RunQueueItemStatus | None: The status of the item, or None if the index is invalid
+		"""
 		if index.isValid():
 			return self._cur_run_list_copy[index.row()].status
 		else:
@@ -281,7 +327,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 				return "-"
 			if key == "status": #Display position in queue
 				cur_id = list(self._cur_run_list_copy.keys())[index.row()]
-				if item.status == RunQueueItemStatus.Queued and cur_id in self._cur_queue_copy:
+				if item.status == RunQueueItemStatus.QUEUED and cur_id in self._cur_queue_copy:
 					return f"In Queue: {self._cur_queue_copy.index(cur_id)+1}/{len(self._cur_queue_copy)}"
 				else: #Convert enum to string
 					return str(item.status.name)
@@ -326,21 +372,21 @@ if __name__ == "__main__":
 
 	log.info("Running small test for MLQueueModel")
 
-	run_queue = RunQueue()
-	run_queue.add_to_queue("Item1", "TheConfig")
-	run_queue.add_to_queue("Item2", "TheConfig")
-	run_queue.add_to_queue("Item3", "TheConfig")
-	run_queue.add_to_queue("Item4", "TheConfig")
-	run_queue.add_to_queue("ItemRunning", "TheConfig")
-	run_queue._all_dict[4].name = "kaas"
-	run_queue.add_to_queue("ItemFinished", "TheConfig")
-	run_queue._all_dict[5].status = RunQueueItemStatus.Finished
-	run_queue.add_to_queue("ItemCancelled", "TheConfig")
-	run_queue._all_dict[6].status = RunQueueItemStatus.Stopped
-	run_queue.add_to_queue("ItemFailed", "TheConfig")
-	run_queue._all_dict[7].status = RunQueueItemStatus.Failed
+	test_run_queue = RunQueue()
+	test_run_queue.add_to_queue("Item1", "TheConfig")
+	test_run_queue.add_to_queue("Item2", "TheConfig")
+	test_run_queue.add_to_queue("Item3", "TheConfig")
+	test_run_queue.add_to_queue("Item4", "TheConfig")
+	test_run_queue.add_to_queue("ItemRunning", "TheConfig")
+	test_run_queue._all_dict[4].name = "kaas"
+	test_run_queue.add_to_queue("ItemFinished", "TheConfig")
+	test_run_queue._all_dict[5].status = RunQueueItemStatus.FINISHED
+	test_run_queue.add_to_queue("ItemCancelled", "TheConfig")
+	test_run_queue._all_dict[6].status = RunQueueItemStatus.STOPPED
+	test_run_queue.add_to_queue("ItemFailed", "TheConfig")
+	test_run_queue._all_dict[7].status = RunQueueItemStatus.FAILED
 	app = QtWidgets.QApplication([])
-	model = RunQueueTableModel(run_queue)
+	model = RunQueueTableModel(test_run_queue)
 	view = QtWidgets.QTreeView()
 	view.setModel(model)
 	view.show()
