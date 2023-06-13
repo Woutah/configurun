@@ -167,7 +167,7 @@ class RunQueueConsoleItem(BaseConsoleItem):
 			self.dataChanged.emit()
 			# if filepos + len(msg) > len(self._current_text):
 
-	def getCurrentText(self) -> str:
+	def get_current_text(self) -> str:
 		return self._current_text
 
 	def data(self, role : QtCore.Qt.ItemDataRole, column : int = 0):
@@ -458,7 +458,7 @@ if __name__ == "__main__":
 
 	widget = ConsoleWidget()
 	# widget = QtWidgets.QTableView()
-	widget.setModel(model)
+	widget.set_model(model)
 	widget.show()
 	model.append_row(RunQueueConsoleItem(1, "test1"))
 	# app.exec()

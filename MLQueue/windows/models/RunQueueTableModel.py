@@ -133,25 +133,25 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 
 
 		#======================= Some icons =======================
-		self._selection_pixmap = QtWidgets.QStyle.SP_DialogApplyButton #Checkmark #type: ignore
+		self._selection_pixmap = QtWidgets.QStyle.StandardPixmap.SP_DialogApplyButton #Checkmark #type: ignore
 		self._selection_icon = QtWidgets.QApplication.style().standardIcon(self._selection_pixmap)
 
-		self._waiting_pixmap = QtWidgets.QStyle.SP_FileDialogDetailedView #Pause button #type: ignore
+		self._waiting_pixmap = QtWidgets.QStyle.StandardPixmap.SP_FileDialogDetailedView #Pause button #type: ignore
 		self._waiting_icon = QtWidgets.QApplication.style().standardIcon(self._waiting_pixmap)
 
-		self._running_pixmap = QtWidgets.QStyle.SP_MediaPlay #Play button #type: ignore
+		self._running_pixmap = QtWidgets.QStyle.StandardPixmap.SP_MediaPlay #Play button #type: ignore
 		self._running_icon = QtWidgets.QApplication.style().standardIcon(self._running_pixmap)
 
-		self._finished_pixmap = QtWidgets.QStyle.SP_DialogApplyButton #Checkmark #type: ignore
+		self._finished_pixmap = QtWidgets.QStyle.StandardPixmap.SP_DialogApplyButton #Checkmark #type: ignore
 		self._finished_icon = QtWidgets.QApplication.style().standardIcon(self._finished_pixmap)
 
-		self._stopped_pixmap = QtWidgets.QStyle.SP_DialogCancelButton #X #type: ignore
+		self._stopped_pixmap = QtWidgets.QStyle.StandardPixmap.SP_DialogCancelButton #X #type: ignore
 		self._stopped_icon = QtWidgets.QApplication.style().standardIcon(self._stopped_pixmap)
 
-		self._cancelled_pixmap = QtWidgets.QStyle.SP_DialogNoButton #red circle #type: ignore
+		self._cancelled_pixmap = QtWidgets.QStyle.StandardPixmap.SP_DialogNoButton #red circle #type: ignore
 		self._cancelled_icon = QtWidgets.QApplication.style().standardIcon(self._cancelled_pixmap)
 
-		self._failed_pixmap = QtWidgets.QStyle.SP_BrowserStop #X #type: ignore
+		self._failed_pixmap = QtWidgets.QStyle.StandardPixmap.SP_BrowserStop #X #type: ignore
 		self._failed_icon = QtWidgets.QApplication.style().standardIcon(self._failed_pixmap)
 
 

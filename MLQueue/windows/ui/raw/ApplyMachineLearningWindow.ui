@@ -14,329 +14,41 @@
    <string>ML Task Scheduler[*]</string>
   </property>
   <property name="windowIcon">
-   <iconset resource="../../res/app_resources.qrc">
+   <iconset>
     <normaloff>:/Icons/icons/Tango Icons/32x32/categories/preferences-desktop.png</normaloff>:/Icons/icons/Tango Icons/32x32/categories/preferences-desktop.png</iconset>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
+    <property name="leftMargin">
+     <number>9</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
     <item>
-     <layout class="QVBoxLayout" name="verticalLayout_2" stretch="1,0">
+     <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,0">
       <property name="leftMargin">
        <number>0</number>
       </property>
       <item>
-       <widget class="QWidget" name="settingsEditWidget" native="true">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
-        <layout class="QVBoxLayout" name="verticalLayout_12">
-         <property name="spacing">
-          <number>0</number>
-         </property>
-         <property name="leftMargin">
-          <number>0</number>
-         </property>
-         <property name="topMargin">
-          <number>0</number>
-         </property>
-         <property name="rightMargin">
-          <number>0</number>
-         </property>
-         <property name="bottomMargin">
-          <number>0</number>
-         </property>
-         <item>
-          <widget class="QSplitter" name="splitter">
-           <property name="orientation">
-            <enum>Qt::Vertical</enum>
-           </property>
-           <property name="opaqueResize">
-            <bool>false</bool>
-           </property>
-           <property name="childrenCollapsible">
-            <bool>false</bool>
-           </property>
-           <widget class="QGroupBox" name="groupBox">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>300</height>
-             </size>
-            </property>
-            <property name="title">
-             <string/>
-            </property>
-            <layout class="QVBoxLayout" name="verticalLayout_10">
-             <property name="spacing">
-              <number>0</number>
-             </property>
-             <property name="leftMargin">
-              <number>0</number>
-             </property>
-             <property name="topMargin">
-              <number>0</number>
-             </property>
-             <property name="rightMargin">
-              <number>0</number>
-             </property>
-             <property name="bottomMargin">
-              <number>0</number>
-             </property>
-             <item>
-              <widget class="QSplitter" name="splitter_3">
-               <property name="orientation">
-                <enum>Qt::Horizontal</enum>
-               </property>
-               <property name="opaqueResize">
-                <bool>false</bool>
-               </property>
-               <property name="childrenCollapsible">
-                <bool>false</bool>
-               </property>
-               <widget class="QWidget" name="verticalLayoutWidget">
-                <layout class="QVBoxLayout" name="verticalLayout_3">
-                 <item>
-                  <widget class="QLabel" name="label_3">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Ignored" vsizetype="Preferred">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                   <property name="font">
-                    <font>
-                     <bold>true</bold>
-                     <underline>true</underline>
-                    </font>
-                   </property>
-                   <property name="text">
-                    <string>Main Options</string>
-                   </property>
-                   <property name="alignment">
-                    <set>Qt::AlignCenter</set>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QTreeView" name="mainOptionsTreeView">
-                   <property name="rootIsDecorated">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                </layout>
-               </widget>
-               <widget class="QWidget" name="verticalLayoutWidget_2">
-                <layout class="QVBoxLayout" name="verticalLayout_9">
-                 <item>
-                  <widget class="QLabel" name="label_4">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Ignored" vsizetype="Preferred">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                   <property name="font">
-                    <font>
-                     <bold>true</bold>
-                     <underline>true</underline>
-                    </font>
-                   </property>
-                   <property name="text">
-                    <string>General Options</string>
-                   </property>
-                   <property name="alignment">
-                    <set>Qt::AlignCenter</set>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QTreeView" name="generalOptionsTreeView">
-                   <property name="minimumSize">
-                    <size>
-                     <width>0</width>
-                     <height>0</height>
-                    </size>
-                   </property>
-                   <property name="rootIsDecorated">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                </layout>
-               </widget>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-           <widget class="QGroupBox" name="groupBox_2">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>16777215</height>
-             </size>
-            </property>
-            <property name="title">
-             <string/>
-            </property>
-            <layout class="QVBoxLayout" name="verticalLayout_8">
-             <property name="spacing">
-              <number>0</number>
-             </property>
-             <property name="leftMargin">
-              <number>0</number>
-             </property>
-             <property name="topMargin">
-              <number>0</number>
-             </property>
-             <property name="rightMargin">
-              <number>0</number>
-             </property>
-             <property name="bottomMargin">
-              <number>0</number>
-             </property>
-             <item>
-              <widget class="QSplitter" name="splitter_2">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="orientation">
-                <enum>Qt::Horizontal</enum>
-               </property>
-               <property name="opaqueResize">
-                <bool>false</bool>
-               </property>
-               <property name="childrenCollapsible">
-                <bool>false</bool>
-               </property>
-               <widget class="QWidget" name="layoutWidget">
-                <layout class="QVBoxLayout" name="verticalLayout_6">
-                 <item>
-                  <widget class="QLabel" name="label_5">
-                   <property name="font">
-                    <font>
-                     <bold>true</bold>
-                     <underline>true</underline>
-                    </font>
-                   </property>
-                   <property name="text">
-                    <string>Model</string>
-                   </property>
-                   <property name="alignment">
-                    <set>Qt::AlignCenter</set>
-                   </property>
-                   <property name="indent">
-                    <number>-1</number>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QTreeView" name="modelOptionsTreeView">
-                   <property name="rootIsDecorated">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                </layout>
-               </widget>
-               <widget class="QWidget" name="layoutWidget_2">
-                <layout class="QVBoxLayout" name="verticalLayout_7">
-                 <item>
-                  <widget class="QLabel" name="label">
-                   <property name="font">
-                    <font>
-                     <bold>true</bold>
-                     <underline>true</underline>
-                    </font>
-                   </property>
-                   <property name="text">
-                    <string>Dataset</string>
-                   </property>
-                   <property name="alignment">
-                    <set>Qt::AlignCenter</set>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QTreeView" name="datasetOptionsTreeView">
-                   <property name="rootIsDecorated">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                </layout>
-               </widget>
-               <widget class="QWidget" name="layoutWidget_3">
-                <layout class="QVBoxLayout" name="verticalLayout_11">
-                 <item>
-                  <widget class="QLabel" name="label_2">
-                   <property name="font">
-                    <font>
-                     <bold>true</bold>
-                     <underline>true</underline>
-                    </font>
-                   </property>
-                   <property name="text">
-                    <string>Task</string>
-                   </property>
-                   <property name="alignment">
-                    <set>Qt::AlignCenter</set>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QTreeView" name="trainingOptionsTreeView">
-                   <property name="rootIsDecorated">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                </layout>
-               </widget>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </widget>
-         </item>
-        </layout>
-       </widget>
+       <widget class="QMdiArea" name="ConfigurationMdiArea"/>
       </item>
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0">
-        <property name="spacing">
-         <number>6</number>
+       <widget class="QPushButton" name="addToQueueButton">
+        <property name="text">
+         <string>Add to Queue</string>
         </property>
-        <item>
-         <widget class="QPushButton" name="addToQueueButton">
-          <property name="text">
-           <string>Add to Queue</string>
-          </property>
-          <property name="icon">
-           <iconset resource="../../res/app_resources.qrc">
-            <normaloff>:/Icons/icons/Tango Icons/32x32/actions/format-indent-more.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/format-indent-more.png</iconset>
-          </property>
-         </widget>
-        </item>
-       </layout>
+        <property name="icon">
+         <iconset>
+          <normaloff>:/Icons/icons/Tango Icons/32x32/actions/format-indent-more.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/format-indent-more.png</iconset>
+        </property>
+       </widget>
       </item>
      </layout>
     </item>
@@ -355,6 +67,7 @@
     <property name="title">
      <string>File...</string>
     </property>
+    <addaction name="actionNewConfig"/>
     <addaction name="actionUndo"/>
     <addaction name="actionRedo"/>
     <addaction name="separator"/>
@@ -380,7 +93,7 @@
       <string>Font Size</string>
      </property>
      <property name="icon">
-      <iconset resource="../../res/app_resources.qrc">
+      <iconset>
        <normaloff>:/Icons/icons/Tango Icons/32x32/apps/preferences-desktop-font.png</normaloff>:/Icons/icons/Tango Icons/32x32/apps/preferences-desktop-font.png</iconset>
      </property>
      <addaction name="actionIncreaseFontSize"/>
@@ -397,7 +110,7 @@
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QDockWidget" name="dockWidget">
    <property name="windowIcon">
-    <iconset resource="../../res/app_resources.qrc">
+    <iconset>
      <normaloff>:/Icons/icons/savesymbol.png</normaloff>:/Icons/icons/savesymbol.png</iconset>
    </property>
    <property name="windowTitle">
@@ -418,7 +131,7 @@
             <string>Save</string>
            </property>
            <property name="icon">
-            <iconset resource="../../res/app_resources.qrc">
+            <iconset>
              <normaloff>:/Icons/icons/Tango Icons/32x32/actions/document-save.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/document-save.png</iconset>
            </property>
           </widget>
@@ -429,7 +142,7 @@
             <string>Save As...</string>
            </property>
            <property name="icon">
-            <iconset resource="../../res/app_resources.qrc">
+            <iconset>
              <normaloff>:/Icons/icons/Tango Icons/32x32/actions/document-save-as.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/document-save-as.png</iconset>
            </property>
           </widget>
@@ -476,7 +189,7 @@
                <string>...</string>
               </property>
               <property name="icon">
-               <iconset resource="../../res/app_resources.qrc">
+               <iconset>
                 <normaloff>:/Icons/icons/Tango Icons/32x32/actions/document-open.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/document-open.png</iconset>
               </property>
              </widget>
@@ -502,7 +215,7 @@
     </sizepolicy>
    </property>
    <property name="windowIcon">
-    <iconset resource="../../res/app_resources.qrc">
+    <iconset>
      <normaloff>:/Icons/icons/Tango Icons/32x32/categories/applications-development.png</normaloff>:/Icons/icons/Tango Icons/32x32/categories/applications-development.png</iconset>
    </property>
    <property name="windowTitle">
@@ -537,7 +250,7 @@
   </widget>
   <widget class="QDockWidget" name="UndoStack">
    <property name="windowIcon">
-    <iconset resource="../../res/app_resources.qrc">
+    <iconset>
      <normaloff>:/Icons/icons/Tango Icons/32x32/actions/edit-undo.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/edit-undo.png</iconset>
    </property>
    <property name="windowTitle">
@@ -593,7 +306,7 @@
         <item>
          <layout class="QVBoxLayout" name="verticalLayout_14">
           <item>
-           <widget class="ConsoleWidget" name="consoleWidget">
+           <widget class="ConsoleWidget" name="consoleWidget" native="true">
             <property name="ConsoleWidthPercentage" stdset="0">
              <number>88</number>
             </property>
@@ -609,7 +322,7 @@
   </widget>
   <action name="actionUndo">
    <property name="icon">
-    <iconset resource="../../res/app_resources.qrc">
+    <iconset>
      <normaloff>:/Icons/icons/Tango Icons/32x32/actions/edit-undo.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/edit-undo.png</iconset>
    </property>
    <property name="text">
@@ -624,7 +337,7 @@
   </action>
   <action name="actionRedo">
    <property name="icon">
-    <iconset resource="../../res/app_resources.qrc">
+    <iconset>
      <normaloff>:/Icons/icons/Tango Icons/32x32/actions/edit-redo.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/edit-redo.png</iconset>
    </property>
    <property name="text">
@@ -636,7 +349,7 @@
   </action>
   <action name="actionIncreaseFontSize">
    <property name="icon">
-    <iconset resource="../../res/app_resources.qrc">
+    <iconset>
      <normaloff>:/Icons/icons/Tango Icons/32x32/actions/list-add.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/list-add.png</iconset>
    </property>
    <property name="text">
@@ -648,7 +361,7 @@
   </action>
   <action name="actionDefaultFontSize">
    <property name="icon">
-    <iconset resource="../../res/app_resources.qrc">
+    <iconset>
      <normaloff>:/Icons/icons/Tango Icons/32x32/actions/view-refresh.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/view-refresh.png</iconset>
    </property>
    <property name="text">
@@ -657,7 +370,7 @@
   </action>
   <action name="actionDecreaseFontSize">
    <property name="icon">
-    <iconset resource="../../res/app_resources.qrc">
+    <iconset>
      <normaloff>:/Icons/icons/Tango Icons/32x32/actions/list-remove.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/list-remove.png</iconset>
    </property>
    <property name="text">
@@ -669,7 +382,7 @@
   </action>
   <action name="actionSave">
    <property name="icon">
-    <iconset resource="../../res/app_resources.qrc">
+    <iconset>
      <normaloff>:/Icons/icons/Tango Icons/32x32/actions/document-save.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/document-save.png</iconset>
    </property>
    <property name="text">
@@ -681,7 +394,7 @@
   </action>
   <action name="actionSave_As">
    <property name="icon">
-    <iconset resource="../../res/app_resources.qrc">
+    <iconset>
      <normaloff>:/Icons/icons/Tango Icons/32x32/actions/document-save-as.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/document-save-as.png</iconset>
    </property>
    <property name="text">
@@ -693,7 +406,7 @@
   </action>
   <action name="actionReset_Splitters">
    <property name="icon">
-    <iconset resource="../../res/app_resources.qrc">
+    <iconset>
      <normaloff>:/Icons/icons/Tango Icons/32x32/actions/view-refresh.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/view-refresh.png</iconset>
    </property>
    <property name="text">
@@ -711,7 +424,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../../res/app_resources.qrc">
+    <iconset>
      <normaloff>:/Icons/icons/Tango Icons/32x32/actions/go-home.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/go-home.png</iconset>
    </property>
    <property name="text">
@@ -723,25 +436,20 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../../res/app_resources.qrc">
+    <iconset>
      <normaloff>:/Icons/icons/Tango Icons/32x32/apps/internet-web-browser.png</normaloff>:/Icons/icons/Tango Icons/32x32/apps/internet-web-browser.png</iconset>
    </property>
    <property name="text">
     <string>Network</string>
    </property>
   </action>
+  <action name="actionNewConfig">
+   <property name="text">
+    <string>New Config...</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
-  <customwidget>
-   <class>ConsoleWidget</class>
-   <extends>QWidget</extends>
-   <header>PySide6Widgets.Widgets.ConsoleWidget</header>
-  </customwidget>
-  <customwidget>
-   <class>FileExplorerView</class>
-   <extends>QTreeView</extends>
-   <header>PySide6Widgets.Widgets.FileExplorerView</header>
-  </customwidget>
   <customwidget>
    <class>OverlayWidget</class>
    <extends>QWidget</extends>
@@ -754,9 +462,19 @@
    <header>PySide6Widgets.Widgets.SquareFrame</header>
    <container>1</container>
   </customwidget>
+  <customwidget>
+   <class>ConsoleWidget</class>
+   <extends>QWidget</extends>
+   <header>PySide6Widgets.Widgets.ConsoleWidget</header>
+  </customwidget>
+  <customwidget>
+   <class>FileExplorerView</class>
+   <extends>QTreeView</extends>
+   <header>PySide6Widgets.Widgets.FileExplorerView</header>
+  </customwidget>
  </customwidgets>
  <resources>
-  <include location="../../res/app_resources.qrc"/>
+  <include location="../../../res/app_resources.qrc"/>
  </resources>
  <connections/>
 </ui>

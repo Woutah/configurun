@@ -4,8 +4,11 @@ edit/manage/run machine learning settings.
 
 Also contains OptionsSource, which is used to determine if the current file should be saved to a file or to the queue.
 """
-
 import logging
+from typing import Optional
+
+import PySide6.QtCore
+import PySide6.QtWidgets
 
 log = logging.getLogger(__name__)
 if __name__ == "__main__":
@@ -24,7 +27,6 @@ from enum import Enum
 
 # import PySide6Widgets.Widgets
 import PySide6Widgets.Models.FileExplorerModel
-from MachineLearning.framework.options.options import Options
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6Widgets.Utility.catchExceptionInMsgBoxDecorator import \
     catchExceptionInMsgBoxDecorator
@@ -32,11 +34,14 @@ from PySide6Widgets.Utility.DataClassEditorsDelegate import \
     DataClassEditorsDelegate
 
 from MLQueue.classes.RunQueue import RunQueue
-from MLQueue.windows.models.RunQueueTableModel import RunQueueTableModel
+from MLQueue.configuration.ConfigurationModel import ConfigurationModel, ConfigurationData
 from MLQueue.windows.models.RunQueueConsoleModel import RunQueueConsoleModel
+from MLQueue.windows.models.RunQueueTableModel import RunQueueTableModel
 from MLQueue.windows.ui.ApplyMachineLearningWindow_ui import \
     Ui_ApplyMachineLearningWindow
 from MLQueue.windows.widgets.MLQueueWidget import MLQueueWidget
+
+from MLQueue.examples.cur_framework_options import FrameworkConfigurationModel, FrameworkOptionsData
 
 SETTINGS_PATH_MACHINE_LEARNING_WINDOW = "/Settings/MachineLearning"
 
@@ -47,6 +52,14 @@ class OptionsSource(Enum):
 	FILE = 0
 	QUEUE = 1
 
+
+# class SettingsMDIWindow(QtWidgets.QMdiSubWindow):
+# 	"""A subclass of QtWidgets.QMdiSubWindow that overloads the painter-methods to draw the windows without borders, and
+# 	with a stylized title bar and no close button.
+# 	"""
+# 	def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+# 		super().__init__(parent)
+# 		self.setWind
 
 
 class MainWindow():
@@ -60,10 +73,10 @@ class MainWindow():
 
 		self.window = window
 		self._cur_source = None
-		self._default_splitter_states = {
-			splitter.objectName() : splitter.saveState() \
-				for splitter in self.ui.splitter.findChildren(QtWidgets.QSplitter)
-		} #Save all splitter states (to be able to reset them later)
+		# self._default_splitter_states = {
+		# 	splitter.objectName() : splitter.saveState() \
+		# 		for splitter in self.ui.splitter.findChildren(QtWidgets.QSplitter)
+		# } #Save all splitter states (to be able to reset them later)
 		#====================== Base variables ===================
 		self.set_run_queue(run_queue)
 		self.ml_queue_widget = MLQueueWidget(self.ui.MLQueueWidget) #Create queue-interface with buttons
@@ -76,14 +89,15 @@ class MainWindow():
 			allow_select_files_only=True)
 
 
-		#Loop over all splitters in the window and set the sizes to the saved sizes
-		self._treeviews = { #For easy looping over all treeviews
-			"main_options" : self.ui.mainOptionsTreeView,
-			"general_options" : self.ui.generalOptionsTreeView,
-			"model_options" : self.ui.modelOptionsTreeView,
-			"dataset_options" : self.ui.datasetOptionsTreeView,
-			"training_options" : self.ui.trainingOptionsTreeView
-		}
+
+		# #Loop over all splitters in the window and set the sizes to the saved sizes
+		# self._treeviews = { #For easy looping over all treeviews
+		# 	"main_options" : self.ui.mainOptionsTreeView,
+		# 	"general_options" : self.ui.generalOptionsTreeView,
+		# 	"model_options" : self.ui.modelOptionsTreeView,
+		# 	"dataset_options" : self.ui.datasetOptionsTreeView,
+		# 	"training_options" : self.ui.trainingOptionsTreeView
+		# }
 
 		#========================= load settings =========================
 		self._settings = QtCore.QSettings("MLTools", "AllSettingsWindow")
@@ -104,53 +118,60 @@ class MainWindow():
 		# 	splitter.restoreState(self._settings.value(f"splitter_state_{splitter.objectName()}", splitter.saveState()))
 
 		#====================== Suboptions window and automatic updating ===================
-		for treeview in self._treeviews.values(): #Set item delegate for all treeviews
-			treeview.setItemDelegate(DataClassEditorsDelegate())
-			treeview.header().setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents) # type: ignore
+		# for treeview in self._treeviews.values(): #Set item delegate for all treeviews
+		# 	treeview.setItemDelegate(DataClassEditorsDelegate())
+		# 	treeview.header().setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents) # type: ignore
 
-		self._options = Options(use_cache=True, use_undo_stack=True)
+		self._config_model = FrameworkConfigurationModel()#use_cache=True, use_undo_stack=True)
 
-		view_model_list : typing.List[typing.Tuple[QtWidgets.QTreeView, QtCore.QSortFilterProxyModel]]=  [
-			(self.ui.mainOptionsTreeView, self._options.getMainOptionsProxyModel()),
-			(self.ui.generalOptionsTreeView, self._options.getGeneralOptionsProxyModel()),
-			(self.ui.modelOptionsTreeView, self._options.getModelOptionsProxyModel()),
-			(self.ui.datasetOptionsTreeView, self._options.getDatasetOptionsProxyModel()),
-			(self.ui.trainingOptionsTreeView, self._options.getTrainingOptionsProxyModel())
-		]
+		self._mdi_area = self.ui.ConfigurationMdiArea
+		self._cur_option_proxy_models : typing.Dict[str, QtCore.QSortFilterProxyModel]= {} #type: typing.Dict[str, QtWidgets.QMdiSubWindow]
+		self._cur_option_mdi_windows : typing.Dict[str, QtWidgets.QMdiSubWindow] = {}
+		self._cur_option_tree_view : typing.Dict[str, QtWidgets.QTreeView] = {}
+		self._config_model.proxyModelDictChanged.connect(self.OptionProxyModelsChanged)
+		self._config_model.proxyModelDictChanged.connect(lambda *args : print(f"Proxy model dict changed{args}"))
+		self.OptionProxyModelsChanged(self._config_model.get_proxy_model_dict()) #Initialize the mdi windows
+		# view_model_list : typing.List[typing.Tuple[QtWidgets.QTreeView, QtCore.QSortFilterProxyModel]]=  [
+		# 	(self.ui.mainOptionsTreeView, self._options.getMainOptionsProxyModel()),
+		# 	(self.ui.generalOptionsTreeView, self._options.getGeneralOptionsProxyModel()),
+		# 	(self.ui.modelOptionsTreeView, self._options.getModelOptionsProxyModel()),
+		# 	(self.ui.datasetOptionsTreeView, self._options.getDatasetOptionsProxyModel()),
+		# 	(self.ui.trainingOptionsTreeView, self._options.getTrainingOptionsProxyModel())
+		# ]
 
-		for (cur_view, cur_model) in view_model_list:
-			cur_view.setModel(cur_model)
+		# for (cur_view, cur_model) in view_model_list:
+		# 	cur_view.setModel(cur_model)
 
-		self._options.getMainOptionsProxyModel().sourceModelChanged.connect(
-			lambda *_: self.tree_view_source_model_changed(
-				"main_options",
-				self.ui.mainOptionsTreeView,
-				self._options.getMainOptionsProxyModel())
-		)
-		self._options.getGeneralOptionsProxyModel().sourceModelChanged.connect(
-			lambda *_: self.tree_view_source_model_changed(
-				"general_options",
-				self.ui.generalOptionsTreeView,
-				self._options.getGeneralOptionsProxyModel())
-		)
-		self._options.getModelOptionsProxyModel().sourceModelChanged.connect(
-			lambda *_: self.tree_view_source_model_changed(
-				"model_options",
-				self.ui.modelOptionsTreeView,
-				self._options.getModelOptionsProxyModel())
-		)
-		self._options.getDatasetOptionsProxyModel().sourceModelChanged.connect(
-			lambda *_: self.tree_view_source_model_changed(
-				"dataset_options",
-				self.ui.datasetOptionsTreeView,
-				self._options.getDatasetOptionsProxyModel())
-		)
-		self._options.getTrainingOptionsProxyModel().sourceModelChanged.connect(
-			lambda *_: self.tree_view_source_model_changed(
-				"training_options",
-				self.ui.trainingOptionsTreeView,
-				self._options.getTrainingOptionsProxyModel())
-		)
+		# self._options.getMainOptionsProxyModel().sourceModelChanged.connect(
+		# 	lambda *_: self.tree_view_source_model_changed(
+		# 		"main_options",
+		# 		self.ui.mainOptionsTreeView,
+		# 		self._options.getMainOptionsProxyModel())
+		# )
+		# self._options.getGeneralOptionsProxyModel().sourceModelChanged.connect(
+		# 	lambda *_: self.tree_view_source_model_changed(
+		# 		"general_options",
+		# 		self.ui.generalOptionsTreeView,
+		# 		self._options.getGeneralOptionsProxyModel())
+		# )
+		# self._options.getModelOptionsProxyModel().sourceModelChanged.connect(
+		# 	lambda *_: self.tree_view_source_model_changed(
+		# 		"model_options",
+		# 		self.ui.modelOptionsTreeView,
+		# 		self._options.getModelOptionsProxyModel())
+		# )
+		# self._options.getDatasetOptionsProxyModel().sourceModelChanged.connect(
+		# 	lambda *_: self.tree_view_source_model_changed(
+		# 		"dataset_options",
+		# 		self.ui.datasetOptionsTreeView,
+		# 		self._options.getDatasetOptionsProxyModel())
+		# )
+		# self._options.getTrainingOptionsProxyModel().sourceModelChanged.connect(
+		# 	lambda *_: self.tree_view_source_model_changed(
+		# 		"training_options",
+		# 		self.ui.trainingOptionsTreeView,
+		# 		self._options.getTrainingOptionsProxyModel())
+		# )
 
 
 		self._config_file_picker_model.setReadOnly(False)
@@ -170,13 +191,13 @@ class MainWindow():
 
 
 		#======== Open a window which shows the undo/redo stack ========
-		if self._options.undo_stack:
-			self.ui.undoView.setStack(self._options.undo_stack)
+		if self._config_model.undo_stack:
+			self.ui.undoView.setStack(self._config_model.undo_stack)
 
 		#Un undo-stack change, change the title of the window with a * to indicate that the file has been changed
-		if self._options.undo_stack:
-			self._options.undo_stack.cleanChanged.connect(
-				lambda: self.window.setWindowModified(not self._options.undo_stack.isClean()) #type:ignore
+		if self._config_model.undo_stack:
+			self._config_model.undo_stack.cleanChanged.connect(
+				lambda: self.window.setWindowModified(not self._config_model.undo_stack.isClean()) #type:ignore
 			)
 
 		#Link close-event to a confirmation box
@@ -192,7 +213,7 @@ class MainWindow():
 		#==================Console ================
 		self._console_item_model = RunQueueConsoleModel()
 		self._console_item_model.set_run_queue(self._run_queue)
-		self.ui.consoleWidget.setModel(self._console_item_model)
+		self.ui.consoleWidget.set_model(self._console_item_model)
 
 		#Connect right click on console-widget to a context menu
 		self.ui.consoleWidget.ui.fileSelectionTableView.setContextMenuPolicy(
@@ -223,8 +244,43 @@ class MainWindow():
 
 		self.ui.actionSave.triggered.connect(self.save_config_triggered)
 		self.ui.actionSave_As.triggered.connect(self.save_config_as_triggered)
-		self.ui.actionReset_Splitters.triggered.connect(self.reset_splitter_states)
+		
+		self.ui.actionNewConfig.triggered.connect(
+			lambda *_: self._config_model.reset_configuration_data_to_default()) #Set 
+			#to empty config
+		# self.ui.actionReset_Splitters.triggered.connect(self.reset_splitter_states)
 
+
+	def OptionProxyModelsChanged(self, dict_of_models : typing.Dict[str, QtCore.QSortFilterProxyModel]) -> None:
+		"""Upon change of (one of) the dataclass editors -> update the console"""
+
+		for option_name, option_model in dict_of_models.items():
+			if option_name in self._cur_option_proxy_models:
+				#check if the same model is used
+				if self._cur_option_proxy_models[option_name] == option_model:
+					log.debug(f"Model for {option_name} has not changed, not updating its model or window")
+				else:
+					self._cur_option_proxy_models[option_name] = option_model
+					self._cur_option_tree_view[option_name].setModel(option_model)
+			else:
+				self._cur_option_mdi_windows[option_name] = QtWidgets.QMdiSubWindow()
+				# self._cur_option_mdi_windows[option_name].
+				#TODO: add title to mdi window
+				self._cur_option_proxy_models[option_name] = option_model
+				self._cur_option_tree_view[option_name] = QtWidgets.QTreeView()
+				self._cur_option_tree_view[option_name].setModel(option_model)
+				self._cur_option_mdi_windows[option_name].setWidget(self._cur_option_tree_view[option_name])
+				self._mdi_area.addSubWindow(self._cur_option_mdi_windows[option_name])
+				self._cur_option_mdi_windows[option_name].show()
+
+		#re-tile the mdi windows
+		for window in self._mdi_area.subWindowList():
+			window.show()
+			# window.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint)
+			window.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
+			window.setWindowFlags(QtCore.Qt.WindowType.CustomizeWindowHint | QtCore.Qt.WindowType.FramelessWindowHint)
+			window.setContentsMargins(0, 0, 0, 0)
+		self._mdi_area.tileSubWindows()
 
 	def create_console_context_menu(self, pos):
 		"""Create a context menu at the provided position, displaying all ignored ids. When clicked, un-ignore the id
@@ -294,13 +350,13 @@ class MainWindow():
 
 
 
-	def reset_splitter_states(self):
-		"""
-		Resets the state of all splitters to the default state
-		"""
-		for splitter in self.window.findChildren(QtWidgets.QSplitter):
-			if splitter.objectName() in self._default_splitter_states.keys():
-				splitter.restoreState(self._default_splitter_states[splitter.objectName()])
+	# def reset_splitter_states(self):
+	# 	"""
+	# 	Resets the state of all splitters to the default state
+	# 	"""
+	# 	for splitter in self.window.findChildren(QtWidgets.QSplitter):
+	# 		if splitter.objectName() in self._default_splitter_states.keys():
+	# 			splitter.restoreState(self._default_splitter_states[splitter.objectName()])
 
 	def set_font_point_size(self, new_font_size : int) -> None:
 		"""
@@ -326,12 +382,12 @@ class MainWindow():
 		self._settings.setValue("font_size", self._font_point_size)
 		self._settings.setValue("loaded_file_path", self._cur_file_path
 			  if self._cur_source == OptionsSource.FILE else None) #Only save the path if it was loaded from a file
-		for tree_view_name, tree_view in self._treeviews.items():
-			self._settings.setValue(f"{tree_view_name}_geometry", tree_view.geometry())
+		# for tree_view_name, tree_view in self._treeviews.items():
+		# 	self._settings.setValue(f"{tree_view_name}_geometry", tree_view.geometry())
 
 
-		for splitter in self.window.findChildren(QtWidgets.QSplitter): #Save the state of all splitters
-			self._settings.setValue(f"splitter_state_{splitter.objectName()}", splitter.saveState())
+		# for splitter in self.window.findChildren(QtWidgets.QSplitter): #Save the state of all splitters
+		# 	self._settings.setValue(f"splitter_state_{splitter.objectName()}", splitter.saveState())
 
 
 
@@ -362,8 +418,8 @@ class MainWindow():
 			  also return True if there were problems, returns false if an unhandled exception occurs during loading
 		"""
 		if new_path == self._cur_file_path and self._cur_source == OptionsSource.FILE: #If file is already loaded
-			if self._config_file_picker_model.getHighlightPath() != new_path:
-				self._config_file_picker_model.setHightLightPath(self._cur_file_path) #Do update the highlight path
+			if self._config_file_picker_model.get_hightlight_path() != new_path:
+				self._config_file_picker_model.set_hightlight_using_path(self._cur_file_path) #Do update the highlight path
 			return True #Ignore -> but action was successful
 
 		if self.window.isWindowModified():
@@ -376,17 +432,17 @@ class MainWindow():
 			msg.setEscapeButton(QtWidgets.QMessageBox.StandardButton.No)
 			ret = msg.exec()
 			if ret == QtWidgets.QMessageBox.StandardButton.No:
-				self._config_file_picker_model.setHightLightPath(self._cur_file_path) #Hightlight path -> original
+				self._config_file_picker_model.set_hightlight_using_path(self._cur_file_path) #Hightlight path -> original
 				return False
 
 		self._cur_file_path = new_path
 		self._cur_source = OptionsSource.FILE
-		self._config_file_picker_model.setHightLightPath(self._cur_file_path) #Also update the highlight path
+		self._config_file_picker_model.set_hightlight_using_path(self._cur_file_path) #Also update the highlight path
 		log.debug(f"Started trying to load config from {new_path}")
 		try:
 			if new_path:
 					# def load_from(self, path : str, show_msgbox_on_error :bool= True) -> bool:
-				problem_dict = self._options.load_from(new_path)
+				problem_dict = self._config_model.load_from(new_path)
 				if len(problem_dict) > 0 and show_dialog_on_problem:
 					msg = QtWidgets.QMessageBox()
 					msg.setIcon(QtWidgets.QMessageBox.Icon.Warning) #type: ignore
@@ -402,7 +458,7 @@ class MainWindow():
 					msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok) #type: ignore
 					msg.setDefaultButton(QtWidgets.QMessageBox.StandardButton.Ok) #type: ignore
 					msg.exec()
-				self._config_file_picker_model.setHightLightPath(new_path)
+				self._config_file_picker_model.set_hightlight_using_path(new_path)
 				return True
 		except Exception as exception: #pylint: disable=broad-except #Allow broad-exception, catch all and display
 			msg = QtWidgets.QMessageBox()
@@ -414,7 +470,7 @@ class MainWindow():
 			msg.exec()
 			log.error(f"Could not load config from {new_path}. Error: {exception}")
 			self._cur_file_path = None
-			self._config_file_picker_model.resetHighlight()
+			self._config_file_picker_model.reset_hightlight()
 		return False
 
 
@@ -470,9 +526,9 @@ class MainWindow():
 			# return os.path.basename(self._cur_file_path) #If already saved, use the save-name
 			return os.path.basename(self._cur_file_path).rsplit(".", 1)[0] #If already saved, use the save-name
 		name = ""
-		name += ("_" + self._options.data_class) if self._options.data_class else ""
-		name += ("_" + self._options.task) if self._options.task else ""
-		name += ("_" + self._options.model) if self._options.model else ""
+		name += ("_" + self._config_model.data_class) if self._config_model.data_class else ""
+		name += ("_" + self._config_model.task) if self._config_model.task else ""
+		name += ("_" + self._config_model.model) if self._config_model.model else ""
 		return name
 
 	@catchExceptionInMsgBoxDecorator
@@ -487,15 +543,15 @@ class MainWindow():
 					    QtWidgets.QLineEdit.EchoMode.Normal, name)
 		if ok_clicked:
 			# self.ml_queue.add_to_queue(name, self._options.get_options_data_copy())
-			self.ml_queue_model.add_to_queue(name, self._options.get_options_data_copy())
+			self.ml_queue_model.add_to_queue(name, self._config_model.get_options_data_copy())
 
 	def undo_triggered(self):
 		"""
 		Triggered when undo is clicked. Undoes the last change to the options
 		"""
 		log.info("Undo triggered")
-		if self._options.undo_stack:
-			self._options.undo_stack.undo()
+		if self._config_model.undo_stack:
+			self._config_model.undo_stack.undo()
 
 	def redo_triggered(self):
 		"""
@@ -503,8 +559,8 @@ class MainWindow():
 		"""
 
 		log.info("Redo triggered")
-		if self._options.undo_stack:
-			self._options.undo_stack.redo()
+		if self._config_model.undo_stack:
+			self._config_model.undo_stack.redo()
 
 	def save_config_triggered(self) -> bool:
 		"""Save the config to the current file path. If no file path is set, calls save_config_as_triggered instead.
@@ -516,9 +572,9 @@ class MainWindow():
 		if self._cur_file_path is None or (self._cur_source != OptionsSource.FILE):
 			ret = self.save_config_as_triggered() #Already cleans undo-stack if successful
 		else:
-			ret = self._options.save_as(self._cur_file_path)
-			if ret and self._options.undo_stack: #If save was successful -> set clean state
-				self._options.undo_stack.setClean()
+			ret = self._config_model.save_as(self._cur_file_path)
+			if ret and self._config_model.undo_stack: #If save was successful -> set clean state
+				self._config_model.undo_stack.setClean()
 				self.window.setWindowModified(False)
 		return ret
 
@@ -538,11 +594,11 @@ class MainWindow():
 			None, "Save config", start_path, "JSON (*.json)") #type:ignore
 		if file_path:
 			self._cur_file_path = file_path #If source is file -> this sets current file path
-			self._config_file_picker_model.setHightLightPath(self._cur_file_path) #Also update the highlighted path
-			ret = self._options.save_as(file_path)
+			self._config_file_picker_model.set_hightlight_using_path(self._cur_file_path) #Also update the highlighted path
+			ret = self._config_model.save_as(file_path)
 			log.info(f"Save as returned {ret}")
-			if ret and self._options.undo_stack: #If save was successful -> set clean state
-				self._options.undo_stack.setClean()
+			if ret and self._config_model.undo_stack: #If save was successful -> set clean state
+				self._config_model.undo_stack.setClean()
 				self.window.setWindowModified(False)
 		else:
 			log.info("No Save Path Selected")

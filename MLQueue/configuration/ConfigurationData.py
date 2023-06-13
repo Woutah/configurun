@@ -6,8 +6,9 @@ as QT signals/slots for updating the GUI when the options are changed.
 
 """
 
-from dataclasses import dataclass
-
+from dataclasses import dataclass, field
+import typing
+from MLQueue.configuration.BaseOptions import BaseOptions
 
 @dataclass
 class ConfigurationData():
@@ -24,24 +25,38 @@ class ConfigurationData():
 	
 	Note 
 	"""
-	main_options : object | None = None
-	general_options : object | None = None
-	model_options : object | None = None
-	dataset_options : object | None = None
-	training_options : object | None = None
+	#Use factory to create empty dict
+	options : typing.Dict[str, BaseOptions | None] = field(default_factory=dict)
+	 #Dict in which the sub-option dataclasses are stored. Example of a
+		# A possible configuration of this dict is:
+		# {
+		# 	"main_options": MainOptions,
+		# 	"general_options": GeneralOptions,
+		# 	"model_options": ModelOptions,
+		# 	"dataset_options": DatasetOptions,
+		# 	"training_options": TrainingOptions
+		# }
+		# Where each of the instances are dataclasses that inherit from BaseOptions
+
+
+	def get_option_types(self) -> typing.Dict[str, type[BaseOptions] | type[None]]:
+		"""Returns a dict of the current option-class types
+			E.g.:
+			{
+				"model_options": SklearnModelOptions,
+				"dataset_options": BaseDatasetOptions,
+				"training_options": SklearnTrainingOptions
+			}
+		"""
+		return {key: type(value) for key, value in self.options.items()}
 
 
 	def hasattr(self, key):
 		"""
 		Check if one of the sub-options classes has the given attribute
 		"""
-		for options_class in [
-					self.main_options,
-					self.general_options,
-					self.model_options,
-					self.dataset_options,
-					self.training_options
-				]:
+
+		for options_class in self.options:
 			if hasattr(options_class, key):
 				return True
 		return False
@@ -57,15 +72,9 @@ class ConfigurationData():
 		This is why validateSubOptions should be called when chaning suboptions
 		TODO: check for overlapping attribute names in the __init__ function?
 		"""
-		for options_class in [
-					self.main_options,
-					self.general_options,
-					self.model_options,
-					self.dataset_options,
-					self.training_options
-				]:
-			if hasattr(options_class, key):
-				return getattr(options_class, key)
+		for options_instance in self.options.values():
+			if hasattr(options_instance, key):
+				return getattr(options_instance, key)
 
 		raise AttributeError(f"Attribute {key} not found in any of the options classes TODO: does this work correctly?")
 
@@ -73,10 +82,4 @@ class ConfigurationData():
 		"""
 		Return the sub-options instances as a dictionary
 		"""
-		return {
-			"main_options": self.main_options.__dict__,
-			"general_options": self.general_options.__dict__,
-			"model_options": self.model_options.__dict__,
-			"dataset_options": self.dataset_options.__dict__,
-			"training_options": self.training_options.__dict__
-		}
+		return self.options

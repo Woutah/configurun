@@ -19,7 +19,7 @@ from datetime import datetime
 from enum import Enum
 
 import importlib
-from MachineLearning.framework.options.options import Options
+# from MLQueue.configuration.BaseOptions import Options
 from PySide6 import QtCore
 
 log = logging.getLogger(__name__)
@@ -834,7 +834,7 @@ class RunQueue(QtCore.QObject):
 		sys.stdout = LoggerWriter(log.info)
 		sys.stderr = LoggerWriter(log.error)
 
-
+		
 		with all_dict_mutex, queue_mutex:
 			queue_item = all_dict[queue_item_id]
 			queue_item.status = RunQueueItemStatus.RUNNING #Should no longer be editable -> probably already done in

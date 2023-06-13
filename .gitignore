@@ -7,6 +7,7 @@ Output/
 Settings/
 records.xls
 test.json
+examples/cur_framework_options.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
