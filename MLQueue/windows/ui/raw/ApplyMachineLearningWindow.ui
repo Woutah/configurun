@@ -37,7 +37,7 @@
        <number>0</number>
       </property>
       <item>
-       <widget class="QMdiArea" name="ConfigurationMdiArea"/>
+       <widget class="ExtendedMdiArea" name="ConfigurationMdiArea"/>
       </item>
       <item>
        <widget class="QPushButton" name="addToQueueButton">
@@ -451,6 +451,17 @@
  </widget>
  <customwidgets>
   <customwidget>
+   <class>ExtendedMdiArea</class>
+   <extends>QMdiArea</extends>
+   <header>PySide6Widgets.Widgets.ExtendedMdiArea</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>FileExplorerView</class>
+   <extends>QTreeView</extends>
+   <header>PySide6Widgets.Widgets.FileExplorerView</header>
+  </customwidget>
+  <customwidget>
    <class>OverlayWidget</class>
    <extends>QWidget</extends>
    <header>PySide6Widgets.Widgets.OverlayWidget</header>
@@ -466,11 +477,6 @@
    <class>ConsoleWidget</class>
    <extends>QWidget</extends>
    <header>PySide6Widgets.Widgets.ConsoleWidget</header>
-  </customwidget>
-  <customwidget>
-   <class>FileExplorerView</class>
-   <extends>QTreeView</extends>
-   <header>PySide6Widgets.Widgets.FileExplorerView</header>
   </customwidget>
  </customwidgets>
  <resources>
