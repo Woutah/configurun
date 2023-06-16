@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>647</width>
-    <height>548</height>
+    <width>596</width>
+    <height>551</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -63,8 +63,8 @@
              <string/>
             </property>
             <property name="icon">
-             <iconset>
-              <normaloff>:/Icons/icons/Tango Icons/32x32/actions/go-up.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/go-up.png</iconset>
+             <iconset resource="../../../res/app_resources.qrc">
+              <normaloff>:/Icons/icons/actions/go-up.png</normaloff>:/Icons/icons/actions/go-up.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -122,8 +122,8 @@
              <string/>
             </property>
             <property name="icon">
-             <iconset>
-              <normaloff>:/Icons/icons/Tango Icons/32x32/actions/go-down.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/go-down.png</iconset>
+             <iconset resource="../../../res/app_resources.qrc">
+              <normaloff>:/Icons/icons/actions/go-down.png</normaloff>:/Icons/icons/actions/go-down.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -181,8 +181,8 @@
              <string/>
             </property>
             <property name="icon">
-             <iconset>
-              <normaloff>:/Icons/icons/Tango Icons/32x32/actions/process-stop.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/process-stop.png</iconset>
+             <iconset resource="../../../res/app_resources.qrc">
+              <normaloff>:/Icons/icons/actions/process-stop.png</normaloff>:/Icons/icons/actions/process-stop.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -240,8 +240,8 @@
              <string/>
             </property>
             <property name="icon">
-             <iconset>
-              <normaloff>:/Icons/icons/Tango Icons/32x32/places/user-trash.png</normaloff>:/Icons/icons/Tango Icons/32x32/places/user-trash.png</iconset>
+             <iconset resource="../../../res/app_resources.qrc">
+              <normaloff>:/Icons/icons/places/user-trash.png</normaloff>:/Icons/icons/places/user-trash.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -312,9 +312,9 @@
              <string/>
             </property>
             <property name="icon">
-             <iconset>
-              <normaloff>:/Icons/icons/Tango Icons/32x32/actions/media-playback-start.png</normaloff>
-              <normalon>:/Icons/icons/media-playback-started.png</normalon>:/Icons/icons/Tango Icons/32x32/actions/media-playback-start.png</iconset>
+             <iconset resource="../../../res/app_resources.qrc">
+              <normaloff>:/Icons/icons/actions/media-playback-start.png</normaloff>
+              <normalon>:/Icons/icons/media-playback-started.png</normalon>:/Icons/icons/actions/media-playback-start.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -357,8 +357,8 @@
              <string>...</string>
             </property>
             <property name="icon">
-             <iconset>
-              <normaloff>:/Icons/icons/Tango Icons/32x32/categories/preferences-system.png</normaloff>:/Icons/icons/Tango Icons/32x32/categories/preferences-system.png</iconset>
+             <iconset resource="../../../res/app_resources.qrc">
+              <normaloff>:/Icons/icons/emblems/emblem-system.png</normaloff>:/Icons/icons/emblems/emblem-system.png</iconset>
             </property>
             <property name="iconSize">
              <size>
@@ -378,7 +378,7 @@
    <item>
     <layout class="QVBoxLayout" name="QueueViewLayout">
      <item>
-      <widget class="MLQueueView" name="queueView"/>
+      <widget class="RunQueueTreeView" name="queueView"/>
      </item>
     </layout>
    </item>
@@ -392,13 +392,13 @@
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>MLQueueView</class>
+   <class>RunQueueTreeView</class>
    <extends>QTreeView</extends>
-   <header>MLQueue.windows.views.MLQueueView</header>
+   <header>MLQueue.windows.views.RunQueueTreeView</header>
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="../../res/app_resources.qrc"/>
+  <include location="../../../res/app_resources.qrc"/>
  </resources>
  <connections/>
 </ui>

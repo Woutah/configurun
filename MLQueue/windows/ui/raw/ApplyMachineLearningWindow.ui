@@ -74,38 +74,44 @@
     <addaction name="actionSave"/>
     <addaction name="actionSave_As"/>
    </widget>
-   <widget class="QMenu" name="menusource">
-    <property name="enabled">
-     <bool>true</bool>
-    </property>
-    <property name="title">
-     <string>Mode...</string>
-    </property>
-    <addaction name="actionSetLocalRunMode"/>
-    <addaction name="actionSetNetworkRunMode"/>
-   </widget>
    <widget class="QMenu" name="menuview">
     <property name="title">
      <string>View</string>
     </property>
     <widget class="QMenu" name="menuSet_Font_Size">
+     <property name="geometry">
+      <rect>
+       <x>0</x>
+       <y>0</y>
+       <width>140</width>
+       <height>122</height>
+      </rect>
+     </property>
      <property name="title">
       <string>Font Size</string>
      </property>
      <property name="icon">
-      <iconset>
-       <normaloff>:/Icons/icons/Tango Icons/32x32/apps/preferences-desktop-font.png</normaloff>:/Icons/icons/Tango Icons/32x32/apps/preferences-desktop-font.png</iconset>
+      <iconset resource="../../../res/app_resources.qrc">
+       <normaloff>:/Icons/icons/apps/preferences-desktop-font.png</normaloff>:/Icons/icons/apps/preferences-desktop-font.png</iconset>
      </property>
      <addaction name="actionIncreaseFontSize"/>
      <addaction name="actionDefaultFontSize"/>
      <addaction name="actionDecreaseFontSize"/>
     </widget>
+    <widget class="QMenu" name="menuMDI_Area">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="title">
+      <string>MDI Area</string>
+     </property>
+     <addaction name="actionNone"/>
+    </widget>
     <addaction name="menuSet_Font_Size"/>
-    <addaction name="actionReset_Splitters"/>
+    <addaction name="menuMDI_Area"/>
    </widget>
    <addaction name="menuasdf"/>
    <addaction name="menuview"/>
-   <addaction name="menusource"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QDockWidget" name="dockWidget">
@@ -322,8 +328,8 @@
   </widget>
   <action name="actionUndo">
    <property name="icon">
-    <iconset>
-     <normaloff>:/Icons/icons/Tango Icons/32x32/actions/edit-undo.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/edit-undo.png</iconset>
+    <iconset resource="../../../res/app_resources.qrc">
+     <normaloff>:/Icons/icons/actions/edit-undo.png</normaloff>:/Icons/icons/actions/edit-undo.png</iconset>
    </property>
    <property name="text">
     <string>Undo</string>
@@ -337,8 +343,8 @@
   </action>
   <action name="actionRedo">
    <property name="icon">
-    <iconset>
-     <normaloff>:/Icons/icons/Tango Icons/32x32/actions/edit-redo.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/edit-redo.png</iconset>
+    <iconset resource="../../../res/app_resources.qrc">
+     <normaloff>:/Icons/icons/actions/edit-redo.png</normaloff>:/Icons/icons/actions/edit-redo.png</iconset>
    </property>
    <property name="text">
     <string>Redo</string>
@@ -349,8 +355,8 @@
   </action>
   <action name="actionIncreaseFontSize">
    <property name="icon">
-    <iconset>
-     <normaloff>:/Icons/icons/Tango Icons/32x32/actions/list-add.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/list-add.png</iconset>
+    <iconset resource="../../../res/app_resources.qrc">
+     <normaloff>:/Icons/icons/actions/list-add.png</normaloff>:/Icons/icons/actions/list-add.png</iconset>
    </property>
    <property name="text">
     <string>Increase Size</string>
@@ -361,8 +367,8 @@
   </action>
   <action name="actionDefaultFontSize">
    <property name="icon">
-    <iconset>
-     <normaloff>:/Icons/icons/Tango Icons/32x32/actions/view-refresh.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/view-refresh.png</iconset>
+    <iconset resource="../../../res/app_resources.qrc">
+     <normaloff>:/Icons/icons/actions/view-refresh.png</normaloff>:/Icons/icons/actions/view-refresh.png</iconset>
    </property>
    <property name="text">
     <string>Default Size</string>
@@ -370,8 +376,8 @@
   </action>
   <action name="actionDecreaseFontSize">
    <property name="icon">
-    <iconset>
-     <normaloff>:/Icons/icons/Tango Icons/32x32/actions/list-remove.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/list-remove.png</iconset>
+    <iconset resource="../../../res/app_resources.qrc">
+     <normaloff>:/Icons/icons/actions/list-remove.png</normaloff>:/Icons/icons/actions/list-remove.png</iconset>
    </property>
    <property name="text">
     <string>Decrease Size</string>
@@ -382,8 +388,8 @@
   </action>
   <action name="actionSave">
    <property name="icon">
-    <iconset>
-     <normaloff>:/Icons/icons/Tango Icons/32x32/actions/document-save.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/document-save.png</iconset>
+    <iconset resource="../../../res/app_resources.qrc">
+     <normaloff>:/Icons/icons/actions/document-save.png</normaloff>:/Icons/icons/actions/document-save.png</iconset>
    </property>
    <property name="text">
     <string>Save...</string>
@@ -394,8 +400,8 @@
   </action>
   <action name="actionSave_As">
    <property name="icon">
-    <iconset>
-     <normaloff>:/Icons/icons/Tango Icons/32x32/actions/document-save-as.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/document-save-as.png</iconset>
+    <iconset resource="../../../res/app_resources.qrc">
+     <normaloff>:/Icons/icons/actions/document-save-as.png</normaloff>:/Icons/icons/actions/document-save-as.png</iconset>
    </property>
    <property name="text">
     <string>Save As...</string>
@@ -444,8 +450,23 @@
    </property>
   </action>
   <action name="actionNewConfig">
+   <property name="icon">
+    <iconset resource="../../../res/app_resources.qrc">
+     <normaloff>:/Icons/icons/actions/document-new.png</normaloff>:/Icons/icons/actions/document-new.png</iconset>
+   </property>
    <property name="text">
     <string>New Config...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+N</string>
+   </property>
+  </action>
+  <action name="actionNone">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>None</string>
    </property>
   </action>
  </widget>

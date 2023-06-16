@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'MLQueueWidget.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.5.1
+## Created by: Qt User Interface Compiler version 6.5.0
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -21,13 +21,13 @@ from PySide6.QtWidgets import (QApplication, QHBoxLayout, QHeaderView, QPushButt
 
 from MLQueue.windows.views.RunQueueTreeView import RunQueueTreeView
 from PySide6Widgets.Widgets.SquareFrame import SquareFrame
-import app_resources_rc
+import MLQueue.res.app_resources_rc
 
 class Ui_MLQueueWidget(object):
     def setupUi(self, MLQueueWidget):
         if not MLQueueWidget.objectName():
             MLQueueWidget.setObjectName(u"MLQueueWidget")
-        MLQueueWidget.resize(647, 548)
+        MLQueueWidget.resize(596, 551)
         self.verticalLayout = QVBoxLayout(MLQueueWidget)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.horizontalLayout_2 = QHBoxLayout()
@@ -50,7 +50,7 @@ class Ui_MLQueueWidget(object):
         self.MoveUpInQueueBtn.setMinimumSize(QSize(50, 50))
         self.MoveUpInQueueBtn.setSizeIncrement(QSize(1, 1))
         icon = QIcon()
-        icon.addFile(u":/Icons/icons/Tango Icons/32x32/actions/go-up.png", QSize(), QIcon.Normal, QIcon.Off)
+        icon.addFile(u":/Icons/icons/actions/go-up.png", QSize(), QIcon.Normal, QIcon.Off)
         self.MoveUpInQueueBtn.setIcon(icon)
         self.MoveUpInQueueBtn.setIconSize(QSize(25, 25))
 
@@ -72,7 +72,7 @@ class Ui_MLQueueWidget(object):
         self.MoveDownInQueueBtn.setMinimumSize(QSize(50, 50))
         self.MoveDownInQueueBtn.setSizeIncrement(QSize(1, 1))
         icon1 = QIcon()
-        icon1.addFile(u":/Icons/icons/Tango Icons/32x32/actions/go-down.png", QSize(), QIcon.Normal, QIcon.Off)
+        icon1.addFile(u":/Icons/icons/actions/go-down.png", QSize(), QIcon.Normal, QIcon.Off)
         self.MoveDownInQueueBtn.setIcon(icon1)
         self.MoveDownInQueueBtn.setIconSize(QSize(25, 25))
 
@@ -94,7 +94,7 @@ class Ui_MLQueueWidget(object):
         self.CancelStopButton.setMinimumSize(QSize(50, 50))
         self.CancelStopButton.setSizeIncrement(QSize(1, 1))
         icon2 = QIcon()
-        icon2.addFile(u":/Icons/icons/Tango Icons/32x32/actions/process-stop.png", QSize(), QIcon.Normal, QIcon.Off)
+        icon2.addFile(u":/Icons/icons/actions/process-stop.png", QSize(), QIcon.Normal, QIcon.Off)
         self.CancelStopButton.setIcon(icon2)
         self.CancelStopButton.setIconSize(QSize(25, 25))
 
@@ -116,7 +116,7 @@ class Ui_MLQueueWidget(object):
         self.DeleteButton.setMinimumSize(QSize(50, 50))
         self.DeleteButton.setSizeIncrement(QSize(1, 1))
         icon3 = QIcon()
-        icon3.addFile(u":/Icons/icons/Tango Icons/32x32/places/user-trash.png", QSize(), QIcon.Normal, QIcon.Off)
+        icon3.addFile(u":/Icons/icons/places/user-trash.png", QSize(), QIcon.Normal, QIcon.Off)
         self.DeleteButton.setIcon(icon3)
         self.DeleteButton.setIconSize(QSize(25, 25))
 
@@ -149,7 +149,7 @@ class Ui_MLQueueWidget(object):
         self.StartRunningQueueBtn.setSizePolicy(sizePolicy2)
         self.StartRunningQueueBtn.setMinimumSize(QSize(50, 50))
         icon4 = QIcon()
-        icon4.addFile(u":/Icons/icons/Tango Icons/32x32/actions/media-playback-start.png", QSize(), QIcon.Normal, QIcon.Off)
+        icon4.addFile(u":/Icons/icons/actions/media-playback-start.png", QSize(), QIcon.Normal, QIcon.Off)
         icon4.addFile(u":/Icons/icons/media-playback-started.png", QSize(), QIcon.Normal, QIcon.On)
         self.StartRunningQueueBtn.setIcon(icon4)
         self.StartRunningQueueBtn.setIconSize(QSize(25, 25))
@@ -171,7 +171,7 @@ class Ui_MLQueueWidget(object):
         self.toolButton_2.setSizeIncrement(QSize(25, 25))
         self.toolButton_2.setBaseSize(QSize(25, 25))
         icon5 = QIcon()
-        icon5.addFile(u":/Icons/icons/Tango Icons/32x32/categories/preferences-system.png", QSize(), QIcon.Normal, QIcon.Off)
+        icon5.addFile(u":/Icons/icons/emblems/emblem-system.png", QSize(), QIcon.Normal, QIcon.Off)
         self.toolButton_2.setIcon(icon5)
         self.toolButton_2.setIconSize(QSize(25, 25))
 
