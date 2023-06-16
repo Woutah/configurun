@@ -11,10 +11,10 @@ import copy
 import json
 import logging
 import typing
-from abc import ABC, abstractmethod, ABCMeta
+from abc import abstractmethod
 from dataclasses import dataclass
 
-from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6 import QtCore, QtGui
 from PySide6Widgets.Models.DataClassModel import DataclassModel
 
 from MLQueue.configuration.BaseOptions import BaseOptions
@@ -30,7 +30,7 @@ JSON_DATACLASS_TYPES_KEY = "__dataclass_types__" #The key used in the json to st
 	# pass
 
 @dataclass
-class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make sure that the user implements the required methods
+class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make sure that the user implements methods
 	"""
 	Model-wrapper around ConfigurationData that provides an interface to get/set attributes with an underlying
 	stack of undo/redo actions. This is useful for user interfaces that want to provide an undo/redo functionality
@@ -215,11 +215,11 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 		"""
 
 		composite_json = {}
-		for option_name, option_instance in self._configuration_data.options:
+		for option_name, option_instance in self._configuration_data.options.items():
 			composite_json[option_name] = option_instance.__dict__
 
 		str_dataclass_types = { #Save the dataclass types as strings to json for loading purposes
-			key : str(type(val)) for key, val in self._configuration_data.options
+			key : str(type(val)) for key, val in self._configuration_data.options.items()
 		}
 		composite_json[JSON_DATACLASS_TYPES_KEY] = str_dataclass_types
 
@@ -260,16 +260,19 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 					{class_type} for options-group {options_name} in this class should inherit from BaseOptions"
 			except Exception as exception: #NOTE: catch all problems and report #pylint: disable=broad-exception-caught
 					# make user decide whether to continue or not
-				problem_dict[options_name] = exception
+				problem_dict[options_name] = f"{type(exception)}:{exception}"
 
 		assert set.issubset(set(composite_json.keys()),
-		      set(composite_json[JSON_DATACLASS_TYPES_KEY] + [JSON_DATACLASS_TYPES_KEY])),\
+		      set( list(composite_json.keys()) + [JSON_DATACLASS_TYPES_KEY])),\
 				"The keys in the loaded json file did not match the keys in the dataclass types dict, each item \
 				should have its type defined, and each type should have its options defined (or None)"
 
 		self.set_option_class_types(new_option_class_types) #Set the new option class types
 
+		#Load the options from the json
 		for options_name, options_class in self._configuration_data.options.items():
+			if options_name == JSON_DATACLASS_TYPES_KEY: #Skip the dataclass types
+				continue
 			if options_class is None:
 				problem_keys = composite_json.get(options_name, {}).keys() #We can't load anything
 			else:
@@ -277,8 +280,13 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 					composite_json[options_name], ignore_new_attributes=True
 				) #Set the options dict
 			if len(problem_keys) > 0:
-				problem_dict["general_options"] = KeyError(f"The following keys could not be found in the \
+				problem_dict[options_name] = KeyError(f"The following keys could not be found in the \
 					options-class: {', '.join(problem_keys)} - unknown keys were ignored(!)")
+
+		#Load new dataclass instances into the proxy models
+		self.set_configuration_data(
+			self._configuration_data, validate_after_setting=False
+		)
 
 		if self.undo_stack: #Re-enable undo stack
 			self.undo_stack.setActive(True)
@@ -289,7 +297,7 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 	def get_configuration_data_copy(self):
 		"""Returns a copy of the configuration_data object"""
 		return copy.deepcopy(self._configuration_data)
-	
+
 	def reset_configuration_data_to_default(self):
 		"""Reset the configuration data to the default values"""
 		self._configuration_data = ConfigurationData()
