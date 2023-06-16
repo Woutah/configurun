@@ -5,10 +5,23 @@ edit/manage/run machine learning settings.
 Also contains OptionsSource, which is used to determine if the current file should be saved to a file or to the queue.
 """
 import logging
-from typing import Optional
+import os
+import typing
+from enum import Enum
 
-import PySide6.QtCore
-import PySide6.QtWidgets
+import PySide6Widgets.Models.FileExplorerModel
+from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6Widgets.Utility.catchExceptionInMsgBoxDecorator import \
+    catchExceptionInMsgBoxDecorator
+
+from MLQueue.classes.RunQueue import RunQueue
+from MLQueue.examples.cur_framework_options import (
+    FrameworkConfigurationModel)
+from MLQueue.windows.models.RunQueueConsoleModel import RunQueueConsoleModel
+from MLQueue.windows.models.RunQueueTableModel import RunQueueTableModel
+from MLQueue.windows.ui.ApplyMachineLearningWindow_ui import \
+    Ui_ApplyMachineLearningWindow
+from MLQueue.windows.widgets.MLQueueWidget import MLQueueWidget
 
 log = logging.getLogger(__name__)
 if __name__ == "__main__":
@@ -19,29 +32,8 @@ if __name__ == "__main__":
 	handler.setFormatter(formatter)
 	logging.basicConfig(
 		handlers=[handler],
-		level=logging.DEBUG) #Without time
-
-import os
-import typing
-from enum import Enum
-
-# import PySide6Widgets.Widgets
-import PySide6Widgets.Models.FileExplorerModel
-from PySide6 import QtCore, QtGui, QtWidgets
-from PySide6Widgets.Utility.catchExceptionInMsgBoxDecorator import \
-    catchExceptionInMsgBoxDecorator
-from PySide6Widgets.Utility.DataClassEditorsDelegate import \
-    DataClassEditorsDelegate
-
-from MLQueue.classes.RunQueue import RunQueue
-from MLQueue.configuration.ConfigurationModel import ConfigurationModel, ConfigurationData
-from MLQueue.windows.models.RunQueueConsoleModel import RunQueueConsoleModel
-from MLQueue.windows.models.RunQueueTableModel import RunQueueTableModel
-from MLQueue.windows.ui.ApplyMachineLearningWindow_ui import \
-    Ui_ApplyMachineLearningWindow
-from MLQueue.windows.widgets.MLQueueWidget import MLQueueWidget
-
-from MLQueue.examples.cur_framework_options import FrameworkConfigurationModel, FrameworkOptionsData
+		level=logging.DEBUG
+	) #Without time
 
 SETTINGS_PATH_MACHINE_LEARNING_WINDOW = "/Settings/MachineLearning"
 
@@ -89,16 +81,6 @@ class MainWindow():
 			allow_select_files_only=True)
 
 
-
-		# #Loop over all splitters in the window and set the sizes to the saved sizes
-		# self._treeviews = { #For easy looping over all treeviews
-		# 	"main_options" : self.ui.mainOptionsTreeView,
-		# 	"general_options" : self.ui.generalOptionsTreeView,
-		# 	"model_options" : self.ui.modelOptionsTreeView,
-		# 	"dataset_options" : self.ui.datasetOptionsTreeView,
-		# 	"training_options" : self.ui.trainingOptionsTreeView
-		# }
-
 		#========================= load settings =========================
 		self._settings = QtCore.QSettings("MLTools", "AllSettingsWindow")
 		self._font_point_size = int(
@@ -125,53 +107,13 @@ class MainWindow():
 		self._config_model = FrameworkConfigurationModel()#use_cache=True, use_undo_stack=True)
 
 		self._mdi_area = self.ui.ConfigurationMdiArea
-		self._cur_option_proxy_models : typing.Dict[str, QtCore.QSortFilterProxyModel]= {} #type: typing.Dict[str, QtWidgets.QMdiSubWindow]
+		self._cur_option_proxy_models : typing.Dict[str, QtCore.QSortFilterProxyModel]= {}
 		self._cur_option_mdi_windows : typing.Dict[str, QtWidgets.QMdiSubWindow] = {}
 		self._cur_option_tree_view : typing.Dict[str, QtWidgets.QTreeView] = {}
-		self._config_model.proxyModelDictChanged.connect(self.OptionProxyModelsChanged)
+		self._config_model.proxyModelDictChanged.connect(self.option_proxy_models_changed)
 		self._config_model.proxyModelDictChanged.connect(lambda *args : print(f"Proxy model dict changed{args}"))
-		self.OptionProxyModelsChanged(self._config_model.get_proxy_model_dict()) #Initialize the mdi windows
-		# view_model_list : typing.List[typing.Tuple[QtWidgets.QTreeView, QtCore.QSortFilterProxyModel]]=  [
-		# 	(self.ui.mainOptionsTreeView, self._options.getMainOptionsProxyModel()),
-		# 	(self.ui.generalOptionsTreeView, self._options.getGeneralOptionsProxyModel()),
-		# 	(self.ui.modelOptionsTreeView, self._options.getModelOptionsProxyModel()),
-		# 	(self.ui.datasetOptionsTreeView, self._options.getDatasetOptionsProxyModel()),
-		# 	(self.ui.trainingOptionsTreeView, self._options.getTrainingOptionsProxyModel())
-		# ]
+		self.option_proxy_models_changed(self._config_model.get_proxy_model_dict()) #Initialize the mdi windows
 
-		# for (cur_view, cur_model) in view_model_list:
-		# 	cur_view.setModel(cur_model)
-
-		# self._options.getMainOptionsProxyModel().sourceModelChanged.connect(
-		# 	lambda *_: self.tree_view_source_model_changed(
-		# 		"main_options",
-		# 		self.ui.mainOptionsTreeView,
-		# 		self._options.getMainOptionsProxyModel())
-		# )
-		# self._options.getGeneralOptionsProxyModel().sourceModelChanged.connect(
-		# 	lambda *_: self.tree_view_source_model_changed(
-		# 		"general_options",
-		# 		self.ui.generalOptionsTreeView,
-		# 		self._options.getGeneralOptionsProxyModel())
-		# )
-		# self._options.getModelOptionsProxyModel().sourceModelChanged.connect(
-		# 	lambda *_: self.tree_view_source_model_changed(
-		# 		"model_options",
-		# 		self.ui.modelOptionsTreeView,
-		# 		self._options.getModelOptionsProxyModel())
-		# )
-		# self._options.getDatasetOptionsProxyModel().sourceModelChanged.connect(
-		# 	lambda *_: self.tree_view_source_model_changed(
-		# 		"dataset_options",
-		# 		self.ui.datasetOptionsTreeView,
-		# 		self._options.getDatasetOptionsProxyModel())
-		# )
-		# self._options.getTrainingOptionsProxyModel().sourceModelChanged.connect(
-		# 	lambda *_: self.tree_view_source_model_changed(
-		# 		"training_options",
-		# 		self.ui.trainingOptionsTreeView,
-		# 		self._options.getTrainingOptionsProxyModel())
-		# )
 
 
 		self._config_file_picker_model.setReadOnly(False)
@@ -183,11 +125,6 @@ class MainWindow():
 		)
 
 		self.ui.ConfigFilePickerView.header().setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents) #type: ignore
-
-
-		#Disable shortcuts for the file picker
-		# self.ui.ConfigFilePickerView.actionRedo.setShortcutContext(QtCore.Qt.WidgetShortcut) #File picker context
-		# self.ui.ConfigFilePickerView.actionUndo.setShortcutContext(QtCore.Qt.WidgetShortcut) #File picker context
 
 
 		#======== Open a window which shows the undo/redo stack ========
@@ -244,14 +181,14 @@ class MainWindow():
 
 		self.ui.actionSave.triggered.connect(self.save_config_triggered)
 		self.ui.actionSave_As.triggered.connect(self.save_config_as_triggered)
-		
+
 		self.ui.actionNewConfig.triggered.connect(
-			lambda *_: self._config_model.reset_configuration_data_to_default()) #Set 
+			lambda *_: self._config_model.reset_configuration_data_to_default()) #Set
 			#to empty config
 		# self.ui.actionReset_Splitters.triggered.connect(self.reset_splitter_states)
 
 
-	def OptionProxyModelsChanged(self, dict_of_models : typing.Dict[str, QtCore.QSortFilterProxyModel]) -> None:
+	def option_proxy_models_changed(self, dict_of_models : typing.Dict[str, QtCore.QSortFilterProxyModel]) -> None:
 		"""Upon change of (one of) the dataclass editors -> update the console"""
 
 		for option_name, option_model in dict_of_models.items():
