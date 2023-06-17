@@ -12,7 +12,7 @@ import typing
 from collections import OrderedDict
 
 from PySide6 import QtCore, QtGui, QtWidgets
-from PySide6Widgets.Widgets.ConsoleWidget import BaseConsoleItem
+from PySide6Widgets.Models.ConsoleWidgetModels.ConsoleStandardItemModel import BaseConsoleItem
 from MLQueue.classes.RunQueue import RunQueue
 
 log = logging.getLogger(__name__)
@@ -21,7 +21,6 @@ class RunQueueConsoleItem(BaseConsoleItem):
 	"""
 	Model that synchronizes with text-output from running items in the runqueue.
 	"""
-
 	currentTextChanged = QtCore.Signal(str) #Emitted when the text in the file changes
 	dataChanged = QtCore.Signal() #When the metadata of the item changes (e.g. last-edit-date, name, runState not txt)
 	filledTextPositionsChanged = QtCore.Signal(object) #Emitted when the receieved text is filled in the buffer

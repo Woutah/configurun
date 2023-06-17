@@ -105,6 +105,10 @@
      <property name="title">
       <string>MDI Area</string>
      </property>
+     <property name="icon">
+      <iconset resource="../../../res/app_resources.qrc">
+       <normaloff>:/Icons/icons/apps/preferences-system-windows.png</normaloff>:/Icons/icons/apps/preferences-system-windows.png</iconset>
+     </property>
      <addaction name="actionNone"/>
     </widget>
     <addaction name="menuSet_Font_Size"/>
@@ -137,8 +141,8 @@
             <string>Save</string>
            </property>
            <property name="icon">
-            <iconset>
-             <normaloff>:/Icons/icons/Tango Icons/32x32/actions/document-save.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/document-save.png</iconset>
+            <iconset resource="../../../res/app_resources.qrc">
+             <normaloff>:/Icons/icons/actions/document-save.png</normaloff>:/Icons/icons/actions/document-save.png</iconset>
            </property>
           </widget>
          </item>
@@ -148,8 +152,8 @@
             <string>Save As...</string>
            </property>
            <property name="icon">
-            <iconset>
-             <normaloff>:/Icons/icons/Tango Icons/32x32/actions/document-save-as.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/document-save-as.png</iconset>
+            <iconset resource="../../../res/app_resources.qrc">
+             <normaloff>:/Icons/icons/actions/document-save-as.png</normaloff>:/Icons/icons/actions/document-save-as.png</iconset>
            </property>
           </widget>
          </item>
@@ -195,8 +199,8 @@
                <string>...</string>
               </property>
               <property name="icon">
-               <iconset>
-                <normaloff>:/Icons/icons/Tango Icons/32x32/actions/document-open.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/document-open.png</iconset>
+               <iconset resource="../../../res/app_resources.qrc">
+                <normaloff>:/Icons/icons/actions/folder-new.png</normaloff>:/Icons/icons/actions/folder-new.png</iconset>
               </property>
              </widget>
             </item>

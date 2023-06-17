@@ -17,13 +17,17 @@ import typing
 from copy import copy, deepcopy
 from datetime import datetime
 from enum import Enum
+import inspect
 
-import importlib
+import importlib.util
 # from MLQueue.configuration.BaseOptions import Options
+# from MLQueue.classes.
+from MLQueue.configuration.ConfigurationModel import ConfigurationModel, Configuration
 from PySide6 import QtCore
 
 log = logging.getLogger(__name__)
 
+CONFIGURATION_MODULE_NAME = "configuration_module"
 
 class LoggerWriter:
 	"""
@@ -114,14 +118,14 @@ class RunQueueItem():
 		  	item_id : int,
 		  	name : str,
 		  	dt_added : datetime,
-		  	config : object,
+		  	config : object | Configuration,
 			dt_started : datetime | None = None,
 		  	status : RunQueueItemStatus = RunQueueItemStatus.QUEUED,
 		  	dt_done : typing.Union[datetime, None] = None,
 		  	exit_code : typing.Union[int, None] = None,
 		  	stderr : str = ""
 		) -> None:
-		self.id = item_id # pylint: disable=invalid-name
+		self.item_id = item_id # pylint: disable=invalid-name
 		self.name = name
 		self.dt_added = dt_added
 		self.config = config
@@ -131,7 +135,7 @@ class RunQueueItem():
 		self.exit_code = exit_code
 		self.stderr = stderr
 
-	id: int
+	item_id: int
 	name: str #Descriptive name used to display in the queue
 	dt_added: datetime
 	config: object
@@ -148,7 +152,7 @@ class RunQueueItem():
 		Get a copy of the object
 		"""
 		return RunQueueItem(
-			item_id=self.id,
+			item_id=self.item_id,
 			name=self.name,
 			dt_added=self.dt_added,
 			config=copy(self.config),
@@ -270,6 +274,7 @@ class RunQueue(QtCore.QObject):
 
 		self._stopflag = multiprocessing.Event()
 		self._stopflag.clear()
+		self._config_class : type = type(None) #The class of the configuration object
 
 		self._log_location = log_location
 		if self._log_location is None or self._log_location == "" or not os.path.exists(self._log_location): #If no
@@ -741,7 +746,7 @@ class RunQueue(QtCore.QObject):
 		#TODO: set stop flag, then force stop all running processes and set the configurations of each to cancelled
 
 
-	def add_to_queue(self, name : str, config : typing.Any):
+	def add_to_queue(self, name : str, config : Configuration):
 		"""
 		Add a configuration to the queue
 
@@ -754,7 +759,8 @@ class RunQueue(QtCore.QObject):
 		new_item_id = self._cur_id
 		self._cur_id += 1
 		dt_added = datetime.now()
-		new_item = self._manager.RunQueueItem(id=new_item_id,name=name, dt_added=dt_added, config=config)
+		new_item = self._manager.RunQueueItem(item_id=new_item_id,name=name, dt_added=dt_added, config=config)
+		# new_item = RunQueueItem(item_id=new_item_id,name=name, dt_added=dt_added, config=config)
 
 		with self._all_dict_mutex, self._queue_mutex:
 			self._queue.append(new_item_id)
@@ -785,6 +791,8 @@ class RunQueue(QtCore.QObject):
 			self._queue_signal_updater_thread = threading.Thread(target=self._run_queue_item_updater)
 			self._queue_signal_updater_thread.start()
 
+
+	
 
 	def _run_queue_item_updater(self):
 		#While we are not stopping, or there are still processes running, keep updating
@@ -845,7 +853,7 @@ class RunQueue(QtCore.QObject):
 			log.info(f"Started running queue item {queue_item_id} inside process {os.getpid()}")
 			options_data = copy(queue_item.config) #Just to be sure we don't change the original config, make a copy
 
-			config = Options()
+			config = 
 			config.set_option_data(options_data) #NOTE: Although Options allow for a lot of types -
 			#in the runqueue, we should always expect a 'OptionsData' type
 
@@ -881,7 +889,7 @@ class RunQueue(QtCore.QObject):
 			queue_item.exit_code = 0 #normal exit code
 
 
-		log.info(f"Processed item with id {queue_item.id} and name {queue_item.name} , queue is now {id_queue}, \
+		log.info(f"Processed item with id {queue_item.item_id} and name {queue_item.name} , queue is now {id_queue}, \
 	   		all_dict is of size {len(all_dict)}")
 
 

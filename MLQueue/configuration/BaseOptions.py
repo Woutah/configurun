@@ -13,7 +13,9 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class BaseOptions(Serializable, object):
-	"""The base-option class, all other options classes should inherit from this class"""
+	"""The base-option class, all other options classes should inherit from this class
+	A configuration is built by using 1 or more of these options classes.
+	"""
 
 	def update_using_dict(self, update_dict : dict):
 		"""Update the current object with the passed dictionary

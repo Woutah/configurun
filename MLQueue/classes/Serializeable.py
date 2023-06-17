@@ -48,6 +48,10 @@ class Serializable():
 			copy_from_dict (dict): Dictionary to copy from
 			ignore_new_attributes (bool, optional): If True, will ignore attributes that are not already present in this
 				object. Defaults to False.
+
+		Returns:
+			list: list of items that were in the copy dict, but no attribute of this object
+			list: list of items that were in this item, but not in the copy dict
 		"""
 		problem_list = set([])
 		if ignore_new_attributes:
@@ -60,7 +64,9 @@ class Serializable():
 				continue
 			setattr(self, key, copy_from_dict[key])
 
-		return(list(problem_list)) #Return list of attributes that were not set
+		missing_keys = set([key for key in self.__dict__ if key not in copy_from_dict])
+
+		return list(problem_list), list(missing_keys) #Return list of attributes that were not set
 
 
 	def to_json(self, ignore_private = False):

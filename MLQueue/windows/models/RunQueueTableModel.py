@@ -184,7 +184,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 	column_names = { #Used to map column index to a name/property of a RunQueueItem
 		0: ("name", "Name"),
 		1: ("status", "Status"),
-		2: ("id", "ID"),
+		2: ("item_id", "ID"),
 		3: ("dt_added", "Added"),
 		4: ("dt_started", "Started"),
 		5: ("config", "Config"),
@@ -247,7 +247,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 			index (QtCore.QModelIndex): The index of the item to highlight
 		"""
 		if index.isValid():
-			new_id = self._cur_run_list_copy[list(self._cur_run_list_copy.keys())[index.row()]].id
+			new_id = self._cur_run_list_copy[list(self._cur_run_list_copy.keys())[index.row()]].item_id
 			self._prev_highlighted_id = self._highlighted_id
 			self._highlighted_id = new_id
 			self.dataChanged.emit(index, index)
@@ -282,7 +282,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		"""
 		if index.isValid():
 			return self._run_queue.get_actions_for_id(
-				self._cur_run_list_copy[list(self._cur_run_list_copy.keys())[index.row()]].id)
+				self._cur_run_list_copy[list(self._cur_run_list_copy.keys())[index.row()]].item_id)
 		else:
 			return []
 
@@ -299,7 +299,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		"""
 		if index.isValid():
 			self._run_queue.do_action_for_id(
-				self._cur_run_list_copy[list(self._cur_run_list_copy.keys())[index.row()]].id, action)
+				self._cur_run_list_copy[list(self._cur_run_list_copy.keys())[index.row()]].item_id, action)
 
 
 	def get_item_status(self, index : QtCore.QModelIndex) -> RunQueueItemStatus | None:
@@ -345,7 +345,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 				return None
 		#Font role
 		elif role == QtCore.Qt.ItemDataRole.FontRole:
-			if item.id == self._highlighted_id:
+			if item.item_id == self._highlighted_id:
 				return self._highlight_font
 		return None
 

@@ -13,15 +13,19 @@ import PySide6Widgets.Models.FileExplorerModel
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6Widgets.Utility.catchExceptionInMsgBoxDecorator import \
     catchExceptionInMsgBoxDecorator
+from PySide6Widgets.Widgets.FramelessMdiWindow import FramelessMdiWindow
+from PySide6Widgets.Utility.DataClassEditorsDelegate import DataClassEditorsDelegate
+import importlib.util
 
 from MLQueue.classes.RunQueue import RunQueue
-from MLQueue.examples.cur_framework_options import (
-    FrameworkConfigurationModel)
+from MLQueue.examples.FrameworkExample import FrameworkConfigurationModel
 from MLQueue.windows.models.RunQueueConsoleModel import RunQueueConsoleModel
 from MLQueue.windows.models.RunQueueTableModel import RunQueueTableModel
 from MLQueue.windows.ui.ApplyMachineLearningWindow_ui import \
     Ui_ApplyMachineLearningWindow
 from MLQueue.windows.widgets.MLQueueWidget import MLQueueWidget
+from MLQueue.configuration.ConfigurationModel import UnkownOptionClassError, NoClassTypesError
+
 
 log = logging.getLogger(__name__)
 if __name__ == "__main__":
@@ -43,15 +47,6 @@ class OptionsSource(Enum):
 	"""
 	FILE = 0
 	QUEUE = 1
-
-
-# class SettingsMDIWindow(QtWidgets.QMdiSubWindow):
-# 	"""A subclass of QtWidgets.QMdiSubWindow that overloads the painter-methods to draw the windows without borders, and
-# 	with a stylized title bar and no close button.
-# 	"""
-# 	def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
-# 		super().__init__(parent)
-# 		self.setWind
 
 
 class MainWindow():
@@ -110,8 +105,9 @@ class MainWindow():
 		self._cur_option_proxy_models : typing.Dict[str, QtCore.QSortFilterProxyModel]= {}
 		self._cur_option_mdi_windows : typing.Dict[str, QtWidgets.QMdiSubWindow] = {}
 		self._cur_option_tree_view : typing.Dict[str, QtWidgets.QTreeView] = {}
+		self._cur_edited_signals : typing.Dict[str, typing.Callable] = {}
+
 		self._config_model.proxyModelDictChanged.connect(self.option_proxy_models_changed)
-		self._config_model.proxyModelDictChanged.connect(lambda *args : print(f"Proxy model dict changed{args}"))
 		self.option_proxy_models_changed(self._config_model.get_proxy_model_dict()) #Initialize the mdi windows
 
 
@@ -145,7 +141,11 @@ class MainWindow():
 			self._config_file_picker_model_highlight_path_changed)
 
 		#============= Post-load settings =============
-		self.load_from_file(self._cur_file_path) #Attempt to load from file
+		load_succesfully = self.load_from_file(self._cur_file_path, show_dialog_on_problem=False) #Attempt to load from file
+		if not load_succesfully:
+			self.new_configuration(ignore_modified_window=True) #If loading failed -> reset to default
+
+		self.ui.ConfigurationMdiArea.tileSubWindows() #Tile the mdi windows
 
 		#==================Console ================
 		self._console_item_model = RunQueueConsoleModel()
@@ -182,10 +182,53 @@ class MainWindow():
 		self.ui.actionSave.triggered.connect(self.save_config_triggered)
 		self.ui.actionSave_As.triggered.connect(self.save_config_as_triggered)
 
-		self.ui.actionNewConfig.triggered.connect(
-			lambda *_: self._config_model.reset_configuration_data_to_default()) #Set
+		self.ui.actionNewConfig.triggered.connect(self.new_configuration) #Set
 			#to empty config
-		# self.ui.actionReset_Splitters.triggered.connect(self.reset_splitter_states)
+
+		self.ui.menuMDI_Area.removeAction(self.ui.actionNone) #Remove the "none" action from the mdi menu
+		self.ui.ConfigurationMdiArea.add_actions_to_menu(self.ui.menuMDI_Area)
+
+	def set_config_by_path(self, 
+			config_import_location : str
+		):
+		"""
+		Set the config import using a path to a module. This will import the module under name specified by 
+		CONFIGURATION_MODULE_NAME and then look for a class that is a subclass of ConfigurationModel. If no such class
+		is found, a ValueError is raised.
+
+		Args:
+			config_import_location (str): the location to import configs from
+		"""
+		# module = importlib.import_module(config_import_location)
+		spec = importlib.util.spec_from_file_location(CONFIGURATION_MODULE_NAME, config_import_location)
+		assert spec, f"Could not import config import module at location {config_import_location} - spec is None"
+		module = importlib.util.module_from_spec(spec)
+		assert module, f"Could not import config import module at location {config_import_location} - module is None"
+		if spec.name in sys.modules:
+			log.warning(f"Module {spec.name} already in sys.modules when import Configuration module, overwriting it.")
+		sys.modules[spec.name] = module #NOTE: this overwrites any existing module with the same name
+		spec.loader.exec_module(module)
+
+		#List classes in module
+		classes = inspect.getmembers(module, inspect.isclass)
+		for cur_class in classes:
+			if issubclass(cur_class[1], ConfigurationModel):
+				self._config_class = cur_class[1]
+				return
+		
+		raise ValueError(f"Could not find a class in specified module {config_import_location} that is a subclass of \
+			ConfigurationModel")
+
+	def set_config_by_class(self, config_class : typing.Type[ConfigurationModel]):
+		"""Sets the config import using a class type. This class should be a subclass of ConfigurationModel.
+		
+		Args:
+			config_class (typing.Type[ConfigurationModel]): the class to use for importing configs, should be a subclass
+				of ConfigurationModel. 
+		"""
+		assert issubclass(config_class, ConfigurationModel), f"Config class {config_class} is not a subclass of \
+			ConfigurationModel"
+		self._config_class = config_class
 
 
 	def option_proxy_models_changed(self, dict_of_models : typing.Dict[str, QtCore.QSortFilterProxyModel]) -> None:
@@ -199,25 +242,30 @@ class MainWindow():
 				else:
 					self._cur_option_proxy_models[option_name] = option_model
 					self._cur_option_tree_view[option_name].setModel(option_model)
-			else:
-				self._cur_option_mdi_windows[option_name] = QtWidgets.QMdiSubWindow()
+			else: #Create a new mdi window
+				self._cur_option_mdi_windows[option_name] = FramelessMdiWindow()
 				# self._cur_option_mdi_windows[option_name].
 				#TODO: add title to mdi window
 				self._cur_option_proxy_models[option_name] = option_model
 				self._cur_option_tree_view[option_name] = QtWidgets.QTreeView()
 				self._cur_option_tree_view[option_name].setModel(option_model)
+				self._cur_option_tree_view[option_name].setItemDelegate(DataClassEditorsDelegate())#Set custom delegate
 				self._cur_option_mdi_windows[option_name].setWidget(self._cur_option_tree_view[option_name])
 				self._mdi_area.addSubWindow(self._cur_option_mdi_windows[option_name])
+				self._cur_option_mdi_windows[option_name].setWindowTitle(option_name.title().replace("_", " "))
 				self._cur_option_mdi_windows[option_name].show()
 
+				# self.
+
+
 		#re-tile the mdi windows
-		for window in self._mdi_area.subWindowList():
-			window.show()
-			# window.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint)
-			window.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
-			window.setWindowFlags(QtCore.Qt.WindowType.CustomizeWindowHint | QtCore.Qt.WindowType.FramelessWindowHint)
-			window.setContentsMargins(0, 0, 0, 0)
-		self._mdi_area.tileSubWindows()
+		# for window in self._mdi_area.subWindowList():
+		# 	window.show()
+		# 	# window.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint)
+		# 	# window.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
+		# 	# window.setWindowFlags(QtCore.Qt.WindowType.CustomizeWindowHint | QtCore.Qt.WindowType.FramelessWindowHint)
+		# 	window.setContentsMargins(0, 0, 0, 0)
+		# self._mdi_area.tileSubWindows()
 
 	def create_console_context_menu(self, pos):
 		"""Create a context menu at the provided position, displaying all ignored ids. When clicked, un-ignore the id
@@ -342,7 +390,35 @@ class MainWindow():
 		else:
 			QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(SETTINGS_PATH_MACHINE_LEARNING_WINDOW))
 
+	def new_configuration(self, ignore_modified_window : bool=False) -> None:
+		"""
+		Create a new configuration with default values. If the current config has unsaved changes, a dialog will be
+		shown to ask the user if they want to save the current config first, unless ignore_modified_window is set to
+		True.
 
+		Args:
+			ignore_modified_window (bool, optional): Whether to ignore the current modified window state. If true,
+				overwrites the current config without asking the user. Defaults to False.
+		"""
+		if self.window.isWindowModified() and not ignore_modified_window:
+			new_msg = QtWidgets.QMessageBox()
+			new_msg.setWindowTitle("Warning")
+			new_msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
+			new_msg.setText("The current config has unsaved changed, do you want to overwrite them with a new config?")
+			new_msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No)
+			new_msg.setDefaultButton(QtWidgets.QMessageBox.StandardButton.No)
+			new_msg.setEscapeButton(QtWidgets.QMessageBox.StandardButton.No)
+			ret = new_msg.exec()
+			if ret == QtWidgets.QMessageBox.StandardButton.No:
+				self._config_file_picker_model.set_hightlight_using_path(self._cur_file_path) #Hightlight path -> original
+				return
+
+		self.window.setWindowModified(False)
+		self._cur_file_path = None
+		self._config_file_picker_model.reset_hightlight()
+		self._config_model.reset_configuration_data_to_default()
+
+		self.window.setWindowModified(False)
 	def load_from_file(self, new_path : str, show_dialog_on_problem=True) -> bool:
 		"""Loads the config from a file
 
@@ -378,18 +454,77 @@ class MainWindow():
 		log.debug(f"Started trying to load config from {new_path}")
 		try:
 			if new_path:
-					# def load_from(self, path : str, show_msgbox_on_error :bool= True) -> bool:
-				problem_dict = self._config_model.load_from(new_path)
+				problem_dict = {}
+				try: #First try loading using class-type keys that are inside the json file
+					problem_dict = self._config_model.load_json_from(new_path)
+				except (UnkownOptionClassError, NoClassTypesError) as exception:
+
+					msg = QtWidgets.QMessageBox()
+					txt = ""
+					button_discard = None
+					if isinstance(exception, NoClassTypesError):
+						txt += ("No class types were found in the file. We can try to to deduce the dataclass-types "
+							"by using the option-names and automatic type-deduction. <br><br>")
+						txt += ("<br>This could be the "
+								"result of a change in the settings format, dataclass module- or class-names, or due to "
+								"file corruption.")
+					elif isinstance(exception, UnkownOptionClassError):
+						txt = "<ul>"
+						for option_name, exception_list in exception.args[-1].items():
+							txt += f"<b>{option_name}:</b>"
+							for exception in exception_list:
+								txt += f"<li><b>{type(exception).__name__}</b>:<br>{exception}</li>"
+						txt += "</ul>"
+						txt += ("<br>There was a problem loading the option dataclass-types from file. This could be the "
+								"result of a change in the settings format, dataclass module- or class-names, or due to "
+								"file corruption.")
+						txt += ("<br><br> We can discard the unknown dataclass-types or try to deduce the "
+							"actual dataclass types by using the option-names and automatic type-deduction. <br><br>")
+
+						button_discard = msg.addButton("Discard", QtWidgets.QMessageBox.ButtonRole.NoRole)
+
+
+					msg.setWindowTitle("Warning")
+					msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
+					msg.setText(f"Could not immediately load dataclass-types from {new_path}:")
+					msg.setInformativeText(txt)
+
+					#TODO: order of buttons is determined by buttonrole, so they seem a bit arbitrary...
+					button_deduce = msg.addButton("Deduce", QtWidgets.QMessageBox.ButtonRole.AcceptRole)
+					button_cancel = msg.addButton("Cancel", QtWidgets.QMessageBox.ButtonRole.RejectRole)
+					msg.setDetailedText(str(exception.args[-1]))
+
+
+					msg.exec()
+					if msg.clickedButton() == button_deduce: #Deduce
+						problem_dict = self._config_model.load_json_from(new_path, load_using_classtypes_key=False)
+					elif msg.clickedButton() == button_discard: #Discard
+						problem_dict = self._config_model.load_json_from(new_path, ignore_unknown_option_types=True)
+					else:
+						#Reset settings
+						self.new_configuration(ignore_modified_window=True) #If loading failed -> reset to default config
+						return False
+
+
+
+
 				if len(problem_dict) > 0 and show_dialog_on_problem:
 					msg = QtWidgets.QMessageBox()
 					msg.setIcon(QtWidgets.QMessageBox.Icon.Warning) #type: ignore
-					msg.setText(f"The following problems were encountered while loading the settings from path \
-		 				<{new_path}>:")
+					msg.setText(
+						f"The following problems were encountered while loading the settings from path <a href={new_path}></a>:")
 					msg.setWindowTitle("Warning")
-					txt = "<br>".join([f"<b>{key}:</b> {value}" for key, value in problem_dict.items()])
-					txt += "<br><br>The settings have been loaded anyway, but running them as-is might result in \
-						unexpected behaviour. This could be the result of a change in the settings format, or due to \
-							file corruption."
+					txt =""
+					for option_name, exception_list in problem_dict.items():
+						txt += f"<b>{option_name}:</b>"
+						txt += "<ul>"
+						for exception in exception_list:
+							txt += f"<li><b>{type(exception).__name__}</b>: {exception}</li>"
+						txt += "</ul><br>"
+
+					txt += ("The settings have been loaded anyway, but running them as-is might result in"
+						"unexpected behaviour. This could be the result of a change in the settings format, or due to"
+						"file corruption.")
 					msg.setInformativeText(txt)
 					msg.setDetailedText(str(problem_dict))
 					msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok) #type: ignore
@@ -402,7 +537,7 @@ class MainWindow():
 			msg.setWindowTitle("Error")
 			msg.setIcon(QtWidgets.QMessageBox.Icon.Critical) #type: ignore
 			msg.setText(f"Could not load config from {new_path}")
-			msg.setInformativeText(f"Error: {exception}")
+			msg.setInformativeText(f"{type(exception).__name__}: {exception}")
 			msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok) #type: ignore
 			msg.exec()
 			log.error(f"Could not load config from {new_path}. Error: {exception}")
@@ -462,11 +597,15 @@ class MainWindow():
 		if self._cur_file_path:
 			# return os.path.basename(self._cur_file_path) #If already saved, use the save-name
 			return os.path.basename(self._cur_file_path).rsplit(".", 1)[0] #If already saved, use the save-name
-		name = ""
-		name += ("_" + self._config_model.data_class) if self._config_model.data_class else ""
-		name += ("_" + self._config_model.task) if self._config_model.task else ""
-		name += ("_" + self._config_model.model) if self._config_model.model else ""
-		return name
+
+		if hasattr(self._config_model, "experiment_name"): #If experiment name is set -> use that
+			return self._config_model.experiment_name
+
+		# name = ""
+		# name += ("_" + self._config_model.data_class) if self._config_model.data_class else ""
+		# name += ("_" + self._config_model.task) if self._config_model.task else ""
+		# name += ("_" + self._config_model.model) if self._config_model.model else ""
+		return "new_config"
 
 	@catchExceptionInMsgBoxDecorator
 	def add_to_queue_triggered(self):
@@ -480,7 +619,7 @@ class MainWindow():
 					    QtWidgets.QLineEdit.EchoMode.Normal, name)
 		if ok_clicked:
 			# self.ml_queue.add_to_queue(name, self._options.get_options_data_copy())
-			self.ml_queue_model.add_to_queue(name, self._config_model.get_options_data_copy())
+			self.ml_queue_model.add_to_queue(name, self._config_model.get_configuration_data_copy())
 
 	def undo_triggered(self):
 		"""
@@ -509,7 +648,7 @@ class MainWindow():
 		if self._cur_file_path is None or (self._cur_source != OptionsSource.FILE):
 			ret = self.save_config_as_triggered() #Already cleans undo-stack if successful
 		else:
-			ret = self._config_model.save_as(self._cur_file_path)
+			ret = self._config_model.save_json_to(self._cur_file_path)
 			if ret and self._config_model.undo_stack: #If save was successful -> set clean state
 				self._config_model.undo_stack.setClean()
 				self.window.setWindowModified(False)
@@ -532,7 +671,7 @@ class MainWindow():
 		if file_path:
 			self._cur_file_path = file_path #If source is file -> this sets current file path
 			self._config_file_picker_model.set_hightlight_using_path(self._cur_file_path) #Also update the highlighted path
-			ret = self._config_model.save_as(file_path)
+			ret = self._config_model.save_json_to(file_path)
 			log.info(f"Save as returned {ret}")
 			if ret and self._config_model.undo_stack: #If save was successful -> set clean state
 				self._config_model.undo_stack.setClean()
