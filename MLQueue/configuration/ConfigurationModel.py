@@ -14,7 +14,7 @@ import json
 import logging
 from pydoc import locate
 import typing
-from abc import abstractmethod
+# from abc import abstractmethod
 from dataclasses import dataclass
 
 from PySide6 import QtCore, QtGui
@@ -61,10 +61,22 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 	proxyModelDictChanged = QtCore.Signal(dict) #Signal that is emitted when the list of
 
 
-	def __init__(self, use_cache : bool = True, use_undo_stack=True) -> None:
+	def __init__(self,
+	      	option_type_deduction_function :\
+				typing.Callable[[Configuration], typing.Dict[str, typing.Type[BaseOptions] | typing.Type[None]]],
+	      	use_cache : bool = True,
+			use_undo_stack=True) -> None:
 		"""The initialize of the class
 
 		Args:
+			option_type_deduction_function (typing.Callable[[Configuration], typing.Dict[str, typing.Type[BaseOptions | None]]]):
+				A function that returns a dict of option-class-types for each option-group (e.g. model_options,
+				dataset_options, training_options). This is useful when dynamically switching between different sub-options
+				classes based on the current configuration. The function should return a dict with the option-name
+				(e.g. model_options) as key, and the option class as value.
+				NOTE: this function should ALWAYS return >= 1 option classes, otherwise the user will not be able to
+				change the configuration at all (we would be stuck with an empty configuration).
+
 			use_cache (bool, optional): Whether the options class should use a cache. When the main_options are changed
 				and .e.g. the model_options have to be changed, this checks the cache for an existing configuration
 				of this type.
@@ -74,6 +86,8 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 				Defaults to False.
 		"""
 		super().__init__()
+
+		self._option_type_deduction_function = option_type_deduction_function
 		self.undo_stack = None
 		if use_undo_stack:
 			self.undo_stack = QtGui.QUndoStack()
@@ -124,16 +138,11 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 		self.set_option_class_types(all_classes)
 
 	def _deduce_new_option_class_types_from_current(self) -> typing.Dict[str, typing.Type[BaseOptions | None]]:
-		"""Deduce the new option class types based on the current configuration. This is the main function that"""
-		return self.deduce_new_option_class_types(self._configuration) #TODO: copy?
-
-	@staticmethod
-	@abstractmethod
-	def deduce_new_option_class_types(configuration : Configuration) -> typing.Dict[str, typing.Type[BaseOptions | None]]:
 		"""
 		Returns a list of all option-dataclass types for each option-group deduced from the current configuration.
 
-		User should define their own logic here, a simple example would be to always return the same option classes:
+		User should define their own logic inside of the type-deduction-function, which is set when initiating this class.
+		A simple example would be:
 			return { "Options" : AllOptionsInOneClass }
 		or:
 			return {
@@ -149,12 +158,18 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 					"dataset_options": BaseDatasetOptions,
 					"training_options": SklearnTrainingOptions
 				}
+			else:
+				etc...
 
-		NOTE: the user-implemented class must ALWAYS return >= 1 option classes, otherwise the user will not be able
-		to change the configuration at all
-		TODO: enforce this using a wrapper in this parent class
+		NOTE: the user-implemented class must ALWAYS return >= 1 option (data)classes, otherwise the user will not be able
+		to change the configuration at all, this assert is also checked. The option-classes should all inherit from
+		BaseOptions.
 		"""
-		raise NotImplementedError("User should implement this function")
+		new_option_classes = self._option_type_deduction_function(self._configuration)
+		assert len(new_option_classes) > 0, ("No option classes were deduced from the current configuration, that means "
+			"user will never be able to change the configuration - this should not happen. Make sure "
+			"deduce_new_option_class_types returns at least 1 dataclass-type that inherits from BaseOptions.")
+		return new_option_classes
 
 	def set_option_class_types(self,
 			    type_dict : typing.Dict[str, typing.Type[BaseOptions| None]]

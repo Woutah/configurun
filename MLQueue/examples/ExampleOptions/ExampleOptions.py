@@ -197,7 +197,7 @@ class ExampleGeneralOptions(BaseOptions):
 	)
 
 
-class ExampleModel(BaseOptions):
+class ExampleModelOptions(BaseOptions):
 	"""Simple example model settings"""
 	int_model_param : int = field(
 		default=1,
@@ -225,7 +225,7 @@ class ExampleModel(BaseOptions):
 		)
 	)
 
-class ExtendedExampleModel(ExampleModel):
+class ExtendedExampleModelOptions(ExampleModelOptions):
 	"""Adds some more options to the example model"""
 	extended_str_param : str = field(
 		default="",
@@ -263,11 +263,11 @@ class ExampleMainOptions(BaseOptions):
 	Contains the main options that determine the rest of the option-classes. The arguments in this class are parsed
 	first, and then the other classes are chosen and parsed based on what is found in this class
 	"""
-	model : typing.Literal["ExampleModel", "ExtendedExampleModel"] | None = field(
+	model_type : typing.Literal["ExampleModel", "ExtendedExampleModel"] | None = field(
 		default=None,
 		metadata=dict(
 					#TODO: add a required flag
-			display_name="Model",
+			display_name="Model Type",
 			constraints_help= {
 				"ExampleModel": "A simple example model",
 				"ExtendedExampleModel": "An extended example model, extends ExampleModel"
@@ -276,7 +276,7 @@ class ExampleMainOptions(BaseOptions):
 		)
 	)
 
-	dataset_type : typing.Literal['ExampleDataclass', "ExtendedExampleDataclass"] | None = field(
+	dataset_type : typing.Literal['ExampleDataset', "ExtendedExampleDataset"] | None = field(
 		default=None,
 		metadata=dict(
 			display_name="Dataset Type",

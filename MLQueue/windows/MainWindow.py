@@ -18,6 +18,7 @@ from PySide6Widgets.Utility.DataClassEditorsDelegate import DataClassEditorsDele
 import importlib.util
 
 from MLQueue.classes.RunQueue import RunQueue
+from MLQueue.configuration.ConfigurationModel import ConfigurationModel
 from MLQueue.examples.FrameworkExample import FrameworkConfigurationModel
 from MLQueue.windows.models.RunQueueConsoleModel import RunQueueConsoleModel
 from MLQueue.windows.models.RunQueueTableModel import RunQueueTableModel
@@ -54,7 +55,11 @@ class MainWindow():
 	A QT window which provides the user with several tools to edit/manage/run machine learning settings.
 	"""
 	#A controller to manage the machine learning window
-	def __init__(self, run_queue : RunQueue, window : QtWidgets.QMainWindow) -> None:
+	def __init__(self, 
+	      		configuration_model : ConfigurationModel,
+				run_queue : RunQueue,
+				window : QtWidgets.QMainWindow
+			) -> None:
 		self.ui = Ui_ApplyMachineLearningWindow() # pylint: disable=C0103
 		self.ui.setupUi(window)
 
@@ -95,11 +100,7 @@ class MainWindow():
 		# 	splitter.restoreState(self._settings.value(f"splitter_state_{splitter.objectName()}", splitter.saveState()))
 
 		#====================== Suboptions window and automatic updating ===================
-		# for treeview in self._treeviews.values(): #Set item delegate for all treeviews
-		# 	treeview.setItemDelegate(DataClassEditorsDelegate())
-		# 	treeview.header().setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents) # type: ignore
-
-		self._config_model = FrameworkConfigurationModel()#use_cache=True, use_undo_stack=True)
+		self._config_model = configuration_model
 
 		self._mdi_area = self.ui.ConfigurationMdiArea
 		self._cur_option_proxy_models : typing.Dict[str, QtCore.QSortFilterProxyModel]= {}

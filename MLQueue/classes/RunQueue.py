@@ -851,17 +851,15 @@ class RunQueue(QtCore.QObject):
 
 		try:
 			log.info(f"Started running queue item {queue_item_id} inside process {os.getpid()}")
-			options_data = copy(queue_item.config) #Just to be sure we don't change the original config, make a copy
+			configuration = copy(queue_item.config) #Just to be sure we don't change the original config, make a copy
+			# config.set_option_data(options_data) #NOTE: Although Options allow for a lot of types -
+			# #in the runqueue, we should always expect a 'OptionsData' type
 
-			config = 
-			config.set_option_data(options_data) #NOTE: Although Options allow for a lot of types -
-			#in the runqueue, we should always expect a 'OptionsData' type
-
-			#Reload the main module to make sure we have the latest version
-			#TODO: based on argparse
+			# #Reload the main module to make sure we have the latest version
+			# #TODO: based on argparse
 			import MachineLearning.framework.learner as learner # pylint: disable=import-outside-toplevel
 			importlib.reload(learner)
-			experiment_runner = learner.experimentRunner(config)
+			experiment_runner = learner.experimentRunner(configuration)
 			experiment_runner.run_experiment()
 
 		except Exception as exception: # pylint: disable=broad-exception-caught #Catch all exceptions in this runqueue
