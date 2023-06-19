@@ -1,4 +1,5 @@
-"""Implements the ConfigurationModel class - a wrapper around the Configuration which enables us
+"""
+Implements the ConfigurationModel class - a wrapper around the Configuration which enables us
 to interact with a UI in a more friendly manner and provides an undo/redo stack as well as a method to
 iteratively build up a configuration by returning Configuration suboption dataclass-instances based on the
 current configuration.
@@ -16,6 +17,7 @@ from pydoc import locate
 import typing
 # from abc import abstractmethod
 from dataclasses import dataclass
+from collections import OrderedDict
 
 from PySide6 import QtCore, QtGui
 from PySide6Widgets.Models.DataClassModel import DataclassModel
@@ -23,7 +25,6 @@ from PySide6Widgets.Utility.SignalBlocker import SignalBlocker
 
 from MLQueue.configuration.BaseOptions import BaseOptions
 from MLQueue.configuration.Configuration import Configuration
-
 #import pyside6 qtobject metaclass
 
 
@@ -58,7 +59,7 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 		- get_option_data -> returns the options dataclass
 	"""
 
-	proxyModelDictChanged = QtCore.Signal(dict) #Signal that is emitted when the list of
+	proxyModelDictChanged = QtCore.Signal(OrderedDict) #Signal that is emitted when the list of
 
 
 	def __init__(self,
@@ -93,17 +94,20 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 			self.undo_stack = QtGui.QUndoStack()
 		self._use_cache = use_cache or use_undo_stack #If use_undo_stack is enabled, automatically enable use_cache
 		self._configuration = Configuration()
-		self._option_proxy_model_dict : typing.Dict[str, QtCore.QSortFilterProxyModel] = {} #A dict of proxy-models for
-			#each options-group (e.g. model_options, dataset_options, training_options)
+		self._option_proxy_model_dict : typing.OrderedDict[str, QtCore.QSortFilterProxyModel] = OrderedDict({})
+			# A dict of proxy-models for
+			# each options-group (e.g. model_options, dataset_options, training_options)
+			# Order can be used e.g. by the UI to display the options in the right order
 
-		self._option_proxy_model_connection : typing.Dict[str, typing.Any] = {} #A dict of connections for each model
+		# self._option_proxy_model_connection : typing.Dict[str, typing.Any] = {} #A dict of connections for each model
 		self._cached_option_instances : typing.Dict[type, BaseOptions] = {} #For each options-group (dataclass), we
 			# can cache on instance, so that we don't have to create a new instance every time the options are changed
 			# If use_cache is enabled, the last cached instance will be used when the options are changed, otherwise
 			# a new instance will be created every time the options are changed
 			#TODO: cache DataClassModel instead, might be nice - maybe save item-fold-state as well
 
-	def get_proxy_model_dict(self):
+
+	def get_proxy_model_dict(self) -> typing.OrderedDict[str, QtCore.QSortFilterProxyModel]:
 		"""Return the dict with proxy models for each options class"""
 		return self._option_proxy_model_dict
 
@@ -177,6 +181,9 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 		"""Set the data_class_types by passing a dictionary with the option_name (e.g. model_options) as key, and the
 		option class as value. This is useful when the options class is not yet known when initializing the class.
 
+		NOTE: the order of the keys does matter, if the order changes, a change is still emitted
+		NOTE: if a pre-existing key is not present in type_dict, it will be deleted from the configuration
+		
 		Args:
 			type_dict (typing.Dict[str, typing.Type[BaseOptions]]): A dictionary mapping a option-name to the actual
 				option class type (not instance!), e.g. "model_options" -> SklearnModelOptions
@@ -184,11 +191,17 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 		"""
 		proxy_models_changed = False
 
-		delete_items = [i for i in self._configuration.options if i not in type_dict] #Get all option-groups that
+		delete_items = set([i for i in self._configuration.options if i not in type_dict]) #Get all option-groups that
 			# are in the current configuration but not in the new configuration -> delete these and their proxy models
-		for del_item in delete_items:
-			del self._configuration.options[del_item]
-			del self._option_proxy_model_dict[del_item]
+
+		delete_items = delete_items.union(
+			set([i for i in self._option_proxy_model_dict if i not in type_dict])) #Also delete proxy models
+
+		for del_item in list(delete_items):
+			if del_item in self._configuration.options.keys():
+				del self._configuration.options[del_item]
+			if del_item in self._option_proxy_model_dict.keys():
+				del self._option_proxy_model_dict[del_item]
 			proxy_models_changed = True
 
 		for i, (option_name, option_class) in enumerate(type_dict.items()):
@@ -198,7 +211,7 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 				proxy_models_changed = True
 			elif option_class is None or isinstance(option_class, type(None)): #If None or Nonetype -> empty
 				pass
-			elif not isinstance(self._configuration.options[option_name], option_class): #If the option class changed
+			elif type(self._configuration.options[option_name]) != option_class: #If the option class changed #pylint: disable=unidiomatic-typecheck
 				pass
 			else:  #If everything is the same, skip
 				continue
@@ -218,12 +231,28 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 			else:
 				self._configuration.options[option_name] = None
 
+			new_model = DataclassModel(self._configuration.options[option_name], undo_stack=self.undo_stack)
 			self._option_proxy_model_dict[option_name].setSourceModel(
-				DataclassModel(self._configuration.options[option_name], undo_stack=self.undo_stack)
+				new_model
 			) #Set the new option-model
 
-		#TODO: also emit signal for changed types
+			#TODO: if ANY of the models change, this signal is emitted. Might not be neccesary in most cases (e.g.)
+			# Main options might update the model options, but not the other way around. Maybe use a list of
+			# option-groups for which we monitor changes, and only emit the signal if one of those changes.
+			new_model.dataChanged.connect(self.update_sub_options)
 
+
+		#======= Sort the keys of the proxy model according to the received order ============
+		for key1, key2 in zip(self._option_proxy_model_dict.keys(), type_dict.keys()):
+			if key1 != key2: #If key order not the same
+				proxy_models_changed = True
+				new_dict = OrderedDict({})
+				for key in type_dict.keys(): #Construct new dict in the right order
+					new_dict[key] = self._option_proxy_model_dict[key]
+				self._option_proxy_model_dict = new_dict
+				break
+
+		#Inform UI of changes, if any
 		if proxy_models_changed:
 			self.proxyModelDictChanged.emit(self._option_proxy_model_dict)
 
@@ -488,6 +517,7 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 	def reset_configuration_data_to_default(self):
 		"""Reset the configuration data to the default values"""
 		self._configuration = Configuration()
+
 		if self.undo_stack:
 			self.undo_stack.clear()
 		self.update_sub_options() #Update the sub-options based on empty configuration
@@ -504,7 +534,10 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 			self.reload_dataclass_model(option_name)
 
 
-	def set_configuration_data(self, configuration_data : Configuration, validate_after_setting : bool = True):
+	def set_configuration_data(self, 
+				configuration_data : Configuration,
+				validate_after_setting : bool = True
+			):
 		"""
 		Set the configuration using configuration data. This is useful for copying the configuration from another
 		instance. Updates all proxy-models and emits signals whenever neccesary to inform any coupled GUI's.
