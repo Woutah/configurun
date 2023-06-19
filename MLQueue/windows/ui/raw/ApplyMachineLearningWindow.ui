@@ -14,8 +14,8 @@
    <string>ML Task Scheduler[*]</string>
   </property>
   <property name="windowIcon">
-   <iconset>
-    <normaloff>:/Icons/icons/Tango Icons/32x32/categories/preferences-desktop.png</normaloff>:/Icons/icons/Tango Icons/32x32/categories/preferences-desktop.png</iconset>
+   <iconset resource="../../../res/app_resources.qrc">
+    <normaloff>:/Icons/icons/apps/utilities-system-monitor.png</normaloff>:/Icons/icons/apps/utilities-system-monitor.png</iconset>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -83,7 +83,7 @@
       <rect>
        <x>0</x>
        <y>0</y>
-       <width>140</width>
+       <width>144</width>
        <height>122</height>
       </rect>
      </property>
@@ -113,6 +113,7 @@
     </widget>
     <addaction name="menuSet_Font_Size"/>
     <addaction name="menuMDI_Area"/>
+    <addaction name="actionReset_Splitters_2"/>
    </widget>
    <addaction name="menuasdf"/>
    <addaction name="menuview"/>
@@ -471,6 +472,11 @@
    </property>
    <property name="text">
     <string>None</string>
+   </property>
+  </action>
+  <action name="actionReset_Splitters_2">
+   <property name="text">
+    <string>Reset Splitters</string>
    </property>
   </action>
  </widget>

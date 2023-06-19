@@ -1,5 +1,5 @@
 """
-Implements several option-dataclasses to showcase how to use this framework.
+Implements several option-dataclasses to show how to use this framework.
 """
 import typing
 from dataclasses import dataclass, field
@@ -7,13 +7,12 @@ from dataclasses import dataclass, field
 from PySide6Widgets.Utility.sklearn_param_validation import (Interval,
                                                              StrOptions)
 
-
 from MLQueue.configuration.BaseOptions import BaseOptions
 
 
 @dataclass
 class ExampleDatasetOptions(BaseOptions):
-	"""Example dataset
+	"""Example dataset options
 	"""
 
 	dataset_name : str | None = field(default=None, metadata=dict(
@@ -90,7 +89,8 @@ class ExampleDatasetOptions(BaseOptions):
 
 
 
-class ExtendedExampleDatasetOptions(BaseOptions):
+@dataclass
+class ExtendedExampleDatasetOptions(ExampleDatasetOptions):
 	"""Extends the example dataset options with some more options"""
 	labels : str | None = field(
 		default=None,
@@ -197,8 +197,12 @@ class ExampleGeneralOptions(BaseOptions):
 	)
 
 
+@dataclass
 class ExampleModelOptions(BaseOptions):
 	"""Simple example model settings"""
+
+	simple_int_variable : int = 5
+
 	int_model_param : int = field(
 		default=1,
 		metadata=dict(
@@ -225,6 +229,7 @@ class ExampleModelOptions(BaseOptions):
 		)
 	)
 
+@dataclass
 class ExtendedExampleModelOptions(ExampleModelOptions):
 	"""Adds some more options to the example model"""
 	extended_str_param : str = field(

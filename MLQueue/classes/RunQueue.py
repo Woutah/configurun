@@ -2,6 +2,7 @@
 Implements the Runqueue class - a class that manages a list of configurations to pass to a run-function.
 """
 
+import importlib.util
 import logging
 import multiprocessing
 import multiprocessing.managers as managers
@@ -17,13 +18,10 @@ import typing
 from copy import copy, deepcopy
 from datetime import datetime
 from enum import Enum
-import inspect
 
-import importlib.util
-# from MLQueue.configuration.BaseOptions import Options
-# from MLQueue.classes.
-from MLQueue.configuration.ConfigurationModel import ConfigurationModel, Configuration
 from PySide6 import QtCore
+
+from MLQueue.configuration.ConfigurationModel import (Configuration)
 
 log = logging.getLogger(__name__)
 
@@ -125,7 +123,7 @@ class RunQueueItem():
 		  	exit_code : typing.Union[int, None] = None,
 		  	stderr : str = ""
 		) -> None:
-		self.item_id = item_id # pylint: disable=invalid-name
+		self.item_id = item_id
 		self.name = name
 		self.dt_added = dt_added
 		self.config = config
@@ -792,7 +790,7 @@ class RunQueue(QtCore.QObject):
 			self._queue_signal_updater_thread.start()
 
 
-	
+
 
 	def _run_queue_item_updater(self):
 		#While we are not stopping, or there are still processes running, keep updating
@@ -842,7 +840,7 @@ class RunQueue(QtCore.QObject):
 		sys.stdout = LoggerWriter(log.info)
 		sys.stderr = LoggerWriter(log.error)
 
-		
+
 		with all_dict_mutex, queue_mutex:
 			queue_item = all_dict[queue_item_id]
 			queue_item.status = RunQueueItemStatus.RUNNING #Should no longer be editable -> probably already done in
@@ -857,7 +855,7 @@ class RunQueue(QtCore.QObject):
 
 			# #Reload the main module to make sure we have the latest version
 			# #TODO: based on argparse
-			import MachineLearning.framework.learner as learner # pylint: disable=import-outside-toplevel
+			import MachineLearning.framework.learner as learner  # pylint: disable=import-outside-toplevel
 			importlib.reload(learner)
 			experiment_runner = learner.experimentRunner(configuration)
 			experiment_runner.run_experiment()

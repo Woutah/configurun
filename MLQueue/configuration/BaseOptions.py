@@ -6,7 +6,7 @@ Implements the base-options from which all user-defined options should inherit
 import logging
 from dataclasses import dataclass
 
-from MLQueue.classes.Serializeable import Serializable
+from PySide6Widgets.Utility.Serializeable import Serializable
 
 log = logging.getLogger(__name__)
 
