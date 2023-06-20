@@ -45,10 +45,12 @@ def argparse_to_dataclass(
 			#If range
 			if isinstance(action.choices, range):
 				new_constraints = [Interval(new_type, action.choices.start, action.choices.stop, closed='both')]
-
 			else:
 				new_constraints = [Options(new_type, set(action.choices))] #If list of options
-
+		elif new_type is None: #If no choice but also no type
+			if isinstance(action, argparse._StoreTrueAction):
+				new_type = bool
+				new_constraints = [bool]
 
 		display_name = action.dest.replace('_', ' ').title() #Convert varname to title-like display name
 		if action.metavar: #If a specific display name is given, use that instead
@@ -88,8 +90,8 @@ def argparse_to_dataclass(
 		except (AttributeError, ValueError):
 			log.error(f"Could not set module attribute of dataclass {new_dataclass.__name__}")
 	new_dataclass.__module__ = module #Set the module attribute of the new class to the module of the caller #type:ignore
-	globals()[dataclass_name] = new_dataclass #Also add class to global scope to enable pickling
-	the_globals = globals() #pylint: disable=invalid-name #type:ignore
+	globals()[dataclass_name] = new_dataclass #Also add class to global scope to enable pickling from this module
+		# note that it is probably easier to make use of dill
 	return new_dataclass
 
 

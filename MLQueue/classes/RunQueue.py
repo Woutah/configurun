@@ -3,13 +3,7 @@ Implements the Runqueue class - a class that manages a list of configurations to
 """
 
 import logging
-import multiprocess as multiprocessing #NOTE: 2023-06-20 we use multiprocess instead of multiprocessing because it allows
-	# for more flexibility when it comes to dynamic class creation (e.g. when using a client/server).
-	# We are mainly sending/receiving dataclasses so speed should not be an issue.
-import multiprocess.managers as managers #Same here, use multiprocess
 import os
-import dill
-
 # import dill
 import queue
 import sys
@@ -22,9 +16,24 @@ from copy import copy, deepcopy
 from datetime import datetime
 from enum import Enum
 
+import dill
+import multiprocess  # NOTE: 2023-06-20 we use multiprocess instead of multiprocessing because it allows
+import multiprocess.managers as managers  # Same here, use multiprocess
+import multiprocess.queues
+
+
+#Import Lock() from multiprocess
+# import multiprocess.synchronize
+
 from PySide6 import QtCore
 
 from MLQueue.configuration.ConfigurationModel import Configuration
+
+	# for more flexibility when it comes to dynamic class creation (e.g. when using a client/server).
+	# We are mainly sending/receiving dataclasses so speed should not be an issue.
+
+
+
 
 log = logging.getLogger(__name__)
 
@@ -64,7 +73,7 @@ class FileAndQueueHandler(logging.FileHandler):
 	def __init__(self,
 	    	item_id : int,
 			item_name : str,
-			log_queue : typing.Union[queue.Queue,multiprocessing.Queue],
+			log_queue : typing.Union[queue.Queue,multiprocess.queues.Queue],
 	      	log_filename,
 			mode='a',
 			encoding=None,
@@ -189,7 +198,7 @@ class CustomProxy(managers.NamespaceProxy): #type:ignore
 	This class exposes all attributes - but not the methods"""
 	_exposed_ = ('__getattribute__', '__setattr__', '__delattr__')
 
-CustomManager.register(RunQueueItem.__name__, RunQueueItem, CustomProxy) # ?pylint: disable=no-member
+CustomManager.register(RunQueueItem.__name__, RunQueueItem, CustomProxy)
 	#Register the class so that it can be shared
 	#  between processes NOTE: making changes in the config itself will not be propagated - only if the whole object is
 	# replaced (https://docs.python.org/3/library/multiprocessing.html#multiprocessing-proxy-objects)
@@ -202,7 +211,7 @@ class CommandlineQueueEmitter(QtCore.QObject):
 	"""
 	commandLineOutput = QtCore.Signal(int, str, str, datetime, int, str) #id, name, output_path, dt, filepos, new_msg
 
-	def __init__(self, monitored_queue : typing.Union[queue.Queue, multiprocessing.Queue]) -> None:
+	def __init__(self, monitored_queue : typing.Union[queue.Queue, multiprocess.queues.Queue]) -> None:
 		super().__init__()
 		self._monitored_queue = monitored_queue
 		self.stop_flag = False
@@ -270,7 +279,7 @@ class RunQueue(QtCore.QObject):
 
 
 		self._target_function = target_function
-		self._stopflag = multiprocessing.Event()
+		self._stopflag = multiprocess.Event()
 		self._stopflag.clear()
 		self._config_class : type = type(None) #The class of the configuration object
 
@@ -291,15 +300,16 @@ class RunQueue(QtCore.QObject):
 		self._queue : typing.List[int] = self._manager.list() # type: ignore #Consists of a queue of id's which can be
 			# used to retrieve the configuration from the all_dict - can't be an actual queue because we want to be able
 			# to remove/move items in the queue
-		self._queue_mutex = multiprocessing.Lock()
+		self._queue_mutex = multiprocess.Lock() #Lock for the queue
 
 		self._all_dict : typing.Dict[int, RunQueueItem] = self._manager.dict() #type: ignore #Should consists of a list
 			# of dicts with keys (id, dt_added, Name, Config, done, dt_done, exit_code, stderr)
-		self._all_dict_mutex = multiprocessing.Lock()
+		self._all_dict_mutex = multiprocess.Lock()
+
 
 		self._autoprocessing_enabled = False #Whether to automatically start processing items in the queue
-		self._running_processes : typing.Dict[int, multiprocessing.Process] = {} #ID -> process
-		self._running_processes_mutex = multiprocessing.Lock()
+		self._running_processes : typing.Dict[int, multiprocess.Process] = {} #ID -> process
+		self._running_processes_mutex = multiprocess.Lock()
 
 		self._n_processes = n_processes
 		self._cur_id = 0 #Start at 0
@@ -309,7 +319,7 @@ class RunQueue(QtCore.QObject):
 
 		self._cmd_id_name_path_dict : typing.Dict[int, typing.Tuple[str, str]] = self._manager.dict() # type: ignore
 			# Dictionary that keeps track of the output file for each process
-		self._cmd_id_name_path_dict_mutex = multiprocessing.Lock() #Lock for the cmd_id_path_dict
+		self._cmd_id_name_path_dict_mutex = multiprocess.Lock() #Lock for the cmd_id_path_dict
 		#Queue that keeps track of outputs to the command line for each running process.
 		self._command_line_output_queue = self._manager.Queue()
 
@@ -808,7 +818,7 @@ class RunQueue(QtCore.QObject):
 				queue_item_id : int,
 				queue_item_name : str,
 				command_line_output_path : str,
-				command_line_output_queue : multiprocessing.Queue,
+				command_line_output_queue : multiprocess.queues.Queue,
 				all_dict : typing.Dict[int, RunQueueItem],
 				id_queue : typing.List[int],
 				all_dict_mutex : threading.Lock,
@@ -937,7 +947,7 @@ class RunQueue(QtCore.QObject):
 					self.newRunConsoleOutputPath.emit(queue_item_id, queue_item_name, cur_logfile_loc)
 					assert(queue_item_id not in self._running_processes), "Queue item id already in running processes"
 					with self._running_processes_mutex:
-						self._running_processes[queue_item_id] = multiprocessing.Process(
+						self._running_processes[queue_item_id] = multiprocess.Process(
 								target=RunQueue._process_queue_item,
 								args = (
 									self._target_function,
@@ -982,7 +992,7 @@ class RunQueue(QtCore.QObject):
 
 
 if __name__ == "__main__":
-	from PySide6 import QtWidgets #pylint: disable=ungrouped-imports
+	from PySide6 import QtWidgets  # pylint: disable=ungrouped-imports
 	test_app = QtWidgets.QApplication(sys.argv)
 	test_queue = RunQueue(lambda *_: print("Target function has been called... Now quitting..."))
 	print("Created a queue")

@@ -33,9 +33,6 @@ class RunQueueTreeView(QtWidgets.QTreeView):
 		self._move_top_action = self._rc_menu.addAction("Move to Top")
 		self._stop_action = self._rc_menu.addAction("Stop")
 
-		# self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
-		# self.customContextmenuRequested.connect(self._context_menu.popup)
-		# self.customContextMenuRequested.triggered.connect(lambda *x : print('kaas'))
 		self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
 		self.customContextMenuRequested.connect(self.custom_menu_requested)
 

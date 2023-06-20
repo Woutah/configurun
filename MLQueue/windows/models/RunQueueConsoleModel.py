@@ -50,13 +50,13 @@ class RunQueueConsoleItem(BaseConsoleItem):
 		self._active_state = active_state #By default - assume that the item is running
 
 		self._console_icon = QtGui.QIcon()
-		self._console_icon.addFile(":/Icons/icons/Console.png",
+		self._console_icon.addFile(":/Icons/icons/actions/Console.png",
 	       QtCore.QSize(),
 		   QtGui.QIcon.Mode.Normal,
 		   QtGui.QIcon.State.Off)
 
 		self._done_console_icon = QtGui.QIcon()
-		self._done_console_icon.addFile(":/Icons/icons/Console checked.png",
+		self._done_console_icon.addFile(":/Icons/icons/actions/Console checked.png",
 	       QtCore.QSize(),
 		   QtGui.QIcon.Mode.Normal,
 		   QtGui.QIcon.State.Off)
