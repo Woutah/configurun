@@ -22,7 +22,7 @@ from MLQueue.windows.NetworkMainWindow import NetworkMainWindow
 def _get_option_function(option_source:\
 			typing.Callable[[Configuration], typing.Dict[str, typing.Type[BaseOptions] | typing.Type[None]]] | \
 			argparse.ArgumentParser
-		):
+		) -> typing.Callable[[Configuration], typing.Dict[str, typing.Type[BaseOptions] | typing.Type[None]]]:
 	"""Get the option-function from the passed argument.
 	User is able to pass:
 	- A function returning a dict of option (dataclass) objects,
@@ -37,7 +37,7 @@ def _get_option_function(option_source:\
 	elif isinstance(option_source, type) and issubclass(option_source, BaseOptions):
 		def option_function(*_): #'Dumb'-options: Just return the option type
 			return {"Options" : option_source}
-		return option_function
+		return option_function #type: ignore
 	elif callable(option_source):
 		return option_source
 	else:

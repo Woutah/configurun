@@ -147,7 +147,7 @@ class SklearnMainOptions(BaseOptions):
 		# 		f"Algorithm {algorithm} not in {name_field_dict['model'].type.__args__}"
 
 	# Model
-	model : typing.Literal[" "] | None = field( #We dynamically set the constraints of this field using the
+	model_type : typing.Literal[" "] | None = field( #We dynamically set the constraints of this field using the
 			# 'constraints' parameter, so we can apply the dynamically generated sklearn-model
 		default=None,
 		metadata=dict(

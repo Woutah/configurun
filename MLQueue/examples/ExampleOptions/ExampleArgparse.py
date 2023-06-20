@@ -20,3 +20,16 @@ parser_example.add_argument("--int_choice_arg", type=int, choices=[1, 2, 3], def
 
 
 parsed_args = parser_example.parse_args()
+
+
+if __name__ == "__main__":
+	from MLQueue.create import local_app
+	from MLQueue.examples.ExampleOptions.ExampleArgparse import parser_example
+	from MLQueue.configuration.FromArgparse import argparse_to_dataclass
+
+	new_dataclass = argparse_to_dataclass(parser_example)
+	the_globals = globals()
+	local_app(
+		target_function = lambda x, *_: print(x),
+		options_source = new_dataclass
+	)

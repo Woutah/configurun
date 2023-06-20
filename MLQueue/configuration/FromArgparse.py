@@ -22,6 +22,9 @@ def argparse_to_dataclass(
 
 	NOTE: when this function is called, it automatically adds the dataclass_name to the global scope,
 	overwriting any existing class with the same name.
+
+	NOTE: if using a server, make sure to also define this class on the server-side, otherwise the server/client 
+	communication will fail.
 	
 	Args:
 		argument_parser (argparse.ArgumentParser): The argparse.ArgumentParser to convert
@@ -30,7 +33,8 @@ def argparse_to_dataclass(
 		type: The dataclass
 	"""
 	dataclass_args = []
-	for action in argument_parser._actions:
+	for action in argument_parser._actions: #pylint: disable=protected-access #NOTE: protected access is neccesary here
+			#to access the properties of the actions
 		#Iterate over parser args, and create a dataclass field for each
 		if action.dest == 'help': #Skip help
 			continue
@@ -69,7 +73,7 @@ def argparse_to_dataclass(
 		)
 
 	new_dataclass = make_dataclass(
-		f"{dataclass_name}",
+		dataclass_name,
 		dataclass_args,
 		bases=(BaseOptions,)
 	)
@@ -84,15 +88,15 @@ def argparse_to_dataclass(
 		except (AttributeError, ValueError):
 			log.error(f"Could not set module attribute of dataclass {new_dataclass.__name__}")
 	new_dataclass.__module__ = module #Set the module attribute of the new class to the module of the caller #type:ignore
-	globals()[new_dataclass.__name__] = new_dataclass #Also add class to global scope to enable pickling
+	globals()[dataclass_name] = new_dataclass #Also add class to global scope to enable pickling
 	return new_dataclass
 
 
 if __name__ == "__main__":
 	from MLQueue.create import local_app
 	from MLQueue.examples.ExampleOptions.ExampleArgparse import parser_example
-
+	new_dataclass = argparse_to_dataclass(parser_example)
 	local_app(
 		target_function = lambda x, *_: print(x),
-		options_source = argparse_to_dataclass(parser_example)
+		options_source = new_dataclass
 	)
