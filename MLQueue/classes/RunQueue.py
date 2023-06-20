@@ -3,10 +3,14 @@ Implements the Runqueue class - a class that manages a list of configurations to
 """
 
 import logging
-import multiprocessing
-import multiprocessing.managers as managers
+import multiprocess as multiprocessing #NOTE: 2023-06-20 we use multiprocess instead of multiprocessing because it allows
+	# for more flexibility when it comes to dynamic class creation (e.g. when using a client/server).
+	# We are mainly sending/receiving dataclasses so speed should not be an issue.
+import multiprocess.managers as managers #Same here, use multiprocess
 import os
-import pickle
+import dill
+
+# import dill
 import queue
 import sys
 import tempfile
@@ -23,6 +27,7 @@ from PySide6 import QtCore
 from MLQueue.configuration.ConfigurationModel import Configuration
 
 log = logging.getLogger(__name__)
+
 
 CONFIGURATION_MODULE_NAME = "configuration_module"
 
@@ -394,7 +399,7 @@ class RunQueue(QtCore.QObject):
 			raise OSError(f"Could not load queue from path {path}, path does not exist.")
 
 		with open(path, "rb") as file:
-			loaded_all_dict, loaded_queue, loaded_cur_id = pickle.load(file)
+			loaded_all_dict, loaded_queue, loaded_cur_id = dill.load(file)
 			with self._all_dict_mutex, self._queue_mutex:
 				log.info(f"Loading queue from file {path}...")
 				self._all_dict = loaded_all_dict
@@ -425,7 +430,7 @@ class RunQueue(QtCore.QObject):
 		      						save mode does not allow for saving running items as cancelled.")
 
 
-			pickle.dump((all_dict_copy, queue_copy, self._cur_id), file) #Save a tuple of the queue and all_dict
+			dill.dump((all_dict_copy, queue_copy, self._cur_id), file) #Save a tuple of the queue and all_dict
 
 
 

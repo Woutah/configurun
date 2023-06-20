@@ -13,7 +13,7 @@ Examples:
 import enum
 from dataclasses import dataclass
 from abc import abstractmethod
-import pickle
+import dill
 import socket
 from ctypes import c_uint32
 from Crypto.Cipher import AES
@@ -122,17 +122,20 @@ class PickleTransmissionData(TransmissionData):
 	to allow for the transmission of arbitrary objects.
 	NOTE: this transmission type should ALWAYS be encrypted using AES, and should only be allowed
 	after authentication as it allows for arbitrary code execution on the server-side.
+
+	NOTE: we're using dill instead of pickle as it allows for more flexibility in what can be pickled
+	
 	"""
 
 	unpickled_data : object #The unpickled data
 
 	@staticmethod
 	def from_transmission_bytes(transmission_data : bytes) -> 'PickleTransmissionData':
-		unpickled_data = pickle.loads(transmission_data)
+		unpickled_data = dill.loads(transmission_data)
 		return PickleTransmissionData(unpickled_data)
 
 	def to_transmission_bytes(self) -> bytes:
-		return pickle.dumps(self.unpickled_data)
+		return dill.dumps(self.unpickled_data)
 
 	@property
 	def TRANSMISSION_TYPE(self) -> TransmissionType:

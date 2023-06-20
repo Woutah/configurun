@@ -89,6 +89,7 @@ def argparse_to_dataclass(
 			log.error(f"Could not set module attribute of dataclass {new_dataclass.__name__}")
 	new_dataclass.__module__ = module #Set the module attribute of the new class to the module of the caller #type:ignore
 	globals()[dataclass_name] = new_dataclass #Also add class to global scope to enable pickling
+	the_globals = globals() #pylint: disable=invalid-name #type:ignore
 	return new_dataclass
 
 
