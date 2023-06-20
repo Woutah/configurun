@@ -156,12 +156,12 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 
 
 		self._icon_dict = {
-			RunQueueItemStatus.QUEUED: self._waiting_icon,
-			RunQueueItemStatus.RUNNING: self._running_icon,
-			RunQueueItemStatus.FINISHED: self._finished_icon,
-			RunQueueItemStatus.STOPPED: self._stopped_icon,
-			RunQueueItemStatus.CANCELLED: self._cancelled_icon,
-			RunQueueItemStatus.FAILED: self._failed_icon
+			RunQueueItemStatus.Queued: self._waiting_icon,
+			RunQueueItemStatus.Running: self._running_icon,
+			RunQueueItemStatus.Finished: self._finished_icon,
+			RunQueueItemStatus.Stopped: self._stopped_icon,
+			RunQueueItemStatus.Cancelled: self._cancelled_icon,
+			RunQueueItemStatus.Failed: self._failed_icon
 		}
 
 		#=== Font for Highlighting ===
@@ -327,7 +327,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 				return "-"
 			if key == "status": #Display position in queue
 				cur_id = list(self._cur_run_list_copy.keys())[index.row()]
-				if item.status == RunQueueItemStatus.QUEUED and cur_id in self._cur_queue_copy:
+				if item.status == RunQueueItemStatus.Queued and cur_id in self._cur_queue_copy:
 					return f"In Queue: {self._cur_queue_copy.index(cur_id)+1}/{len(self._cur_queue_copy)}"
 				else: #Convert enum to string
 					return str(item.status.name)
@@ -380,11 +380,11 @@ if __name__ == "__main__":
 	test_run_queue.add_to_queue("ItemRunning", "TheConfig")
 	test_run_queue._all_dict[4].name = "kaas"
 	test_run_queue.add_to_queue("ItemFinished", "TheConfig")
-	test_run_queue._all_dict[5].status = RunQueueItemStatus.FINISHED
+	test_run_queue._all_dict[5].status = RunQueueItemStatus.Finished
 	test_run_queue.add_to_queue("ItemCancelled", "TheConfig")
-	test_run_queue._all_dict[6].status = RunQueueItemStatus.STOPPED
+	test_run_queue._all_dict[6].status = RunQueueItemStatus.Stopped
 	test_run_queue.add_to_queue("ItemFailed", "TheConfig")
-	test_run_queue._all_dict[7].status = RunQueueItemStatus.FAILED
+	test_run_queue._all_dict[7].status = RunQueueItemStatus.Failed
 	app = QtWidgets.QApplication([])
 	model = RunQueueTableModel(test_run_queue)
 	view = QtWidgets.QTreeView()

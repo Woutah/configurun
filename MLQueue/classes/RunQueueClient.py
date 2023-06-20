@@ -6,7 +6,6 @@ import logging
 import queue
 import socket
 import threading
-import time
 import traceback
 
 from Crypto.Cipher import PKCS1_OAEP
@@ -43,6 +42,10 @@ def get_pyqt_signal_names(the_object : type) -> list[QtCore.SignalInstance]:
 
 	return signals
 
+def no_function(*args, **kwargs): #pylint: disable=unused-argument
+	"""Dummy function that does nothing"""
+	pass #pylint: disable=unnecessary-pass
+
 class RunQueueClient(RunQueue,
 		    metaclass=MethodCallInterceptedMeta,
 			intercept_list=get_class_implemented_methods(RunQueue),
@@ -64,11 +67,15 @@ class RunQueueClient(RunQueue,
 		# True if connected and authenticated, False if either disconnected or not yet authenticated
 
 
-	def __init__(self,
-		  	n_processes: int = 1,
-			log_location: str = ""
+	def __init__(
+			self
 		) -> None:
-		super().__init__(n_processes=n_processes, log_location=log_location)
+		"""Initializes the RunQueueClient
+		
+		Has no args, since RunQueue will be running on server-side, settings attributes here would be useless.
+		All function calls will be intercepted and sent to the server.
+		"""
+		super().__init__(target_function=no_function)
 		self._server_ip = None
 		self._server_port = None
 		self._socket : socket.socket | None = None
@@ -390,54 +397,3 @@ class RunQueueClient(RunQueue,
 			log.error(f"Error while listening to server: {exception} - disconnecting")
 			self.disconnect_clean_server()
 			return
-
-
-
-
-
-	# # Dispatch all calls to functions through a network-socket to the server
-	# def __getattr__(self, name):
-	# 	if self._socket is None:
-	# 		raise Exception("Not connected to server - cannot ")
-
-
-
-if __name__ == "__main__":	#Create client
-	# pylint: disable=broad-exception-caught
-	import sys
-	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}]  {levelname:<7s}   {message}", style='{')
-	handler = logging.StreamHandler()
-	handler.setFormatter(formatter)
-	logging.basicConfig(
-		handlers=[handler],
-		level=logging.DEBUG) #Without time
-	log.debug("Starting runqueue client test...")
-	app = QtCore.QCoreApplication(sys.argv) #Run the main event-loop (used for signals)
-
-	log.info("Now instantiating runqueueclient")
-	client = RunQueueClient()
-	log.info("Instantiated runqueue client")
-	client.authenConnectionStateChanged.connect(lambda connected: log.info(f"Connection state changed to {connected}"))
-
-	test_thread = threading.Thread(target=app.exec)
-	test_thread.start()
-
-	log.info("Should be connected to server now... Now sending RunQueue function calls to server")
-	while True :
-		try:
-			if not client.is_connected():
-				client.connect_to_server(server_ip="PC-MAIN", server_port=469, password="password")
-			else:
-				try:
-					client.add_to_queue("kaas", "config")
-				except Exception as test_exception: # pylint: disable=broad-exception-caught
-					log.info(f"Error while adding to queue: {test_exception} - disconnecting")
-					client.disconnect_clean_server()
-		except Exception as test_exception:
-			log.error(f"{type(test_exception)}: {test_exception}")
-			#Also print the traceback
-			traceback.print_exc()
-		time.sleep(2)
-
-	log.debug("Done")
-	#Set server ip

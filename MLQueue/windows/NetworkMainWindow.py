@@ -17,7 +17,7 @@ if __name__ == "__main__":
 		handlers=[handler],
 		level=logging.DEBUG) #Without time
 
-
+#pylint: disable=wrong-import-position
 import typing
 
 from PySide6 import QtCore, QtGui, QtWidgets
@@ -25,8 +25,8 @@ from PySide6Widgets.Utility.catchExceptionInMsgBoxDecorator import \
     catchExceptionInMsgBoxDecorator
 
 from MLQueue.classes.RunQueueClient import RunQueueClient
-from MLQueue.windows.MainWindow import \
-    MainWindow
+from MLQueue.configuration.ConfigurationModel import ConfigurationModel
+from MLQueue.windows.MainWindow import MainWindow
 from MLQueue.windows.widgets.NetworkLoginWidget import NetworkLoginWidget
 
 
@@ -35,8 +35,12 @@ class NetworkMainWindow(MainWindow):
 	UI for networking differs somewhat from the local-running UI - for ease of use, we separate the code.
 	"""
 
-	def __init__(self, run_queue_client : RunQueueClient, _window: QtWidgets.QMainWindow) -> None:
-		super().__init__(run_queue=run_queue_client, window=_window)
+	def __init__(self,
+				configuration_model : ConfigurationModel, 
+				run_queue_client : RunQueueClient,
+				window : QtWidgets.QMainWindow
+			) -> None:
+		super().__init__(configuration_model=configuration_model, run_queue=run_queue_client, window=window)
 		# assert(type(self._run_queue) == RunQueueClient) #Make sure we're using the right type of queue
 		self._run_queue : RunQueueClient = self._run_queue #For Type hinting
 
@@ -56,11 +60,10 @@ class NetworkMainWindow(MainWindow):
 
 
 		# self.ui.menubar.removeEventFilter(self.ui.menusource)
-		self.ui.menubar.removeAction(self.ui.actionSetLocalRunMode)
-		self.ui.menubar.removeAction(self.ui.actionSetNetworkRunMode)
-		self.ui.actionSetLocalRunMode.deleteLater()
-		self.ui.actionSetNetworkRunMode.deleteLater()
-		self.ui.menusource.deleteLater()
+		# self.ui.menubar.removeAction(self.ui.actionSetLocalRunMode)
+		# self.ui.menubar.removeAction(self.ui.actionSetNetworkRunMode)
+		# self.ui.actionSetLocalRunMode.deleteLater()
+		# self.ui.actionSetNetworkRunMode.deleteLater()
 
 		#================== Network-specific menu ================
 
@@ -174,18 +177,26 @@ class NetworkMainWindow(MainWindow):
 
 
 if __name__ == "__main__":
-	# formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}] {levelname:<7s}   {message}", style='{')
-	# log.propagate = False
-	# handler = logging.StreamHandler()
-	# handler.setFormatter(formatter)
-	# logging.basicConfig(
-	# 	handlers=[handler],
-	# 	level=logging.DEBUG) #Without time
+	from MLQueue.examples.ExampleConfiguration import \
+	    deduce_new_option_class_types
+	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}] {levelname:<7s}   {message}", style='{')
+	log.propagate = False
+	handler = logging.StreamHandler()
+	handler.setFormatter(formatter)
+	logging.basicConfig(
+		handlers=[handler],
+		level=logging.DEBUG) #Without time
 	app = QtWidgets.QApplication([])
 
-	window = QtWidgets.QMainWindow()
-	runqueue_client = RunQueueClient()
-	ml_window = NetworkMainWindow(runqueue_client, window)
-	# window = QtWidgets.QWidget()
-	window.show()
+	test_window = QtWidgets.QMainWindow()
+	test_runqueue_client = RunQueueClient()
+	test_configuration_model = ConfigurationModel(
+		option_type_deduction_function=deduce_new_option_class_types
+	)
+	ml_window = NetworkMainWindow(
+		configuration_model=test_configuration_model,
+		run_queue_client=test_runqueue_client,
+		window=test_window
+	)
+	test_window.show()
 	app.exec()

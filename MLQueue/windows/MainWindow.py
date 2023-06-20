@@ -15,11 +15,11 @@ from PySide6Widgets.Utility.catchExceptionInMsgBoxDecorator import \
     catchExceptionInMsgBoxDecorator
 from PySide6Widgets.Widgets.FramelessMdiWindow import FramelessMdiWindow
 from PySide6Widgets.Utility.DataClassEditorsDelegate import DataClassEditorsDelegate
-import importlib.util
+from PySide6Widgets.Widgets.DataClassTreeView import DataClassTreeView
 
 from MLQueue.classes.RunQueue import RunQueue
 from MLQueue.configuration.ConfigurationModel import ConfigurationModel
-from MLQueue.examples.FrameworkExample import FrameworkConfigurationModel
+# from MLQueue.examples.FrameworkExample import FrameworkConfigurationModel
 from MLQueue.windows.models.RunQueueConsoleModel import RunQueueConsoleModel
 from MLQueue.windows.models.RunQueueTableModel import RunQueueTableModel
 from MLQueue.windows.ui.ApplyMachineLearningWindow_ui import \
@@ -55,7 +55,7 @@ class MainWindow():
 	A QT window which provides the user with several tools to edit/manage/run machine learning settings.
 	"""
 	#A controller to manage the machine learning window
-	def __init__(self, 
+	def __init__(self,
 	      		configuration_model : ConfigurationModel,
 				run_queue : RunQueue,
 				window : QtWidgets.QMainWindow
@@ -65,10 +65,10 @@ class MainWindow():
 
 		self.window = window
 		self._cur_source = None
-		# self._default_splitter_states = {
-		# 	splitter.objectName() : splitter.saveState() \
-		# 		for splitter in self.ui.splitter.findChildren(QtWidgets.QSplitter)
-		# } #Save all splitter states (to be able to reset them later)
+		self._default_splitter_states = {
+			splitter.objectName() : splitter.saveState() \
+				for splitter in self.window.findChildren(QtWidgets.QSplitter)
+		} #Save all splitter states (to be able to reset them later)
 		#====================== Base variables ===================
 		self.set_run_queue(run_queue)
 		self.ml_queue_widget = MLQueueWidget(self.ui.MLQueueWidget) #Create queue-interface with buttons
@@ -105,7 +105,7 @@ class MainWindow():
 		self._mdi_area = self.ui.ConfigurationMdiArea
 		self._cur_option_proxy_models : typing.Dict[str, QtCore.QSortFilterProxyModel]= {}
 		self._cur_option_mdi_windows : typing.Dict[str, QtWidgets.QMdiSubWindow] = {}
-		self._cur_option_tree_view : typing.Dict[str, QtWidgets.QTreeView] = {}
+		self._cur_option_tree_view : typing.Dict[str, DataClassTreeView] = {}
 		self._cur_edited_signals : typing.Dict[str, typing.Callable] = {}
 
 		self._config_model.proxyModelDictChanged.connect(self.option_proxy_models_changed)
@@ -189,52 +189,10 @@ class MainWindow():
 		self.ui.menuMDI_Area.removeAction(self.ui.actionNone) #Remove the "none" action from the mdi menu
 		self.ui.ConfigurationMdiArea.add_actions_to_menu(self.ui.menuMDI_Area)
 
-	def set_config_by_path(self, 
-			config_import_location : str
-		):
-		"""
-		Set the config import using a path to a module. This will import the module under name specified by 
-		CONFIGURATION_MODULE_NAME and then look for a class that is a subclass of ConfigurationModel. If no such class
-		is found, a ValueError is raised.
 
-		Args:
-			config_import_location (str): the location to import configs from
-		"""
-		# module = importlib.import_module(config_import_location)
-		spec = importlib.util.spec_from_file_location(CONFIGURATION_MODULE_NAME, config_import_location)
-		assert spec, f"Could not import config import module at location {config_import_location} - spec is None"
-		module = importlib.util.module_from_spec(spec)
-		assert module, f"Could not import config import module at location {config_import_location} - module is None"
-		if spec.name in sys.modules:
-			log.warning(f"Module {spec.name} already in sys.modules when import Configuration module, overwriting it.")
-		sys.modules[spec.name] = module #NOTE: this overwrites any existing module with the same name
-		spec.loader.exec_module(module)
-
-		#List classes in module
-		classes = inspect.getmembers(module, inspect.isclass)
-		for cur_class in classes:
-			if issubclass(cur_class[1], ConfigurationModel):
-				self._config_class = cur_class[1]
-				return
-		
-		raise ValueError(f"Could not find a class in specified module {config_import_location} that is a subclass of \
-			ConfigurationModel")
-
-	def set_config_by_class(self, config_class : typing.Type[ConfigurationModel]):
-		"""Sets the config import using a class type. This class should be a subclass of ConfigurationModel.
-		
-		Args:
-			config_class (typing.Type[ConfigurationModel]): the class to use for importing configs, should be a subclass
-				of ConfigurationModel. 
-		"""
-		assert issubclass(config_class, ConfigurationModel), f"Config class {config_class} is not a subclass of \
-			ConfigurationModel"
-		self._config_class = config_class
-
-
-	def option_proxy_models_changed(self, dict_of_models : typing.Dict[str, QtCore.QSortFilterProxyModel]) -> None:
+	def option_proxy_models_changed(self, dict_of_models : typing.OrderedDict[str, QtCore.QSortFilterProxyModel]) -> None:
 		"""Upon change of (one of) the dataclass editors -> update the console"""
-
+		#================= Add mdi windows that are new to the config model =================
 		for option_name, option_model in dict_of_models.items():
 			if option_name in self._cur_option_proxy_models:
 				#check if the same model is used
@@ -245,28 +203,27 @@ class MainWindow():
 					self._cur_option_tree_view[option_name].setModel(option_model)
 			else: #Create a new mdi window
 				self._cur_option_mdi_windows[option_name] = FramelessMdiWindow()
-				# self._cur_option_mdi_windows[option_name].
-				#TODO: add title to mdi window
 				self._cur_option_proxy_models[option_name] = option_model
-				self._cur_option_tree_view[option_name] = QtWidgets.QTreeView()
+				self._cur_option_tree_view[option_name] = DataClassTreeView()
 				self._cur_option_tree_view[option_name].setModel(option_model)
 				self._cur_option_tree_view[option_name].setItemDelegate(DataClassEditorsDelegate())#Set custom delegate
 				self._cur_option_mdi_windows[option_name].setWidget(self._cur_option_tree_view[option_name])
 				self._mdi_area.addSubWindow(self._cur_option_mdi_windows[option_name])
 				self._cur_option_mdi_windows[option_name].setWindowTitle(option_name.title().replace("_", " "))
-				self._cur_option_mdi_windows[option_name].show()
+				# self._cur_option_mdi_windows[option_name].show()
 
-				# self.
+		#================= Remove mdi windows that are no longer in the config model =================
+		del_windows = [key for key in self._cur_option_mdi_windows if key not in dict_of_models.keys()]
+		for window in del_windows:
+			self._cur_option_mdi_windows[window].close()
+			self._mdi_area.removeSubWindow(self._cur_option_mdi_windows[window])
+			del self._cur_option_tree_view[window]
+			del self._cur_option_proxy_models[window]
+			del self._cur_option_mdi_windows[window]
 
-
-		#re-tile the mdi windows
-		# for window in self._mdi_area.subWindowList():
-		# 	window.show()
-		# 	# window.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint)
-		# 	# window.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
-		# 	# window.setWindowFlags(QtCore.Qt.WindowType.CustomizeWindowHint | QtCore.Qt.WindowType.FramelessWindowHint)
-		# 	window.setContentsMargins(0, 0, 0, 0)
-		# self._mdi_area.tileSubWindows()
+		self._mdi_area.order_windows_by_windowlist(
+			[self._cur_option_mdi_windows[option_name] for option_name in dict_of_models.keys()]
+		) #Sort windows according to returned dictionary order
 
 	def create_console_context_menu(self, pos):
 		"""Create a context menu at the provided position, displaying all ignored ids. When clicked, un-ignore the id
@@ -315,27 +272,6 @@ class MainWindow():
 			self.ui.ConsoleOverlayWidget.setOverlayHidden(True)
 
 
-	def tree_view_source_model_changed(
-			self,
-			tree_name : str,
-			tree_view : QtWidgets.QTreeView,
-			proxy_model : QtCore.QSortFilterProxyModel
-		):
-		"""
-		Slot that should be called when the source model of the treeview has changed.
-		#TODO: Should restore the tree-expand state and the selection state of the treeview.
-		"""
-		# pylint: disable=unused-argument
-		# print(f"Source model changed for treeview {tree_view.objectName()} ({tree_name})")
-		# if tree_view is None:
-		# 	print("Tree is none")
-		# 	return
-
-		return
-
-
-
-
 	# def reset_splitter_states(self):
 	# 	"""
 	# 	Resets the state of all splitters to the default state
@@ -368,12 +304,9 @@ class MainWindow():
 		self._settings.setValue("font_size", self._font_point_size)
 		self._settings.setValue("loaded_file_path", self._cur_file_path
 			  if self._cur_source == OptionsSource.FILE else None) #Only save the path if it was loaded from a file
-		# for tree_view_name, tree_view in self._treeviews.items():
-		# 	self._settings.setValue(f"{tree_view_name}_geometry", tree_view.geometry())
 
-
-		# for splitter in self.window.findChildren(QtWidgets.QSplitter): #Save the state of all splitters
-		# 	self._settings.setValue(f"splitter_state_{splitter.objectName()}", splitter.saveState())
+		for splitter in self.window.findChildren(QtWidgets.QSplitter): #Save the state of all splitters
+			self._settings.setValue(f"splitter_state_{splitter.objectName()}", splitter.saveState())
 
 
 
@@ -492,7 +425,7 @@ class MainWindow():
 
 					#TODO: order of buttons is determined by buttonrole, so they seem a bit arbitrary...
 					button_deduce = msg.addButton("Deduce", QtWidgets.QMessageBox.ButtonRole.AcceptRole)
-					button_cancel = msg.addButton("Cancel", QtWidgets.QMessageBox.ButtonRole.RejectRole)
+					msg.addButton("Cancel", QtWidgets.QMessageBox.ButtonRole.RejectRole)
 					msg.setDetailedText(str(exception.args[-1]))
 
 
@@ -505,9 +438,6 @@ class MainWindow():
 						#Reset settings
 						self.new_configuration(ignore_modified_window=True) #If loading failed -> reset to default config
 						return False
-
-
-
 
 				if len(problem_dict) > 0 and show_dialog_on_problem:
 					msg = QtWidgets.QMessageBox()
@@ -531,6 +461,21 @@ class MainWindow():
 					msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok) #type: ignore
 					msg.setDefaultButton(QtWidgets.QMessageBox.StandardButton.Ok) #type: ignore
 					msg.exec()
+
+				try:
+					self._config_model.validate_current_configuration()
+				except KeyError as exception:
+					msg = QtWidgets.QMessageBox()
+					msg.setWindowTitle("Warning")
+					msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
+					msg.setText(f"The loaded configuration from <tt>{new_path}</tt> is not stable.")
+					msg.setInformativeText(f"{type(exception)}: {exception} <br><br> This could be the result of a "
+						"change in the settings format, dataclass module- or class-names, or due to file corruption. "
+						"Changes to the configuration might overwrite a whole subgroup of the configuration.<br>"
+						)
+					msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
+					msg.exec()
+
 				self._config_file_picker_model.set_hightlight_using_path(new_path)
 				return True
 		except Exception as exception: #pylint: disable=broad-except #Allow broad-exception, catch all and display
@@ -613,7 +558,7 @@ class MainWindow():
 		"""
 		Triggered when the "add to queue" button is clicked. Adds the current config to the queue.
 		"""
-		log.info("Add to queue triggered")
+		log.debug("Add to queue triggered")
 		name = self.get_base_name()
 		#Ask for user input for the name
 		name, ok_clicked = QtWidgets.QInputDialog.getText(self.window, "Add to queue", "Enter a name for the config",
@@ -683,9 +628,18 @@ class MainWindow():
 			#TODO: set selection to current file
 
 if __name__ == "__main__":
+	from MLQueue.examples.ExampleConfiguration import deduce_new_option_class_types
 	app = QtWidgets.QApplication([])
 	main_window = QtWidgets.QMainWindow()
-	queue = RunQueue()
-	ml_window = MainWindow(run_queue=queue, window=main_window)
+	queue = RunQueue(target_function=lambda *_: print("The test-target function has been called... Done!"))
+	config_model = ConfigurationModel(
+		option_type_deduction_function=deduce_new_option_class_types
+	)
+	ml_window = MainWindow(
+		configuration_model=config_model,
+		run_queue=queue,
+		window=main_window
+	)
+
 	main_window.show()
 	app.exec()

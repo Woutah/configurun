@@ -10,6 +10,7 @@ from dataclasses import field, make_dataclass
 
 # import dill
 from numpydoc.docscrape import NumpyDocString
+from PySide6Widgets.Utility.sklearn_param_validation import StrOptions
 from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
 from sklearn.gaussian_process import GaussianProcessClassifier
 # from sklearn.gaussian_process.kernels import RBF
@@ -22,7 +23,6 @@ from sklearn.tree import DecisionTreeClassifier
 
 from MLQueue.configuration.BaseOptions import BaseOptions
 
-from PySide6Widgets.Utility.sklearn_param_validation import (StrOptions)
 
 class SklearnClass:
 	"""Example class for sklearn model - all sklearn classes have a parameter constraints dict."""

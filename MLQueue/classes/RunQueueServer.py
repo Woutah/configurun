@@ -6,26 +6,21 @@ It contains a RunQueue object to/from which all data is transmitted/received usi
 
 import hashlib
 import logging
-# import struct
 import socket
-# import pycryptodome
 import sys
-#Import threading lock
 import threading
 import typing
 
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
-
-log = logging.getLogger(__name__)
-
 from PySide6 import QtCore
 
 from MLQueue.classes.RunQueue import RunQueue
 from MLQueue.classes.RunQueueDataTypes import (AES_EMPTY_KEY,
                                                RSA_KEY_SIZE_BITS,
                                                AESSessionKeyTransmissionData,
+                                               AuthenticationException,
                                                ClientData,
                                                LoginTransmissionData,
                                                PickledDataType,
@@ -33,9 +28,9 @@ from MLQueue.classes.RunQueueDataTypes import (AES_EMPTY_KEY,
                                                PubKeyTransmissionData,
                                                StateMsgType,
                                                StateTransmissionData,
-                                               Transmission, TransmissionType,
-											   AuthenticationException
-											   )
+                                               Transmission, TransmissionType)
+
+log = logging.getLogger(__name__)
 
 
 class RunQueueServer():
@@ -53,7 +48,12 @@ class RunQueueServer():
 	"""
 	_salt = b"\xe6F\xd9\x8f\x15tS5H\xd2e\x82='\x18w\xac\xf1\xfd\x0c\x9c\x89\xf3rMX\xfc\xa1\xea\x8cm\xa2" #Random salt
 
-	def __init__(self, run_queue: RunQueue, hostname : str = "", port : int = 469) -> None:
+	def __init__(self,
+	    	run_queue: RunQueue,
+			password : str,
+			hostname : str = "",
+			port : int = 469,
+		) -> None:
 		self._run_queue = run_queue #Thread-safe run-queue, as long as we interface using only the provided functions
 
 		self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -74,7 +74,7 @@ class RunQueueServer():
 		self._client_public_keys = {}
 		self._cipher = None
 
-		self.set_password_hash(self.get_password_hash("password"))
+		self.set_password_hash(self.get_password_hash(password=password))
 
 		self._client_dict : dict[socket.socket, ClientData]= {}
 		self._client_list_lock = threading.Lock()
@@ -426,6 +426,7 @@ class RunQueueServer():
 
 
 if __name__ == "__main__":
+	from MLQueue.examples.ExampleRunFunction import example_run_function
 	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}]  {levelname:<7s}   {message}", style='{')
 	handler = logging.StreamHandler()
 	handler.setFormatter(formatter)
@@ -433,8 +434,8 @@ if __name__ == "__main__":
 		handlers=[handler],
 		level=logging.DEBUG) #Without time
 
-	runqueue = RunQueue()
-	server = RunQueueServer(runqueue)
+	runqueue = RunQueue(target_function=example_run_function)
+	server = RunQueueServer(runqueue, password="password")
 	app = QtCore.QCoreApplication(sys.argv) #Run the main event-loop (used for signals)
 	#Create a runqueue client to run the runqueue in
 	server.run()

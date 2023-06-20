@@ -183,7 +183,7 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 
 		NOTE: the order of the keys does matter, if the order changes, a change is still emitted
 		NOTE: if a pre-existing key is not present in type_dict, it will be deleted from the configuration
-		
+
 		Args:
 			type_dict (typing.Dict[str, typing.Type[BaseOptions]]): A dictionary mapping a option-name to the actual
 				option class type (not instance!), e.g. "model_options" -> SklearnModelOptions
@@ -259,18 +259,18 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 
 
 
-	def validate_option_class_types(self):
-		"""TODO: make sure that the options are valid -> no duplicate keys in each suboptions instance
-		E.g. after loading a config from file
-		"""
-		class_types = self._deduce_new_option_class_types_from_current()
+	# def validate_option_class_types(self):
+	# 	"""TODO: make sure that the options are valid -> no duplicate keys in each suboptions instance
+	# 	E.g. after loading a config from file
+	# 	"""
+	# 	class_types = self._deduce_new_option_class_types_from_current()
 
-		assert set(class_types.keys()) == set(self._configuration.options.keys()), f"The keys in the options dict \
-			did not match the keys in the class_types dict ({set(class_types.keys())} != \
-			{set(self._configuration.options.keys())})"
-		for key, value in class_types.items():
-			assert isinstance(value, type(self._configuration.options[key])), f"Type of options class {key} did \
-				not match the type in the class_types dict"
+	# 	assert set(class_types.keys()) == set(self._configuration.options.keys()), f"The keys in the options dict \
+	# 		did not match the keys in the class_types dict ({set(class_types.keys())} != \
+	# 		{set(self._configuration.options.keys())})"
+	# 	for key, value in class_types.items():
+	# 		assert isinstance(value, type(self._configuration.options[key])), f"Type of options class {key} did \
+	# 			not match the type in the class_types dict"
 
 
 	def save_json_to(self, path : str, encoding="utf-8"):
@@ -506,6 +506,9 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 		if self.undo_stack: #Re-enable undo stack
 			self.undo_stack.setActive(True)
 
+		#Also emit signal, assume that changes were made
+		self.proxyModelDictChanged.emit(self._option_proxy_model_dict)
+
 		log.info(f"Finished loading config from {path}")
 		self.reload_all_dataclass_models() #Update all linked proxymodels to reflect the new dataclass instances
 		return problem_dict #Return the problem dict
@@ -533,8 +536,28 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 		for option_name in self._configuration.options:
 			self.reload_dataclass_model(option_name)
 
+	def validate_current_configuration(self):
+		"""Checks whether the current configuration is 'stable', meaning that the options are valid and
+		no changes will be made to the sub-options classes when updating the configuration.
 
-	def set_configuration_data(self, 
+		If not, raises a key-error.
+		"""
+		cur_class_types = self._configuration.get_option_types()
+		deduced_types = self._deduce_new_option_class_types_from_current()
+
+		for key in cur_class_types.keys():
+			if key not in deduced_types:
+				raise KeyError(f"Configuration invalid, encountered different option-groups than the \
+					deduced types. Current types: {cur_class_types.keys()}, deduced: {deduced_types.keys()} - this \
+					could be because of different version, file corruption or a mistake when loading from/to json \
+					functions")
+			elif cur_class_types[key] != deduced_types[key]:
+				raise KeyError(f"Configuration is invalid, the passed configuration data has \
+					different option-class-types than the deduced types. Passed: {cur_class_types}, deduced: \
+					{deduced_types} - this could be because of different version, file corruption or a mistake when \
+					loading from/to json functions")
+
+	def set_configuration_data(self,
 				configuration_data : Configuration,
 				validate_after_setting : bool = True
 			):
@@ -553,7 +576,6 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 		"""
 
 		self._configuration = configuration_data
-		passed_class_types = configuration_data.get_option_types()
 
 		#Clear the cache & pause the undo stack
 		self._cached_option_instances = {}
@@ -570,13 +592,6 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 				DataclassModel(option_dataclass_instance, undo_stack=self.undo_stack)
 			)
 
-		if validate_after_setting:
-			deduced_types = self._deduce_new_option_class_types_from_current()
-			if set(deduced_types.keys()) != set(passed_class_types.keys()):
-				raise AttributeError(f"The passed configuration data has different option-class-types than the \
-					deduced types. Passed: {passed_class_types.keys()}, deduced: {deduced_types.keys()} - this \
-					could be because of different version, file corruption or a mistake when loading from/to json \
-					functions")
 
 		if proxy_model_changed: #Emit proxymodel changes
 			self.proxyModelDictChanged.emit(self._option_proxy_model_dict)
@@ -584,3 +599,6 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 		if self.undo_stack:
 			self.undo_stack.clear()
 			self.undo_stack.setActive(True)
+
+		if validate_after_setting:
+			self.validate_current_configuration()

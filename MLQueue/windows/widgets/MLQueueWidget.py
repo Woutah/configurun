@@ -9,7 +9,7 @@ from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6Widgets.Utility.catchExceptionInMsgBoxDecorator import \
     catchExceptionInMsgBoxDecorator
 
-from MLQueue.classes.RunQueue import RunQueue, RunQueueItemActions
+from MLQueue.classes.RunQueue import RunQueueItemActions
 from MLQueue.windows.models.RunQueueTableModel import RunQueueTableModel
 from MLQueue.windows.ui.MLQueueWidget_ui import Ui_MLQueueWidget
 
@@ -79,16 +79,18 @@ class MLQueueWidget(QtWidgets.QWidget):
 				confirm_dialog = QtWidgets.QMessageBox()
 				#Creat a dialog with "Wait for processes to finish" and "Force Stop" and "Cancel" buttons
 				confirm_dialog = QtWidgets.QMessageBox()
-				confirm_dialog.setText("Are you sure you want to stop the queue? This will cancel all currently \
-			   		running tasks.")
+				confirm_dialog.setText("You are about to stop the autoqueue process, do you want to cancel all"
+			   		"currently running processes as well?")
 				#Create a dialog with "Wait for processes to finish" and "Force Stop" and "Cancel" buttons
 				#If "Wait and Stop" is pressed, stop autoqueueing
 				#If "Force Stop" is pressed, stop all items currently running in the queue and stop autoqueueing
 				#If "Cancel" is pressed, do nothing
 				stop_autoqueue_btn = \
 					confirm_dialog.addButton("Stop Autoqueueing", QtWidgets.QMessageBox.ButtonRole.AcceptRole) #0
-				confirm_dialog.addButton("Force Stop All", QtWidgets.QMessageBox.ButtonRole.RejectRole) #1
-				confirm_dialog.addButton("Cancel", QtWidgets.QMessageBox.ButtonRole.NoRole) #2
+				force_stop_btn = \
+					confirm_dialog.addButton("Force Stop All", QtWidgets.QMessageBox.ButtonRole.NoRole) #1
+				cancel_btn = \
+					confirm_dialog.addButton("Cancel", QtWidgets.QMessageBox.ButtonRole.RejectRole) #2
 
 				#Set default button to "Wait and Stop"
 				confirm_dialog.setDefaultButton(stop_autoqueue_btn)
@@ -101,17 +103,15 @@ class MLQueueWidget(QtWidgets.QWidget):
 				confirm_dialog.exec()
 
 
-				if confirm_dialog.result() == 2: #If cancel is pressed (third button = index 2)
+				if confirm_dialog.clickedButton() == cancel_btn: #If cancel is pressed (third button = index 2)
 					return
-				elif confirm_dialog.result() == 0: #If wait stop
+				elif confirm_dialog.clickedButton() == stop_autoqueue_btn: #If wait stop
 					cur_model.stop_autoprocessing()
-					self._autoqueue_btn_set_state(False) #Set button state to false  #TODO: lock this to signal only
+					self._autoqueue_btn_set_state(False) #Set button state to false
 					return
-
-			raise NotImplementedError("Stopping queue not implemented yet")
-			#TODO: cancel all currently running tasks
-			#TODO: save queue to file
-
+				elif confirm_dialog.clickedButton() == force_stop_btn:
+					#TODO: implement
+					raise NotImplementedError("Force-stopping queue not implemented yet")
 		else:
 			cur_model.start_autoprocessing()
 
@@ -182,48 +182,3 @@ class MLQueueWidget(QtWidgets.QWidget):
 		for action in cur_available_actions:
 			if action in self._action_btn_dict:
 				self._action_btn_dict[action].setEnabled(True)
-
-
-
-
-if __name__ == "__main__":
-	# pylint: disable=protected-access
-	import datetime
-	import sys
-	test_app = QtWidgets.QApplication(sys.argv)
-	test_widget = QtWidgets.QWidget()
-	test_ui = MLQueueWidget(test_widget)
-
-
-
-	run_queue = RunQueue()
-	run_queue.add_to_queue("Item1", "TheConfig")
-	run_queue.add_to_queue("Item2", "TheConfig")
-	run_queue.add_to_queue("Item3", "TheConfig")
-	run_queue.add_to_queue("Item4", "TheConfig")
-	run_queue.add_to_queue("ItemRunning", "TheConfig")
-
-	run_queue._all_dict[0].dt_started = datetime.datetime.now()
-	run_queue._all_dict[1].dt_started = datetime.datetime.now()
-	# run_queue._queue.remove(4)
-	# run_queue.all_dict[4].status = RunQueueItemStatus.Running
-	# run_queue.add_to_queue("ItemFinished", "TheConfig")
-	# run_queue.all_dict[5].status = RunQueueItemStatus.Finished
-	# run_queue._queue.remove(5)
-	# run_queue.add_to_queue("ItemCancelled", "TheConfig")
-	# run_queue.all_dict[6].status = RunQueueItemStatus.Stopped
-	# run_queue._queue.remove(6)
-	# run_queue.add_to_queue("ItemFailed", "TheConfig")
-	# run_queue.all_dict[7].status = RunQueueItemStatus.Failed
-	# run_queue._queue.remove(7)
-	model = RunQueueTableModel(run_queue)
-
-
-	test_ui.queue_view.setModel(model)
-
-
-
-
-
-	test_widget.show()
-	sys.exit(test_app.exec())

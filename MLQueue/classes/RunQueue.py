@@ -2,7 +2,6 @@
 Implements the Runqueue class - a class that manages a list of configurations to pass to a run-function.
 """
 
-import importlib.util
 import logging
 import multiprocessing
 import multiprocessing.managers as managers
@@ -21,7 +20,7 @@ from enum import Enum
 
 from PySide6 import QtCore
 
-from MLQueue.configuration.ConfigurationModel import (Configuration)
+from MLQueue.configuration.ConfigurationModel import Configuration
 
 log = logging.getLogger(__name__)
 
@@ -98,12 +97,13 @@ class FileAndQueueHandler(logging.FileHandler):
 #Enum with possible statuses for a run queue item
 class RunQueueItemStatus(Enum):
 	"""The status of a run queue item, e.g. queued, running, finished etc."""
-	QUEUED = 0 #Waiting to be run (in queue)
-	RUNNING = 1 #Currently running
-	FINISHED = 2 #Finished running succesfully
-	STOPPED = 3 #Stopped by user during running
-	FAILED = 4 #Failed during execution
-	CANCELLED = 5 #Removed from the queue
+	#pylint: disable=invalid-name
+	Queued = 0 #Waiting to be run (in queue)
+	Running = 1 #Currently running
+	Finished = 2 #Finished running succesfully
+	Stopped = 3 #Stopped by user during running
+	Failed = 4 #Failed during execution
+	Cancelled = 5 #Removed from the queue
 
 
 
@@ -118,7 +118,7 @@ class RunQueueItem():
 		  	dt_added : datetime,
 		  	config : object | Configuration,
 			dt_started : datetime | None = None,
-		  	status : RunQueueItemStatus = RunQueueItemStatus.QUEUED,
+		  	status : RunQueueItemStatus = RunQueueItemStatus.Queued,
 		  	dt_done : typing.Union[datetime, None] = None,
 		  	exit_code : typing.Union[int, None] = None,
 		  	stderr : str = ""
@@ -137,7 +137,7 @@ class RunQueueItem():
 	name: str #Descriptive name used to display in the queue
 	dt_added: datetime
 	config: object
-	status: RunQueueItemStatus = RunQueueItemStatus.QUEUED
+	status: RunQueueItemStatus = RunQueueItemStatus.Queued
 
 	# done : bool = False
 	dt_done : typing.Union[datetime, None] = None #When done running/cancelled/stopped etc.
@@ -243,33 +243,28 @@ class RunQueue(QtCore.QObject):
 
 	queueResetTriggered = QtCore.Signal() #Emitted when the queue is reset (indicates that all models should be reset)
 
-	def __init__(self, n_processes : int = 1,
-	      			log_location : str= "",
-					save_load_location : str = "",
-					save_interval : typing.Literal["AfterAction", "Manually"] = "Manually"
-				) -> None:
+	def __init__(self,
+	      		target_function : typing.Callable[[Configuration], typing.Any],
+				n_processes : int = 1,
+				log_location : str= ""
+			) -> None:
 		"""_summary_
 
 		Args:
+			target_function (typing.Callable[[Configuration], typing.Any]): The function which is passed the configuration
+				and which is run in a separate process.
+
 			n_processes (int, optional): How many processes to use for processing the queue. Defaults to 1.
 
 			log_location (str, optional): Stdout/stderr of each subprocess is logged to a file for ease-of-access from
 				the main process/ui if no path is given, we try to find the temp-path (using tempfile.TemporaryFile()).
 				Defaults to None.
-
-			save_location (str, optional): Where to save the queue to - depends on ``save_interval``. Defaults to None.
-
-			save_interval (typing.Literal["AfterAction", "Manually"], optional): When to save the queue. Defaults to
-				"Manually". If AfterAction - will save the queue after each action (add, remove, move, etc.).
-				If Manually - will only save the queue when the user manually saves it. AfterAction is only enabled
-				if a save_location is given. #TODO: implement
 		"""
 
 		super().__init__()
 
-		if save_interval != "Manually" or save_load_location != "":
-			raise NotImplementedError("Only manual saving is implemented for now (no location/interval supported).")
 
+		self._target_function = target_function
 		self._stopflag = multiprocessing.Event()
 		self._stopflag.clear()
 		self._config_class : type = type(None) #The class of the configuration object
@@ -420,9 +415,9 @@ class RunQueue(QtCore.QObject):
 				queue_copy = self._get_queue_snapshot_copy_no_locks()
 
 			for key, runqueue_item in all_dict_copy.items():
-				if runqueue_item.status == RunQueueItemStatus.RUNNING:
+				if runqueue_item.status == RunQueueItemStatus.Running:
 					if save_running_as_stopped:
-						runqueue_item.status = RunQueueItemStatus.STOPPED
+						runqueue_item.status = RunQueueItemStatus.Stopped
 						runqueue_item.stderr = "Process was running when queue was saved, so it was saved as cancelled."
 						runqueue_item.dt_done = datetime.now()
 					else:
@@ -455,21 +450,21 @@ class RunQueue(QtCore.QObject):
 		elif item_id in self._all_dict:
 			#Lock queue when removing
 			with self._all_dict_mutex, self._queue_mutex:
-				if self._all_dict[item_id].status == RunQueueItemStatus.STOPPED \
-						or self._all_dict[item_id].status == RunQueueItemStatus.FINISHED \
-						or self._all_dict[item_id].status == RunQueueItemStatus.CANCELLED:
+				if self._all_dict[item_id].status == RunQueueItemStatus.Stopped \
+						or self._all_dict[item_id].status == RunQueueItemStatus.Finished \
+						or self._all_dict[item_id].status == RunQueueItemStatus.Cancelled:
 					actions = [
 						RunQueueItemActions.DELETE #TODO: Add requeue
 					]
-				elif self._all_dict[item_id].status == RunQueueItemStatus.FAILED:
+				elif self._all_dict[item_id].status == RunQueueItemStatus.Failed:
 					actions = [
 						RunQueueItemActions.DELETE #TODO: Add retry
 					]
-				elif self._all_dict[item_id].status == RunQueueItemStatus.RUNNING:
+				elif self._all_dict[item_id].status == RunQueueItemStatus.Running:
 					actions = [
 						RunQueueItemActions.STOP
 					]
-				elif self._all_dict[item_id].status == RunQueueItemStatus.QUEUED: #When popping from the queue, just before
+				elif self._all_dict[item_id].status == RunQueueItemStatus.Queued: #When popping from the queue, just before
 						#settings the status to "running", the status is "queued" without it being in the queue
 						# do we need to handle this case?
 					actions = [
@@ -522,7 +517,7 @@ class RunQueue(QtCore.QObject):
 		with self._all_dict_mutex, self._queue_mutex:
 			if item_id not in self._queue: #Only do something if the id is in the queue
 				raise KeyError(f"Could not cancel {item_id}, ID not in queue.")
-			self._all_dict[item_id].status = RunQueueItemStatus.CANCELLED
+			self._all_dict[item_id].status = RunQueueItemStatus.Cancelled
 			self._queue.remove(item_id)
 			queue_snapshot = self._get_queue_snapshot_copy_no_locks()
 			item_copy = deepcopy(self._all_dict[item_id])
@@ -550,7 +545,7 @@ class RunQueue(QtCore.QObject):
 		self._queue_mutex.acquire()
 		if item_id in self._queue:
 			self._queue.remove(item_id)
-			self._all_dict[item_id].status = RunQueueItemStatus.CANCELLED
+			self._all_dict[item_id].status = RunQueueItemStatus.Cancelled
 			queue_snapshot = self._get_queue_snapshot_copy_no_locks()
 			item_copy = self._all_dict[item_id].get_copy()
 			self._all_dict_mutex.release()
@@ -561,7 +556,7 @@ class RunQueue(QtCore.QObject):
 		elif item_id in self._all_dict: #When raising an exception, we need to release the locks
 			self._all_dict_mutex.release()
 			self._queue_mutex.release()
-			if self._all_dict[item_id].status == RunQueueItemStatus.RUNNING:
+			if self._all_dict[item_id].status == RunQueueItemStatus.Running:
 				raise NotImplementedError("Stopping a running process is not implemented yet.")
 			raise KeyError(f"Could not stop {item_id}, item with ID is not running, and item with this ID was not in \
 		  		queue.")
@@ -629,7 +624,7 @@ class RunQueue(QtCore.QObject):
 		"""
 		#Lock queue when removing
 		with self._all_dict_mutex, self._queue_mutex:
-			if self._all_dict[item_id].status == RunQueueItemStatus.RUNNING:
+			if self._all_dict[item_id].status == RunQueueItemStatus.Running:
 				self._all_dict_mutex.release()
 				self._queue_mutex.release()
 				raise NotImplementedError(f"Could not delete item with id {item_id}, item is running.") #TODO: Add force del?
@@ -708,7 +703,7 @@ class RunQueue(QtCore.QObject):
 		count = 0
 		with self._all_dict_mutex, self._queue_mutex:
 			for queue_item in self._all_dict.values():
-				if queue_item.status == RunQueueItemStatus.RUNNING: #Count all running processes
+				if queue_item.status == RunQueueItemStatus.Running: #Count all running processes
 					count+=1
 
 		return count
@@ -757,7 +752,7 @@ class RunQueue(QtCore.QObject):
 		new_item_id = self._cur_id
 		self._cur_id += 1
 		dt_added = datetime.now()
-		new_item = self._manager.RunQueueItem(item_id=new_item_id,name=name, dt_added=dt_added, config=config)
+		new_item = self._manager.RunQueueItem(item_id=new_item_id,name=name, dt_added=dt_added, config=config) #pylint: disable=no-member #type: ignore
 		# new_item = RunQueueItem(item_id=new_item_id,name=name, dt_added=dt_added, config=config)
 
 		with self._all_dict_mutex, self._queue_mutex:
@@ -804,6 +799,7 @@ class RunQueue(QtCore.QObject):
 
 	@staticmethod
 	def _process_queue_item(
+				target_function : typing.Callable[[Configuration], typing.Any],
 				queue_item_id : int,
 				queue_item_name : str,
 				command_line_output_path : str,
@@ -843,7 +839,7 @@ class RunQueue(QtCore.QObject):
 
 		with all_dict_mutex, queue_mutex:
 			queue_item = all_dict[queue_item_id]
-			queue_item.status = RunQueueItemStatus.RUNNING #Should no longer be editable -> probably already done in
+			queue_item.status = RunQueueItemStatus.Running #Should no longer be editable -> probably already done in
 			 #_run_queue_item_processor, but just to be sure
 			queue_item.dt_started = datetime.now()
 
@@ -852,13 +848,10 @@ class RunQueue(QtCore.QObject):
 			configuration = copy(queue_item.config) #Just to be sure we don't change the original config, make a copy
 			# config.set_option_data(options_data) #NOTE: Although Options allow for a lot of types -
 			# #in the runqueue, we should always expect a 'OptionsData' type
-
-			# #Reload the main module to make sure we have the latest version
-			# #TODO: based on argparse
-			import MachineLearning.framework.learner as learner  # pylint: disable=import-outside-toplevel
-			importlib.reload(learner)
-			experiment_runner = learner.experimentRunner(configuration)
-			experiment_runner.run_experiment()
+			assert isinstance(configuration, Configuration), f"Expected runqueue item config to be of type Configuration, \
+				but got {type(configuration)} instead."
+			target_function(configuration)
+			log.info("Done running target function.")
 
 		except Exception as exception: # pylint: disable=broad-exception-caught #Catch all exceptions in this runqueue
 			msg = f"{type(exception).__name__}:{exception}"
@@ -869,7 +862,7 @@ class RunQueue(QtCore.QObject):
 
 			if queue_item: #If queue item is set -> also report item as error
 				with all_dict_mutex:
-					queue_item.status = RunQueueItemStatus.FAILED
+					queue_item.status = RunQueueItemStatus.Failed
 					queue_item.dt_done = datetime.now()
 					queue_item.exit_code = -1 #error exit code
 					queue_item.stderr = msg
@@ -880,13 +873,13 @@ class RunQueue(QtCore.QObject):
 
 
 		with all_dict_mutex, queue_mutex:
-			queue_item.status = RunQueueItemStatus.FINISHED
+			queue_item.status = RunQueueItemStatus.Finished
 			queue_item.dt_done = datetime.now()
 			queue_item.exit_code = 0 #normal exit code
 
 
-		log.info(f"Processed item with id {queue_item.item_id} and name {queue_item.name} , queue is now {id_queue}, \
-	   		all_dict is of size {len(all_dict)}")
+		log.info(f"Processed item with id {queue_item.item_id} and name {queue_item.name}, "
+	   		f"queue size is now {len(id_queue)}.")
 
 
 
@@ -900,7 +893,6 @@ class RunQueue(QtCore.QObject):
 
 		2. Continuously checks the processes for completion and updates the queue accordingly
 		"""
-		print("Now running queue item processor")
 		log.debug("Now running queue item processor")
 
 
@@ -915,7 +907,7 @@ class RunQueue(QtCore.QObject):
 						#Pop first, then set to running state
 						queue_item_id = self._queue.pop(0) #
 						queue_item_name = self._all_dict[queue_item_id].name
-						self._all_dict[queue_item_id].status = RunQueueItemStatus.RUNNING #Should no longer be editable
+						self._all_dict[queue_item_id].status = RunQueueItemStatus.Running #Should no longer be editable
 
 					log.debug(f"Attempting to start process-function for item with id {queue_item_id}")
 					#TODO: run the actual item -> maybe wrap in a try/except to catch errors. Make sure no locks are
@@ -943,6 +935,7 @@ class RunQueue(QtCore.QObject):
 						self._running_processes[queue_item_id] = multiprocessing.Process(
 								target=RunQueue._process_queue_item,
 								args = (
+									self._target_function,
 									queue_item_id,
 									queue_item_name,
 									cur_logfile_loc,
@@ -984,8 +977,8 @@ class RunQueue(QtCore.QObject):
 
 
 if __name__ == "__main__":
-	from PySide6 import QtWidgets
+	from PySide6 import QtWidgets #pylint: disable=ungrouped-imports
 	test_app = QtWidgets.QApplication(sys.argv)
-	test_queue = RunQueue()
+	test_queue = RunQueue(lambda *_: print("Target function has been called... Now quitting..."))
 	print("Created a queue")
 	test_app.exec()

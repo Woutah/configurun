@@ -45,8 +45,8 @@
          <string>Add to Queue</string>
         </property>
         <property name="icon">
-         <iconset>
-          <normaloff>:/Icons/icons/Tango Icons/32x32/actions/format-indent-more.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/format-indent-more.png</iconset>
+         <iconset resource="../../../res/app_resources.qrc">
+          <normaloff>:/Icons/icons/actions/format-indent-more.png</normaloff>:/Icons/icons/actions/format-indent-more.png</iconset>
         </property>
        </widget>
       </item>
@@ -113,7 +113,6 @@
     </widget>
     <addaction name="menuSet_Font_Size"/>
     <addaction name="menuMDI_Area"/>
-    <addaction name="actionReset_Splitters_2"/>
    </widget>
    <addaction name="menuasdf"/>
    <addaction name="menuview"/>
@@ -475,6 +474,10 @@
    </property>
   </action>
   <action name="actionReset_Splitters_2">
+   <property name="icon">
+    <iconset resource="../../../res/app_resources.qrc">
+     <normaloff>:/Icons/icons/mimetypes/x-office-document-template.png</normaloff>:/Icons/icons/mimetypes/x-office-document-template.png</iconset>
+   </property>
    <property name="text">
     <string>Reset Splitters</string>
    </property>

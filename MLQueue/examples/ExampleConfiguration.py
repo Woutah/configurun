@@ -17,6 +17,7 @@ from MLQueue.configuration.Configuration import Configuration
 from MLQueue.examples.ExampleOptions.ExampleOptions import (
     ExampleDatasetOptions, ExampleGeneralOptions, ExampleMainOptions, ExampleModelOptions, ExtendedExampleModelOptions,
     ExtendedExampleDatasetOptions)
+from MLQueue.examples.ExampleRunFunction import example_run_function
 
 log = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ def deduce_new_option_class_types(
 			# ret_dict["dataset_options"] = None #No dataset options - uncomment to display empty window
 			pass #Remove if None selected
 	# else: #NOTE: if we want to display an empty options-window, we can set the dataset_options to None
-	# 	ret_dict["dataset_options"] = None 
+	# 	ret_dict["dataset_options"] = None
 
 
 
@@ -96,7 +97,7 @@ if __name__ == "__main__":
 	main_window = QtWidgets.QMainWindow()
 
 	#Create a run-queue
-	queue = RunQueue()
+	queue = RunQueue(target_function=example_run_function)
 
 	#Build the main window in the qmainwindow using the configuration model and the run-queue
 	ml_window = MainWindow(
@@ -108,4 +109,3 @@ if __name__ == "__main__":
 	#Finally, show the main window and run the application
 	main_window.show() #We must call show on the main window
 	app.exec() #Run the application
-
