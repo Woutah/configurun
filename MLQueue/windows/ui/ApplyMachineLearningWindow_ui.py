@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'ApplyMachineLearningWindow.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.5.0
+## Created by: Qt User Interface Compiler version 6.5.1
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -21,11 +21,11 @@ from PySide6.QtWidgets import (QApplication, QDockWidget, QGridLayout, QHBoxLayo
     QPushButton, QSizePolicy, QStatusBar, QToolButton,
     QUndoView, QVBoxLayout, QWidget)
 
-from PySide6Widgets.Widgets.ConsoleWidget import ConsoleWidget
-from PySide6Widgets.Widgets.ExtendedMdiArea import ExtendedMdiArea
-from PySide6Widgets.Widgets.FileExplorerView import FileExplorerView
-from PySide6Widgets.Widgets.OverlayWidget import OverlayWidget
-from PySide6Widgets.Widgets.SquareFrame import SquareFrame
+from pyside6_utils.widgets.ConsoleWidget import ConsoleWidget
+from pyside6_utils.widgets.ExtendedMdiArea import ExtendedMdiArea
+from pyside6_utils.widgets.FileExplorerView import FileExplorerView
+from pyside6_utils.widgets.OverlayWidget import OverlayWidget
+from pyside6_utils.widgets.SquareFrame import SquareFrame
 import MLQueue.res.app_resources_rc
 
 class Ui_ApplyMachineLearningWindow(object):

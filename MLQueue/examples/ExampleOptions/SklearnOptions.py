@@ -10,7 +10,7 @@ from dataclasses import field, make_dataclass
 
 # import dill
 from numpydoc.docscrape import NumpyDocString
-from PySide6Widgets.Utility.sklearn_param_validation import StrOptions
+from pyside6_utils.utility.constraints import StrOptions
 from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
 from sklearn.gaussian_process import GaussianProcessClassifier
 # from sklearn.gaussian_process.kernels import RBF
@@ -165,7 +165,7 @@ class SklearnMainOptions(BaseOptions):
 	)
 
 	#Dataset Type
-	data_class : typing.Literal['exampleDataclass', "extendedExampleDataclass"] | None = field(
+	dataset_type : typing.Literal['exampleDataclass', "extendedExampleDataclass"] | None = field(
 		default=None,
 		metadata=dict(
 			display_name="Dataset Type",

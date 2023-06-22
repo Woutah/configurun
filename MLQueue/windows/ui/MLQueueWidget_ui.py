@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'MLQueueWidget.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.5.0
+## Created by: Qt User Interface Compiler version 6.5.1
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (QApplication, QHBoxLayout, QHeaderView, QPushButt
     QWidget)
 
 from MLQueue.windows.views.RunQueueTreeView import RunQueueTreeView
-from PySide6Widgets.Widgets.SquareFrame import SquareFrame
+from pyside6_utils.widgets.SquareFrame import SquareFrame
 import MLQueue.res.app_resources_rc
 
 class Ui_MLQueueWidget(object):

@@ -11,15 +11,15 @@ Examples:
 """
 
 import enum
-from dataclasses import dataclass
-from abc import abstractmethod
-import dill
 import socket
+from abc import abstractmethod
 from ctypes import c_uint32
+from dataclasses import dataclass
+
+import dill
 from Crypto.Cipher import AES
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
-
 
 RSA_KEY_SIZE_BITS = 2048 #The size of the key used for encryption/decryption
 PASSWORD_HASH_SIZE = 512 #The size of the password hash in bytes

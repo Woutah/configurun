@@ -9,13 +9,14 @@ import os
 import typing
 from enum import Enum
 
-import PySide6Widgets.Models.FileExplorerModel
+import pyside6_utils.models.FileExplorerModel
 from PySide6 import QtCore, QtGui, QtWidgets
-from PySide6Widgets.Utility.catchExceptionInMsgBoxDecorator import \
-    catchExceptionInMsgBoxDecorator
-from PySide6Widgets.Widgets.FramelessMdiWindow import FramelessMdiWindow
-from PySide6Widgets.Utility.DataClassEditorsDelegate import DataClassEditorsDelegate
-from PySide6Widgets.Widgets.DataClassTreeView import DataClassTreeView
+from pyside6_utils.utility.catchExceptionInMsgBoxDecorator import \
+    catch_show_exception_in_popup_decorator
+import pyside6_utils.widgets
+
+from pyside6_utils.utility.DataClassEditorsDelegate import DataClassEditorsDelegate
+from pyside6_utils.widgets import DataClassTreeView
 
 from MLQueue.classes.RunQueue import RunQueue
 from MLQueue.configuration.ConfigurationModel import ConfigurationModel
@@ -77,7 +78,7 @@ class MainWindow():
 
 		# self._cur_path = None
 		self._default_save_path = SETTINGS_PATH_MACHINE_LEARNING_WINDOW
-		self._config_file_picker_model = PySide6Widgets.Models.FileExplorerModel.FileExplorerModel(
+		self._config_file_picker_model = pyside6_utils.models.FileExplorerModel.FileExplorerModel(
 			allow_select_files_only=True)
 
 
@@ -265,11 +266,11 @@ class MainWindow():
 		"""
 
 		if not new_connection_state:
-			self.ui.MLQueueWidget.setOverlayHidden(False)
-			self.ui.ConsoleOverlayWidget.setOverlayHidden(False)
+			self.ui.MLQueueWidget.set_overlay_hidden(False)
+			self.ui.ConsoleOverlayWidget.set_overlay_hidden(False)
 		else:
-			self.ui.MLQueueWidget.setOverlayHidden(True)
-			self.ui.ConsoleOverlayWidget.setOverlayHidden(True)
+			self.ui.MLQueueWidget.set_overlay_hidden(True)
+			self.ui.ConsoleOverlayWidget.set_overlay_hidden(True)
 
 
 	# def reset_splitter_states(self):
@@ -553,7 +554,7 @@ class MainWindow():
 		# name += ("_" + self._config_model.model) if self._config_model.model else ""
 		return "new_config"
 
-	@catchExceptionInMsgBoxDecorator
+	@catch_show_exception_in_popup_decorator
 	def add_to_queue_triggered(self):
 		"""
 		Triggered when the "add to queue" button is clicked. Adds the current config to the queue.

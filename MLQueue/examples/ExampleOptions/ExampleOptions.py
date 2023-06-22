@@ -4,7 +4,7 @@ Implements several option-dataclasses to show how to use this framework.
 import typing
 from dataclasses import dataclass, field
 
-from PySide6Widgets.Utility.sklearn_param_validation import (Interval,
+from pyside6_utils.utility.constraints import (Interval,
                                                              StrOptions)
 
 from MLQueue.configuration.BaseOptions import BaseOptions

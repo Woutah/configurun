@@ -12,7 +12,7 @@ import typing
 from collections import OrderedDict
 
 from PySide6 import QtCore, QtGui, QtWidgets
-from PySide6Widgets.Models.ConsoleWidgetModels.ConsoleStandardItemModel import BaseConsoleItem
+from pyside6_utils.models.ConsoleWidgetModels.ConsoleStandardItemModel import BaseConsoleItem
 from MLQueue.classes.RunQueue import RunQueue
 
 log = logging.getLogger(__name__)
@@ -450,7 +450,7 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 
 if __name__ == "__main__":
 	#pylint: disable=ungrouped-imports, protected-access, redefined-outer-name, missing-function-docstring, invalid-name
-	from PySide6Widgets.Widgets.ConsoleWidget import ConsoleWidget
+	from pyside6_utils.widgets.console_widget import ConsoleWidget
 	app = QtWidgets.QApplication([])
 	model = RunQueueConsoleModel()
 	print("Now running a test-instance of RunQueueConsoleModel")

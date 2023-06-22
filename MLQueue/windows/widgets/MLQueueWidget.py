@@ -6,8 +6,8 @@ as well as (indirectly) the RunQueue underlying this model
 import logging
 
 from PySide6 import QtCore, QtGui, QtWidgets
-from PySide6Widgets.Utility.catchExceptionInMsgBoxDecorator import \
-    catchExceptionInMsgBoxDecorator
+from pyside6_utils.utility.catchExceptionInMsgBoxDecorator import \
+    catch_show_exception_in_popup_decorator
 
 from MLQueue.classes.RunQueue import RunQueueItemActions
 from MLQueue.windows.models.RunQueueTableModel import RunQueueTableModel
@@ -60,7 +60,7 @@ class MLQueueWidget(QtWidgets.QWidget):
 		self.ui.StartRunningQueueBtn.setChecked(is_running)
 		self.ui.StartRunningQueueBtn.setToolTip("Stop queue" if is_running else "Start running queue")
 
-	@catchExceptionInMsgBoxDecorator
+	@catch_show_exception_in_popup_decorator
 	def toggle_queue_autoprocessing(self):
 		"""Toggles the queue autoprocessing."""
 		cur_model = self.queue_view.model()
@@ -152,7 +152,7 @@ class MLQueueWidget(QtWidgets.QWidget):
 		self.update_available_options()
 
 
-	@catchExceptionInMsgBoxDecorator
+	@catch_show_exception_in_popup_decorator
 	def force_stop_queue(self):
 		""" Stops the auto-requeueing of items in the RunQueue """
 		raise NotImplementedError("MLQueueWidget: stop_queue not implemented yet")

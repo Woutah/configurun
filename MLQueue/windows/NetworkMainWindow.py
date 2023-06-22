@@ -21,8 +21,8 @@ if __name__ == "__main__":
 import typing
 
 from PySide6 import QtCore, QtGui, QtWidgets
-from PySide6Widgets.Utility.catchExceptionInMsgBoxDecorator import \
-    catchExceptionInMsgBoxDecorator
+from pyside6_utils.utility.catchExceptionInMsgBoxDecorator import \
+    catch_show_exception_in_popup_decorator
 
 from MLQueue.classes.RunQueueClient import RunQueueClient
 from MLQueue.configuration.ConfigurationModel import ConfigurationModel
@@ -36,7 +36,7 @@ class NetworkMainWindow(MainWindow):
 	"""
 
 	def __init__(self,
-				configuration_model : ConfigurationModel, 
+				configuration_model : ConfigurationModel,
 				run_queue_client : RunQueueClient,
 				window : QtWidgets.QMainWindow
 			) -> None:
@@ -52,18 +52,11 @@ class NetworkMainWindow(MainWindow):
 		self.ml_overlay_widget = self.ui.MLQueueWidget
 		self.console_overlay_widget = self.ui.ConsoleOverlayWidget
 
-		self.ml_overlay_widget.setOverlayWidget(self._task_queue_overlay_msg)
-		self.console_overlay_widget.setOverlayWidget(self._console_overlay_msg)
+		self.ml_overlay_widget.set_overlay_widget(self._task_queue_overlay_msg)
+		self.console_overlay_widget.set_overlay_widget(self._console_overlay_msg)
 
-		self.console_overlay_widget.setOverlayHidden(False)
-		self.ml_overlay_widget.setOverlayHidden(False)
-
-
-		# self.ui.menubar.removeEventFilter(self.ui.menusource)
-		# self.ui.menubar.removeAction(self.ui.actionSetLocalRunMode)
-		# self.ui.menubar.removeAction(self.ui.actionSetNetworkRunMode)
-		# self.ui.actionSetLocalRunMode.deleteLater()
-		# self.ui.actionSetNetworkRunMode.deleteLater()
+		self.console_overlay_widget.set_overlay_hidden(False)
+		self.ml_overlay_widget.set_overlay_hidden(False)
 
 		#================== Network-specific menu ================
 
@@ -82,7 +75,6 @@ class NetworkMainWindow(MainWindow):
 
 		self.network_connection_parent = QtWidgets.QWidget()
 		self.network_connection_widget = NetworkLoginWidget(self.network_connection_parent, self._settings)
-		# self.connection_window.setCentralWidget(self.network_connection_widget)
 		self.connection_window.setCentralWidget(self.network_connection_parent)
 		self.server_connection_state_changed(self._run_queue.is_connected_and_authenticated()) #Set initial state
 
@@ -106,7 +98,7 @@ class NetworkMainWindow(MainWindow):
 		self.open_connection_action.triggered.connect(self.connection_window.show)
 
 
-	@catchExceptionInMsgBoxDecorator
+	@catch_show_exception_in_popup_decorator
 	def connect_to_server(self, server_ip : str, server_port : str, server_password : str) -> None:
 		"""
 		Wrapper around the connect function of the run_queue which displays a message box when encountering an exception
@@ -118,7 +110,7 @@ class NetworkMainWindow(MainWindow):
 		self._run_queue.connect_to_server(server_ip=server_ip, server_port=int(server_port), password=server_password)
 		print("Connected to server!")
 
-	@catchExceptionInMsgBoxDecorator
+	@catch_show_exception_in_popup_decorator
 	def disconnect_from_server(self) -> None:
 		"""
 		Wrapper around the disconnect function of the run_queue which displays a message box on thrown exceptions.
@@ -126,7 +118,7 @@ class NetworkMainWindow(MainWindow):
 		self._run_queue.disconnect_clean_server()
 
 	def server_connection_state_changed(self, connected : bool) -> None:
-		"""Update the UI to reflect the connection state, e.g. grey-out the task queue on disconnect as to 
+		"""Update the UI to reflect the connection state, e.g. grey-out the task queue on disconnect as to
 		indicate to the user that connection has been lost.
 
 		Args:
@@ -135,8 +127,8 @@ class NetworkMainWindow(MainWindow):
 		print(f"Connection state changed to {connected}, now updating UI...")
 		log.info(f"Connection state changed to {connected}, now updating UI...")
 		#=========== hide blocking overlays when connected ==========
-		self.console_overlay_widget.setOverlayHidden(connected)
-		self.ml_overlay_widget.setOverlayHidden(connected)
+		self.console_overlay_widget.set_overlay_hidden(connected)
+		self.ml_overlay_widget.set_overlay_hidden(connected)
 
 
 		#Update the connection window
@@ -177,6 +169,7 @@ class NetworkMainWindow(MainWindow):
 
 
 if __name__ == "__main__":
+	# Run Small tests using runqueue-client and example options
 	from MLQueue.examples.ExampleConfiguration import \
 	    deduce_new_option_class_types
 	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}] {levelname:<7s}   {message}", style='{')

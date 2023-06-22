@@ -487,30 +487,30 @@
   <customwidget>
    <class>ExtendedMdiArea</class>
    <extends>QMdiArea</extends>
-   <header>PySide6Widgets.Widgets.ExtendedMdiArea</header>
+   <header>pyside6_utils.widgets.ExtendedMdiArea</header>
    <container>1</container>
   </customwidget>
   <customwidget>
    <class>FileExplorerView</class>
    <extends>QTreeView</extends>
-   <header>PySide6Widgets.Widgets.FileExplorerView</header>
+   <header>pyside6_utils.widgets.FileExplorerView</header>
   </customwidget>
   <customwidget>
    <class>OverlayWidget</class>
    <extends>QWidget</extends>
-   <header>PySide6Widgets.Widgets.OverlayWidget</header>
+   <header>pyside6_utils.widgets.OverlayWidget</header>
    <container>1</container>
   </customwidget>
   <customwidget>
    <class>SquareFrame</class>
    <extends>QFrame</extends>
-   <header>PySide6Widgets.Widgets.SquareFrame</header>
+   <header>pyside6_utils.widgets.SquareFrame</header>
    <container>1</container>
   </customwidget>
   <customwidget>
    <class>ConsoleWidget</class>
    <extends>QWidget</extends>
-   <header>PySide6Widgets.Widgets.ConsoleWidget</header>
+   <header>pyside6_utils.widgets.ConsoleWidget</header>
   </customwidget>
  </customwidgets>
  <resources>

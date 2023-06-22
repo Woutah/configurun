@@ -7,7 +7,7 @@ import logging
 import sys
 from dataclasses import field, make_dataclass
 
-from PySide6Widgets.Utility.sklearn_param_validation import (Interval, Options)
+from pyside6_utils.utility.constraints import (Interval, Options)
 
 from MLQueue.configuration.BaseOptions import BaseOptions
 
@@ -48,7 +48,7 @@ def argparse_to_dataclass(
 			else:
 				new_constraints = [Options(new_type, set(action.choices))] #If list of options
 		elif new_type is None: #If no choice but also no type
-			if isinstance(action, argparse._StoreTrueAction):
+			if isinstance(action, argparse._StoreTrueAction): #pylint: disable=protected-access
 				new_type = bool
 				new_constraints = [bool]
 
@@ -98,8 +98,8 @@ def argparse_to_dataclass(
 if __name__ == "__main__":
 	from MLQueue.create import local_app
 	from MLQueue.examples.ExampleOptions.ExampleArgparse import parser_example
-	new_dataclass = argparse_to_dataclass(parser_example)
+	test_dataclass = argparse_to_dataclass(parser_example)
 	local_app(
 		target_function = lambda x, *_: print(x),
-		options_source = new_dataclass
+		options_source = test_dataclass
 	)

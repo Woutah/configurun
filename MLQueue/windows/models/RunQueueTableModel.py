@@ -165,7 +165,6 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		}
 
 		#=== Font for Highlighting ===
-
 		self._highlight_font = QtGui.QFont()
 		self._highlight_font.setBold(True)
 
@@ -173,12 +172,6 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		self._highlighted_id = None
 		self._prev_highlighted_id = None
 		self._cur_autoprocessing_state = False
-
-
-		#============= Connect changes to the queue to the model =============
-		# self._run_queue.queueChanged.connect(self._update_current_action_list) #Update list when the queue changes
-		# self._run_queue.runListChanged.connect(self._update_current_action_list) #Update list when run list changes
-		# self._run_queue.runItemChanged.connect(self._update_current_action_list) #Update list when  run item changes
 
 
 	column_names = { #Used to map column index to a name/property of a RunQueueItem
@@ -192,18 +185,6 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		7: ("exit_code", "Exit Code"),
 		8: ("stderr", "Stderr")
 	}
-	# def _update_current_action_list(self):
-	# 	"""Update the list of actions that can be performed on the current selection
-	# 	"""
-	# 	print("updating action list!")
-	# 	actions = []
-	# 	if self._highlighted_id is not None:
-	# 		actions = self._run_queue.get_actions_for_id(self._highlighted_id)
-
-	# 	if set(actions) != set(self._cur_actions): #Only emit if the list has changed
-	# 		self._cur_actions = actions
-	# 		self.currentActionListChanged.emit(self._cur_actions)
-
 
 
 	def rowCount(self,
@@ -358,37 +339,3 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 				# 	return "Status"
 				return self.column_names[section][1]
 		return None
-
-
-
-if __name__ == "__main__":
-	# pylint: disable=protected-access
-	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}] {levelname:<7s}   {message}", style='{')
-	handler = logging.StreamHandler()
-	handler.setFormatter(formatter)
-	logging.basicConfig(
-		handlers=[handler],
-		level=logging.DEBUG) #Without time
-
-	log.info("Running small test for MLQueueModel")
-
-	test_run_queue = RunQueue()
-	test_run_queue.add_to_queue("Item1", "TheConfig")
-	test_run_queue.add_to_queue("Item2", "TheConfig")
-	test_run_queue.add_to_queue("Item3", "TheConfig")
-	test_run_queue.add_to_queue("Item4", "TheConfig")
-	test_run_queue.add_to_queue("ItemRunning", "TheConfig")
-	test_run_queue._all_dict[4].name = "kaas"
-	test_run_queue.add_to_queue("ItemFinished", "TheConfig")
-	test_run_queue._all_dict[5].status = RunQueueItemStatus.Finished
-	test_run_queue.add_to_queue("ItemCancelled", "TheConfig")
-	test_run_queue._all_dict[6].status = RunQueueItemStatus.Stopped
-	test_run_queue.add_to_queue("ItemFailed", "TheConfig")
-	test_run_queue._all_dict[7].status = RunQueueItemStatus.Failed
-	app = QtWidgets.QApplication([])
-	model = RunQueueTableModel(test_run_queue)
-	view = QtWidgets.QTreeView()
-	view.setModel(model)
-	view.show()
-	view.resize(1200, 400)
-	app.exec()

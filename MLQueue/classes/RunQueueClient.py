@@ -71,7 +71,7 @@ class RunQueueClient(RunQueue,
 			self
 		) -> None:
 		"""Initializes the RunQueueClient
-		
+
 		Has no args, since RunQueue will be running on server-side, settings attributes here would be useless.
 		All function calls will be intercepted and sent to the server.
 		"""

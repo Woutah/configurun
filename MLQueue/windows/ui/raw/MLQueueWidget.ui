@@ -388,7 +388,7 @@
   <customwidget>
    <class>SquareFrame</class>
    <extends>QFrame</extends>
-   <header>PySide6Widgets.Widgets.SquareFrame</header>
+   <header>pyside6_utils.widgets.SquareFrame</header>
    <container>1</container>
   </customwidget>
   <customwidget>

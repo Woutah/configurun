@@ -50,7 +50,9 @@ def local_app(
 		target_function : typing.Callable,
 		options_source : \
 			typing.Callable[[Configuration], typing.Dict[str, typing.Type[BaseOptions] | typing.Type[None]]] | \
-			argparse.ArgumentParser,
+			argparse.ArgumentParser | \
+			typing.Type[BaseOptions]
+				,
 		run_queue_n_processes : int = 1,
 		run_queue_kwargs : typing.Optional[typing.Dict[str, typing.Any]] = None,
 		config_model_kargs : typing.Optional[typing.Dict[str, typing.Any]] = None,
