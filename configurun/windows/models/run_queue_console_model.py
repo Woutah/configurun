@@ -12,7 +12,7 @@ import typing
 from collections import OrderedDict
 
 from PySide6 import QtCore, QtGui, QtWidgets
-from pyside6_utils.models.ConsoleWidgetModels.ConsoleStandardItemModel import BaseConsoleItem
+from pyside6_utils.models.console_widget_models.console_model import BaseConsoleItem
 from configurun.classes.run_queue import RunQueue
 
 log = logging.getLogger(__name__)

@@ -32,15 +32,48 @@ from configurun.windows.widgets.network_login_widget import NetworkLoginWidget
 
 class NetworkMainWindow(MainWindow):
 	"""
-	UI for networking differs somewhat from the local-running UI - for ease of use, we separate the code.
+	The main QT window for this app which provides the user with several tools to edit/manage/run machine learning
+	settings.
+
+
+	This is the Networked-equivalent of main_window.py and implements some extra functionality to connect to a remote
+	RunQueueServer (see classes.RunQueueServer) and run machine learning tasks on it.
+
+	Should be provided with:
+		- A configuration model - manages the creation of new configurations & the ui
+		- A run queue - manages the running of the configurations
+		- A window - the main window in which the app should be built
+		- workspace_path (str, optional) - the default path to use for the configuration, logfiles etc. If empty, or
+			folder does not exist, defaults to ~/Configurun/configurations/
+		- settings_in_workspace_path (bool, optional) - Whether to store the settings in the workspace path or in the
+			default QSettings location. Defaults to True
 	"""
 
 	def __init__(self,
 				configuration_model : ConfigurationModel,
 				run_queue_client : RunQueueClient,
-				window : QtWidgets.QMainWindow
+				window : QtWidgets.QMainWindow,
+				workspace_path : str = "",
+				settings_in_workspace_path : bool = True
 			) -> None:
-		super().__init__(configuration_model=configuration_model, run_queue=run_queue_client, window=window)
+		"""
+		Args:
+			configuration_model (ConfigurationModel): The configuration model which manages updating the ui and creating
+			run_queue (RunQueue): The runqueue which manages running the configurations
+			window (QtWidgets.QMainWindow): The window in which the app should be built
+			workspace_path (str, optional): The base output-path used for the configurations, logfiles etc. 
+				If empty, or folder does not exist, defaults to ~/Configurun/configurations/
+			settings_in_workspace_path (bool, optional): Whether to store the settings in the workspace path or in the default
+				QSettings location. Defaults to True
+		"""
+		super().__init__(
+			configuration_model=configuration_model,
+			run_queue=run_queue_client,
+			window=window,
+			workspace_path=workspace_path,
+			settings_in_workspace_path=settings_in_workspace_path
+		)
+		
 		# assert(type(self._run_queue) == RunQueueClient) #Make sure we're using the right type of queue
 		self._run_queue : RunQueueClient = self._run_queue #For Type hinting
 

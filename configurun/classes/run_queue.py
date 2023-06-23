@@ -223,6 +223,10 @@ class CommandlineQueueEmitter(QtCore.QObject):
 				self.commandLineOutput.emit(*args)
 			except queue.Empty:
 				pass
+			except BrokenPipeError:
+				log.warning("Broken pipe error in CommandlineQueueEmitter - if this occured while app was closing, you can "
+	      				"ignore this warning. Queue-emitter will now stop monitoring the command-line output queue.")
+				self.stop_flag = True
 
 
 
@@ -257,7 +261,8 @@ class RunQueue(QtCore.QObject):
 	def __init__(self,
 	      		target_function : typing.Callable[[Configuration], typing.Any],
 				n_processes : int = 1,
-				log_location : str= ""
+				log_location : str= "",
+				log_location_make_dirs : bool = True
 			) -> None:
 		"""_summary_
 
@@ -270,6 +275,8 @@ class RunQueue(QtCore.QObject):
 			log_location (str, optional): Stdout/stderr of each subprocess is logged to a file for ease-of-access from
 				the main process/ui if no path is given, we try to find the temp-path (using tempfile.TemporaryFile()).
 				Defaults to None.
+			
+			log_location_make_dirs (bool, optional): Whether to create the log location if it does not exist. Defaults to True.
 		"""
 
 		super().__init__()
@@ -281,14 +288,22 @@ class RunQueue(QtCore.QObject):
 		self._config_class : type = type(None) #The class of the configuration object
 
 		self._log_location = log_location
-		if self._log_location is None or self._log_location == "" or not os.path.exists(self._log_location): #If no
+		if self._log_location is None or self._log_location == "": #If no
 				#log location is given, use the tempdir (os-specific)
 			self._log_location = tempfile.gettempdir()
-			#Create sub folder MLTaskScheduler in tempdir so we have everything in one place
-			self._log_location = os.path.join(self._log_location, "MLTaskScheduler")
+			#Create sub folder Configurun in tempdir so we have everything in one place
+			self._log_location = os.path.join(self._log_location, "configurun")
 			if not os.path.exists(self._log_location):
 				os.mkdir(self._log_location)
-		log.debug(f"Runqueue log location: {self._log_location}")
+		elif not os.path.exists(self._log_location):
+			if log_location_make_dirs:
+				os.makedirs(self._log_location)
+			else:
+				raise ValueError(f"Passed log location {self._log_location} does not exist - either create it before "
+		     		"running or set it to None to use the temp-directory, or enable log_location_make_dirs to create "
+					"the directory")
+		
+		log.info(f"Runqueue log location: {self._log_location}")
 
 		self._manager = CustomManager() #To share data between processes
 		self._manager.start() #Start the manager
@@ -329,8 +344,6 @@ class RunQueue(QtCore.QObject):
 		self.queue_emitter_thread.start()
 		self.queue_emitter.commandLineOutput.connect(self.newCommandLineOutput.emit)
 		# self.queue_emitter.commandLineOutput.connect(lambda *args: print(f"Got command line output: {args}"))
-
-
 
 	def get_command_line_output(self, item_id : int, fseek_end : int, max_bytes : int) -> typing.Tuple[str, datetime]:
 		"""
@@ -824,7 +837,7 @@ class RunQueue(QtCore.QObject):
 		"""
 		Process a single queue item
 		"""
-		print(f"Now processing queue item {queue_item_id}")
+		log.info(f"Now processing queue item {queue_item_id}")
 
 		#Output stdou/stderr to file
 		# file = open(std_path, "a", buffering=1)
@@ -963,7 +976,7 @@ class RunQueue(QtCore.QObject):
 
 						running_ids = list(self._running_processes.keys())
 					self.currentlyRunningIdsChanged.emit(running_ids)
-					print(f"Started processing item with id {queue_item_id} and name {queue_item_name}, \
+					log.info(f"Started processing item with id {queue_item_id} and name {queue_item_name}, \
 	   						queue is now {self._queue}, all_dict is of size {len(self._all_dict)}")
 				else: #TODO: maybe instead pass a "done-queue" to process_queue_item and have it put itself inside
 					updated = False

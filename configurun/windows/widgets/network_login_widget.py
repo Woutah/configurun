@@ -5,14 +5,14 @@ Implements a widget for logging in to a server
 
 from PySide6 import QtCore, QtWidgets
 
-from configurun.windows.ui.NetworkLoginWidget_ui import Ui_NetworkLoginWidget
+from configurun.windows.ui.network_login_widget_ui import Ui_NetworkLoginWidget
 
 
 
 class NetworkLoginWidget(QtWidgets.QWidget):
-	"""A widget to control connection to a server
-		Input-field: IP, port, password
-		Buttons: connect, disconnect, cancel)
+	"""A widget to control connection to a server:
+		Input-fields: IP, port, password
+		Buttons: connect, disconnect, cancel
 	"""
 	#A controller to manage the machine learning window
 	disconnectClicked = QtCore.Signal()

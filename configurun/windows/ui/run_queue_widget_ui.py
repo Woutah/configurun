@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'MLQueueWidget.ui'
+## Form generated from reading UI file 'run_queue_widget.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.5.1
 ##
@@ -16,11 +16,10 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QHBoxLayout, QHeaderView, QPushButton,
-    QSizePolicy, QSpacerItem, QToolButton, QVBoxLayout,
-    QWidget)
+    QSizePolicy, QSpacerItem, QVBoxLayout, QWidget)
 
 from configurun.windows.views.run_queue_tree_view import RunQueueTreeView
-from pyside6_utils.widgets.SquareFrame import SquareFrame
+from pyside6_utils.widgets.square_frame import SquareFrame
 import configurun.res.app_resources_rc
 
 class Ui_MLQueueWidget(object):
@@ -164,19 +163,6 @@ class Ui_MLQueueWidget(object):
         self.squareFrame_2.setObjectName(u"squareFrame_2")
         self.verticalLayout_4 = QVBoxLayout(self.squareFrame_2)
         self.verticalLayout_4.setObjectName(u"verticalLayout_4")
-        self.toolButton_2 = QToolButton(self.squareFrame_2)
-        self.toolButton_2.setObjectName(u"toolButton_2")
-        sizePolicy2.setHeightForWidth(self.toolButton_2.sizePolicy().hasHeightForWidth())
-        self.toolButton_2.setSizePolicy(sizePolicy2)
-        self.toolButton_2.setSizeIncrement(QSize(25, 25))
-        self.toolButton_2.setBaseSize(QSize(25, 25))
-        icon5 = QIcon()
-        icon5.addFile(u":/Icons/icons/emblems/emblem-system.png", QSize(), QIcon.Normal, QIcon.Off)
-        self.toolButton_2.setIcon(icon5)
-        self.toolButton_2.setIconSize(QSize(25, 25))
-
-        self.verticalLayout_4.addWidget(self.toolButton_2)
-
 
         self.horizontalLayout.addWidget(self.squareFrame_2)
 
@@ -225,6 +211,5 @@ class Ui_MLQueueWidget(object):
         self.StartRunningQueueBtn.setToolTip(QCoreApplication.translate("MLQueueWidget", u"Start automatic run-mode", None))
 #endif // QT_CONFIG(tooltip)
         self.StartRunningQueueBtn.setText("")
-        self.toolButton_2.setText(QCoreApplication.translate("MLQueueWidget", u"...", None))
     # retranslateUi
 

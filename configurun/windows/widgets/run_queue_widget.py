@@ -11,7 +11,7 @@ from pyside6_utils.utility.catch_show_exception_in_popup_decorator import \
 
 from configurun.classes.run_queue import RunQueueItemActions
 from configurun.windows.models.run_queue_table_model import RunQueueTableModel
-from configurun.windows.ui.MLQueueWidget_ui import Ui_MLQueueWidget
+from configurun.windows.ui.run_queue_widget_ui import Ui_MLQueueWidget
 
 log = logging.getLogger(__name__)
 

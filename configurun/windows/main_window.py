@@ -5,6 +5,8 @@ edit/manage/run machine learning settings.
 Also contains OptionsSource, which is used to determine if the current file should be saved to a file or to the queue.
 """
 import logging
+# if __name__ == "__main__":
+
 import os
 import typing
 from enum import Enum
@@ -14,34 +16,23 @@ from pyside6_utils.models import FileExplorerModel
 from pyside6_utils.utility.catch_show_exception_in_popup_decorator import \
     catch_show_exception_in_popup_decorator
 from pyside6_utils.widgets import DataClassTreeView
-from pyside6_utils.widgets.delegates.dataclass_editors_delegate import \
-    DataclassEditorsDelegate
 from pyside6_utils.widgets.frameless_mdi_window import FramelessMdiWindow
+from pyside6_utils.widgets.delegates import DataclassEditorsDelegate
 
 from configurun.classes.run_queue import RunQueue
 from configurun.configuration.configuration_model import (
-    ConfigurationModel, NoClassTypesError, UnkownOptionClassError)
-# from MLQueue.examples.FrameworkExample import FrameworkConfigurationModel
+    ConfigurationModel, NoClassTypesError, UnkownOptionClassError, OptionTypesMismatch)
 from configurun.windows.models.run_queue_console_model import \
     RunQueueConsoleModel
 from configurun.windows.models.run_queue_table_model import RunQueueTableModel
-from configurun.windows.ui.ApplyMachineLearningWindow_ui import \
-    Ui_ApplyMachineLearningWindow
+from configurun.windows.ui.main_window_ui import \
+    Ui_MainWindow
 from configurun.windows.widgets.run_queue_widget import RunQueueWidget
 
 log = logging.getLogger(__name__)
-if __name__ == "__main__":
-	logging.getLogger('matplotlib').setLevel(logging.INFO)
-	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}] {levelname:<7s}   {message}", style='{')
-	log.propagate = False
-	handler = logging.StreamHandler()
-	handler.setFormatter(formatter)
-	logging.basicConfig(
-		handlers=[handler],
-		level=logging.DEBUG
-	) #Without time
 
-SETTINGS_PATH_MACHINE_LEARNING_WINDOW = "/Settings/MachineLearning"
+# SETTINGS_PATH_MACHINE_LEARNING_WINDOW = "/Settings/MachineLearning"
+APP_NAME = "Configurun"
 
 class OptionsSource(Enum):
 	"""
@@ -53,15 +44,37 @@ class OptionsSource(Enum):
 
 class MainWindow():
 	"""
-	A QT window which provides the user with several tools to edit/manage/run machine learning settings.
+	The main QT window for this app which provides the user with several tools to edit/manage/run machine learning
+	settings.
+
+	Should be provided with:
+		- A configuration model - manages the creation of new configurations & the ui
+		- A run queue - manages the running of the configurations
+		- A window - the main window in which the app should be built
+		- workspace_path (str, optional) - the default path to use for the configuration, logfiles etc. If empty, or
+			folder does not exist, defaults to ~/Configurun/configurations/
+		- settings_in_workspace_path (bool, optional) - Whether to store the settings in the workspace path or in the
+			default QSettings location. Defaults to True
 	"""
-	#A controller to manage the machine learning window
 	def __init__(self,
 	      		configuration_model : ConfigurationModel,
 				run_queue : RunQueue,
-				window : QtWidgets.QMainWindow
+				window : QtWidgets.QMainWindow,
+				workspace_path : str = "",
+				settings_in_workspace_path : bool = True
 			) -> None:
-		self.ui = Ui_ApplyMachineLearningWindow() # pylint: disable=C0103
+		"""
+		Args:
+			configuration_model (ConfigurationModel): The configuration model which manages updating the ui and creating
+			run_queue (RunQueue): The runqueue which manages running the configurations
+			window (QtWidgets.QMainWindow): The window in which the app should be built
+			workspace_path (str, optional): The base output-path used for the configurations, logfiles etc. 
+				If empty, or folder does not exist, defaults to ~/Configurun/configurations/
+			settings_in_workspace_path (bool, optional): Whether to store the settings in the workspace path or in the default
+				QSettings location. Defaults to True
+		"""
+		
+		self.ui = Ui_MainWindow() # pylint: disable=C0103
 		self.ui.setupUi(window)
 
 		self.window = window
@@ -76,26 +89,53 @@ class MainWindow():
 
 		self.ml_queue_widget.queue_view.setModel(self.ml_queue_model)
 
-		# self._cur_path = None
-		self._default_save_path = SETTINGS_PATH_MACHINE_LEARNING_WINDOW
+
+
+		self._workspace_path = workspace_path 
+		if workspace_path is None or len(workspace_path) == 0 or not os.path.isdir(workspace_path):
+			self._workspace_path = os.path.join(os.path.expanduser("~"), APP_NAME)
+			if not os.path.isdir(self._workspace_path):
+				os.makedirs(self._workspace_path)
+			log.info(f"Using default workspace path: {self._workspace_path}")
+		
+
+		config_save_path = os.path.join(self._workspace_path, "configurations")
+		if not os.path.isdir(config_save_path):
+			os.makedirs(config_save_path)
+			log.info(f"Config output path {config_save_path} is not a valid path, using default path")
+		else:
+			os.makedirs(config_save_path, exist_ok=True) #Make sure the path exists
+
+		self._config_save_path = config_save_path
 		self._config_file_picker_model = FileExplorerModel(
-			allow_select_files_only=True)
+			allow_select_files_only=True
+		)
 
 
 		#========================= load settings =========================
-		self._settings = QtCore.QSettings("MLTools", "AllSettingsWindow")
+		if settings_in_workspace_path:
+			settings_path = os.path.join(self._workspace_path, "settings.ini")
+			self._settings = QtCore.QSettings(
+				settings_path, QtCore.QSettings.Format.IniFormat, )
+			log.info(f"Attempted loading app-settings from {settings_path}."
+	    		f"This resulted in a settings-file loaded from {self._settings.fileName()}")
+		else: #Else save
+			log.info("Loading settings from default qt-location")
+			self._settings = QtCore.QSettings(APP_NAME)
 		self._font_point_size = int(
 			self._settings.value("font_size", 0, type=int) #type: ignore #If zero->set to system default
 		)
 		self.set_font_point_size(self._font_point_size)
 		self.window.restoreGeometry(self._settings.value(
 			"window_geometry", self.window.saveGeometry(), type=QtCore.QRect)) # type: ignore
-		self.window.restoreState(self._settings.value("window_state", self.window.windowState())) # type: ignore
+		new_window_state = self._settings.value("window_state", self.window.windowState())
+		if new_window_state != QtCore.Qt.WindowState.WindowNoState:
+			self.window.restoreState(new_window_state) # type: ignore
 
 
-		self._cur_file_path = str(self._settings.value("loaded_file_path", None))#The path to the current config. None
-			#if no config is loaded from file. If set, the config will be saved to this path when the save button is
-			# pressed.
+		self._cur_file_path : None | str = self._settings.value("loaded_file_path", None)#The path to the current config. #type: ignore
+		assert isinstance(self._cur_file_path, (str, type(None))), (f"Loaded file path should be a string or None, this "
+			f"but is a {type(self._cur_file_path)}.")
 
 		# for splitter in self.window.findChildren(QtWidgets.QSplitter):
 		# 	splitter.restoreState(self._settings.value(f"splitter_state_{splitter.objectName()}", splitter.saveState()))
@@ -115,11 +155,11 @@ class MainWindow():
 
 
 		self._config_file_picker_model.setReadOnly(False)
-		log.debug(f"Root path used for saving machine learning settings: {SETTINGS_PATH_MACHINE_LEARNING_WINDOW}")
+		log.debug(f"Root path used for saving machine learning settings: {self._config_save_path}")
 		self._config_file_picker_model.setRootPath(QtCore.QDir.rootPath()) #Subscribe to changes in this path
 		self.ui.ConfigFilePickerView.setModel(self._config_file_picker_model)
 		self.ui.ConfigFilePickerView.setRootIndex(
-			self._config_file_picker_model.index(SETTINGS_PATH_MACHINE_LEARNING_WINDOW)
+			self._config_file_picker_model.index(self._config_save_path)
 		)
 
 		self.ui.ConfigFilePickerView.header().setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents) #type: ignore
@@ -143,10 +183,12 @@ class MainWindow():
 			self._config_file_picker_model_highlight_path_changed)
 
 		#============= Post-load settings =============
-		load_succesfully = self.load_from_file(self._cur_file_path, show_dialog_on_problem=False) #Attempt to load from file
-		if not load_succesfully:
-			self.new_configuration(ignore_modified_window=True) #If loading failed -> reset to default
-
+		if self._cur_file_path is not None:
+			load_succesfully = self.load_from_file(self._cur_file_path, show_dialog_on_problem=False) #Attempt load
+			if not load_succesfully:
+				self.new_configuration(ignore_modified_window=True) #If loading failed -> reset to default
+		else:
+			self.new_configuration(ignore_modified_window=True) #If no file is loaded -> reset to default
 		self.ui.ConfigurationMdiArea.tileSubWindows() #Tile the mdi windows
 
 		#==================Console ================
@@ -207,7 +249,7 @@ class MainWindow():
 				self._cur_option_proxy_models[option_name] = option_model
 				self._cur_option_tree_view[option_name] = DataClassTreeView()
 				self._cur_option_tree_view[option_name].setModel(option_model)
-				self._cur_option_tree_view[option_name].setItemDelegate(DataClassEditorsDelegate())#Set custom delegate
+				self._cur_option_tree_view[option_name].setItemDelegate(DataclassEditorsDelegate())#Set custom delegate
 				self._cur_option_mdi_windows[option_name].setWidget(self._cur_option_tree_view[option_name])
 				self._mdi_area.addSubWindow(self._cur_option_mdi_windows[option_name])
 				self._cur_option_mdi_windows[option_name].setWindowTitle(option_name.title().replace("_", " "))
@@ -323,7 +365,7 @@ class MainWindow():
 				file_path = os.path.dirname(file_path)
 			QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(file_path))
 		else:
-			QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(SETTINGS_PATH_MACHINE_LEARNING_WINDOW))
+			QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(self._config_save_path))
 
 	def new_configuration(self, ignore_modified_window : bool=False) -> None:
 		"""
@@ -353,8 +395,7 @@ class MainWindow():
 		self._config_file_picker_model.reset_hightlight()
 		self._config_model.reset_configuration_data_to_default()
 
-		self.window.setWindowModified(False)
-	def load_from_file(self, new_path : str, show_dialog_on_problem=True) -> bool:
+	def load_from_file(self, new_path : str | None, show_dialog_on_problem=True) -> bool:
 		"""Loads the config from a file
 
 		Args:
@@ -365,6 +406,9 @@ class MainWindow():
 			bool: Whether loading a config was succesful NOTE: still returns True if the passed file was already loaded,
 			  also return True if there were problems, returns false if an unhandled exception occurs during loading
 		"""
+		if new_path is None:
+			return False
+
 		if new_path == self._cur_file_path and self._cur_source == OptionsSource.FILE: #If file is already loaded
 			if self._config_file_picker_model.get_hightlight_path() != new_path:
 				self._config_file_picker_model.set_hightlight_using_path(self._cur_file_path) #Do update the highlight path
@@ -465,16 +509,18 @@ class MainWindow():
 
 				try:
 					self._config_model.validate_current_configuration()
-				except KeyError as exception:
+				except OptionTypesMismatch as exception:
 					msg = QtWidgets.QMessageBox()
 					msg.setWindowTitle("Warning")
 					msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
 					msg.setText(f"The loaded configuration from <tt>{new_path}</tt> is not stable.")
-					msg.setInformativeText(f"{type(exception)}: {exception} <br><br> This could be the result of a "
-						"change in the settings format, dataclass module- or class-names, or due to file corruption. "
-						"Changes to the configuration might overwrite a whole subgroup of the configuration.<br>"
-						)
+					msg.setInformativeText((f"<b>{type(exception).__name__}:</b> {exception}\n\n"
+			     			"This could be the result of a change in the settings format, the type-deducer, "
+							"the option-names, or due to file corruption. <br>"
+							"You can continue using the configuration, but any changes might overwrite the whole subgroup"
+							" mentioned above.<br>").replace(r"\\n", "kaas"))
 					msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
+					msg.setDefaultButton(QtWidgets.QMessageBox.StandardButton.Ok)
 					msg.exec()
 
 				self._config_file_picker_model.set_hightlight_using_path(new_path)
@@ -502,7 +548,7 @@ class MainWindow():
 		"""
 		# ConfirmationBox = QtGui.QMessageBox()
 		if self.window.isWindowModified():
-			quit_msg = "There are unsaved changes. Do you want to save or discard changes before closing?"
+			quit_msg = "There are unsaved changes. Do you want to save & quit or discard changes before closing?"
 			#Create a window with a "quit", "save and quit" and "cancel" button
 			win = QtWidgets.QMessageBox()
 			win.setWindowTitle("Unsaved changes")
@@ -517,25 +563,28 @@ class MainWindow():
 
 			if ret == QtWidgets.QMessageBox.StandardButton.Save:
 				try:
-					if self.save_config_triggered(): #If save has been done
-						event.accept()
-						self._save_settings()
+					if not self.save_config_triggered(): #If save was canceled, or failed, stop closing
+						event.ignore()
 						return
 				except Exception as exception: #pylint: disable=broad-except
 					log.error(f"Could not save config: {exception}")
 					event.ignore() #If save failed - do not close
 					return
 			elif ret == QtWidgets.QMessageBox.StandardButton.Discard:
-				log.info("Discarded changes... Now Closing...")
-				event.accept()
-				self._save_settings()
+				log.info("Discarding changes...")
+			else:
+				event.ignore()
 				return
+			
+		#Check whether queue is running an item - if so, ask for confirmation
 
-			event.ignore() #If neither (discard) -> ignore
-			return
 
 		#If not modified -> just save settings and close
+		event.accept()
 		self._save_settings()
+		return
+
+
 
 	def get_base_name(self) -> str:
 		"""
@@ -592,7 +641,7 @@ class MainWindow():
 			bool: Whether the save was successful
 		"""
 		log.info("Save triggered")
-		if self._cur_file_path is None or (self._cur_source != OptionsSource.FILE):
+		if self._cur_file_path is None or (self._cur_source != OptionsSource.FILE) or not os.path.isfile(self._cur_file_path):
 			ret = self.save_config_as_triggered() #Already cleans undo-stack if successful
 		else:
 			ret = self._config_model.save_json_to(self._cur_file_path)
@@ -609,8 +658,10 @@ class MainWindow():
 		"""
 		log.info("Save as triggered")
 		ret = False
-		start_path = self._default_save_path
-		if self._cur_file_path is not None and self._cur_source == OptionsSource.FILE:
+		start_path = self._config_save_path
+		if self._cur_file_path is not None\
+				and self._cur_source == OptionsSource.FILE\
+				and os.path.isfile(self._cur_file_path): #If already saved -> use the current file as start path
 			start_path = self._cur_file_path
 
 		file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -628,20 +679,48 @@ class MainWindow():
 		return ret
 			#TODO: set selection to current file
 
-if __name__ == "__main__":
-	from configurun.examples.example_configuration import \
-	    deduce_new_option_class_types
+
+def run_example_app():
+	"""Runs the example app"""
+	from configurun.examples.example_run_function import example_run_function
 	app = QtWidgets.QApplication([])
 	main_window = QtWidgets.QMainWindow()
-	queue = RunQueue(target_function=lambda *_: print("The test-target function has been called... Done!"))
+	workspace_path = os.path.join(os.path.expanduser("~"), APP_NAME)
+	if not os.path.isdir(workspace_path):
+		os.makedirs(workspace_path)
+
+	queue = RunQueue(
+			target_function=example_run_function,
+		  	log_location= os.path.join(workspace_path, "logs"),
+			log_location_make_dirs=True #Create dir if it does not exist
+	)
 	config_model = ConfigurationModel(
 		option_type_deduction_function=deduce_new_option_class_types
 	)
-	ml_window = MainWindow(
+	MainWindow(
 		configuration_model=config_model,
 		run_queue=queue,
-		window=main_window
+		window=main_window,
+		workspace_path=workspace_path
+
 	)
 
 	main_window.show()
 	app.exec()
+
+if __name__ == "__main__":
+	from configurun.examples.example_configuration import \
+	    deduce_new_option_class_types
+	logging.getLogger('matplotlib').setLevel(logging.INFO)
+	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}] {levelname:<7s}   {message}", style='{')
+	handler = logging.StreamHandler()
+	handler.setFormatter(formatter)
+	logging.basicConfig(
+		handlers=[handler],
+		level=logging.DEBUG
+	) #Without time
+	root = logging.getLogger()
+	root.handlers = [handler]
+	run_example_app()
+
+

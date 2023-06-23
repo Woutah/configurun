@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'NetworkLoginWidget.ui'
+## Form generated from reading UI file 'network_login_widget.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.5.1
 ##
@@ -93,8 +93,8 @@ class Ui_NetworkLoginWidget(object):
 
     def retranslateUi(self, NetworkLoginWidget):
         NetworkLoginWidget.setWindowTitle(QCoreApplication.translate("NetworkLoginWidget", u"Form", None))
-        self.label.setText(QCoreApplication.translate("NetworkLoginWidget", u"Server IP:", None))
-        self.label_2.setText(QCoreApplication.translate("NetworkLoginWidget", u"Server Port:", None))
+        self.label.setText(QCoreApplication.translate("NetworkLoginWidget", u"Server IP", None))
+        self.label_2.setText(QCoreApplication.translate("NetworkLoginWidget", u"Server Port", None))
         self.label_3.setText(QCoreApplication.translate("NetworkLoginWidget", u"Password", None))
         self.cancelBtn.setText(QCoreApplication.translate("NetworkLoginWidget", u"Cancel", None))
         self.disconnectBtn.setText(QCoreApplication.translate("NetworkLoginWidget", u"Disconnect", None))

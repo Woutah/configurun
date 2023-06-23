@@ -44,6 +44,9 @@ class NotInLoadFileError(Exception):
 class NoClassTypesError(Exception):
 	"""Exception raised when no class types are found when loading the settings from a file"""
 
+class OptionTypesMismatch(Exception):
+	"""Exception raised when the option-types of the configuration and loaded file do not match"""
+
 @dataclass
 class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make sure that the user implements methods
 	"""
@@ -197,7 +200,7 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 		delete_items = delete_items.union(
 			set([i for i in self._option_proxy_model_dict if i not in type_dict])) #Also delete proxy models
 
-		for del_item in list(delete_items):
+		for del_item in list(delete_items): #Remove all items that are not in the new configuration
 			if del_item in self._configuration.options.keys():
 				del self._configuration.options[del_item]
 			if del_item in self._option_proxy_model_dict.keys():
@@ -527,12 +530,18 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 
 	def reload_dataclass_model(self, option_name : str):
 		"""Reload the dataclass-model for the given option-group name"""
+		new_model = DataclassModel(self._configuration.options[option_name], undo_stack=self.undo_stack)
 		self._option_proxy_model_dict[option_name].setSourceModel(
-			DataclassModel(self._configuration.options[option_name], undo_stack=self.undo_stack)
-		)
+			new_model
+		) #Set the new option-model
+
+		#TODO: if ANY of the models change, we update all types. Might not be neccesary in most cases (e.g.)
+		# Main options might update the model options, but not the other way around. Maybe use a list of
+		# option-groups for which we monitor changes, and only emit the signal if one of those changes.
+		new_model.dataChanged.connect(self.update_sub_options)
 
 	def reload_all_dataclass_models(self):
-		"""Reloads all dataclass models"""
+		"""Reloads all dataclass models - re-reading all current values from the dataclass instances"""
 		for option_name in self._configuration.options:
 			self.reload_dataclass_model(option_name)
 
@@ -545,17 +554,30 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 		cur_class_types = self._configuration.get_option_types()
 		deduced_types = self._deduce_new_option_class_types_from_current()
 
-		for key in cur_class_types.keys():
-			if key not in deduced_types:
-				raise KeyError(f"Configuration invalid, encountered different option-groups than the \
-					deduced types. Current types: {cur_class_types.keys()}, deduced: {deduced_types.keys()} - this \
-					could be because of different version, file corruption or a mistake when loading from/to json \
-					functions")
-			elif cur_class_types[key] != deduced_types[key]:
-				raise KeyError(f"Configuration is invalid, the passed configuration data has \
-					different option-class-types than the deduced types. Passed: {cur_class_types}, deduced: \
-					{deduced_types} - this could be because of different version, file corruption or a mistake when \
-					loading from/to json functions")
+		option_group_mismatches = set.difference(set(cur_class_types.keys()), set(deduced_types.keys()))
+		error_msgs = []
+		if len(option_group_mismatches) > 0:
+			class_group_names = ", ".join(cur_class_types.keys())
+			deduced_group_names = ", ".join(deduced_types.keys())
+			error_msgs.append(f"The configuration has option-names that differ from the deduced names.\n"
+				f"Current option-names:\n{class_group_names}\n"
+				f"Deduced option-names:\n{deduced_group_names}\n"
+				)
+		option_type_mismatches = set.symmetric_difference(set(cur_class_types.values()), set(deduced_types.values()))
+
+		if len(option_type_mismatches) > 0:
+			current_type_names = ", ".join([i.__name__ for i in cur_class_types.values()])
+			deduced_type_names = ", ".join([i.__name__ for i in deduced_types.values()])
+			option_type_mismatch_names = ", ".join([i.__name__ for i in option_type_mismatches])
+			error_msgs.append(f"The configuration has types that differ "
+				f"differ from the expected (deduced) types.\n"
+				f"Current Types:\n{current_type_names}\n\n"
+				f"Deduced Types:\n{deduced_type_names}\n\n"
+				f"Difference (should be none):\n{option_type_mismatch_names}\n\n")
+		if len(error_msgs) > 0:
+			raise OptionTypesMismatch("\n\n".join(error_msgs))
+
+
 
 	def set_configuration_data(self,
 				configuration_data : Configuration,
@@ -588,9 +610,11 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 			if option_name not in self._option_proxy_model_dict: #If this proxymodel does not already exists -> create
 				self._option_proxy_model_dict[option_name] = QtCore.QSortFilterProxyModel()
 				proxy_model_changed = True
+			new_model = DataclassModel(option_dataclass_instance, undo_stack=self.undo_stack)
 			self._option_proxy_model_dict[option_name].setSourceModel(
-				DataclassModel(option_dataclass_instance, undo_stack=self.undo_stack)
+				new_model
 			)
+			new_model.dataChanged.connect(self.update_sub_options)
 
 
 		if proxy_model_changed: #Emit proxymodel changes

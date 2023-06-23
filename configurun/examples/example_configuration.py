@@ -21,9 +21,6 @@ from configurun.examples.example_run_function import example_run_function
 
 log = logging.getLogger(__name__)
 
-# from MLQueue.configuration.Configuration import Configuration
-
-
 def deduce_new_option_class_types(
 			#NOTE: all suboptions of the configucation can be accesed via the configuration.<attr> syntax.
 			# For type hinting, we can create a union of all the suboptions classes we would like to use

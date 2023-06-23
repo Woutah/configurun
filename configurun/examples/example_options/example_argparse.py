@@ -24,7 +24,6 @@ parsed_args = parser_example.parse_args()
 
 if __name__ == "__main__":
 	from configurun.create import local_app
-	from configurun.examples.ExampleOptions.ExampleArgparse import parser_example
 	from configurun.configuration.argparse_to_dataclass import argparse_to_dataclass
 
 	new_dataclass = argparse_to_dataclass(parser_example)
