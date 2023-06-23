@@ -9,26 +9,25 @@ import os
 import typing
 from enum import Enum
 
-from pyside6_utils.models import FileExplorerModel
 from PySide6 import QtCore, QtGui, QtWidgets
+from pyside6_utils.models import FileExplorerModel
 from pyside6_utils.utility.catch_show_exception_in_popup_decorator import \
     catch_show_exception_in_popup_decorator
-import pyside6_utils.widgets
-
-from pyside6_utils.widgets.delegates.dataclass_editors_delegate import DataclassEditorsDelegate
-from pyside6_utils.widgets.frameless_mdi_window import FramelessMdiWindow
 from pyside6_utils.widgets import DataClassTreeView
+from pyside6_utils.widgets.delegates.dataclass_editors_delegate import \
+    DataclassEditorsDelegate
+from pyside6_utils.widgets.frameless_mdi_window import FramelessMdiWindow
 
 from configurun.classes.run_queue import RunQueue
-from configurun.configuration.configuration_model import ConfigurationModel
+from configurun.configuration.configuration_model import (
+    ConfigurationModel, NoClassTypesError, UnkownOptionClassError)
 # from MLQueue.examples.FrameworkExample import FrameworkConfigurationModel
-from configurun.windows.models.run_queue_console_model import RunQueueConsoleModel
+from configurun.windows.models.run_queue_console_model import \
+    RunQueueConsoleModel
 from configurun.windows.models.run_queue_table_model import RunQueueTableModel
 from configurun.windows.ui.ApplyMachineLearningWindow_ui import \
     Ui_ApplyMachineLearningWindow
 from configurun.windows.widgets.run_queue_widget import RunQueueWidget
-from configurun.configuration.configuration_model import UnkownOptionClassError, NoClassTypesError
-
 
 log = logging.getLogger(__name__)
 if __name__ == "__main__":
@@ -630,7 +629,8 @@ class MainWindow():
 			#TODO: set selection to current file
 
 if __name__ == "__main__":
-	from configurun.examples.example_configuration import deduce_new_option_class_types
+	from configurun.examples.example_configuration import \
+	    deduce_new_option_class_types
 	app = QtWidgets.QApplication([])
 	main_window = QtWidgets.QMainWindow()
 	queue = RunQueue(target_function=lambda *_: print("The test-target function has been called... Done!"))

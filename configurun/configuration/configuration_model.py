@@ -20,8 +20,8 @@ from dataclasses import dataclass
 from collections import OrderedDict
 
 from PySide6 import QtCore, QtGui
-from pyside6_utils.models.DataClassModel import DataclassModel
-from pyside6_utils.utility.SignalBlocker import SignalBlocker
+from pyside6_utils.models import DataclassModel
+from pyside6_utils.utility import SignalBlocker
 
 from configurun.configuration.base_options import BaseOptions
 from configurun.configuration.configuration import Configuration

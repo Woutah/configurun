@@ -14,7 +14,7 @@ from configurun.windows.main_window import MainWindow
 from configurun.configuration.base_options import BaseOptions
 from configurun.configuration.configuration_model import ConfigurationModel
 from configurun.configuration.configuration import Configuration
-from configurun.examples.ExampleOptions.ExampleOptions import (
+from configurun.examples.example_options.example_options import (
     ExampleDatasetOptions, ExampleGeneralOptions, ExampleMainOptions, ExampleModelOptions, ExtendedExampleModelOptions,
     ExtendedExampleDatasetOptions)
 from configurun.examples.example_run_function import example_run_function

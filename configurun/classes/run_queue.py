@@ -4,7 +4,6 @@ Implements the Runqueue class - a class that manages a list of configurations to
 
 import logging
 import os
-# import dill
 import queue
 import sys
 import tempfile
@@ -29,8 +28,6 @@ from PySide6 import QtCore
 
 from configurun.configuration.configuration_model import Configuration
 
-	# for more flexibility when it comes to dynamic class creation (e.g. when using a client/server).
-	# We are mainly sending/receiving dataclasses so speed should not be an issue.
 
 
 

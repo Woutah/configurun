@@ -9,11 +9,10 @@ import typing
 
 from configurun.configuration.base_options import BaseOptions
 from configurun.configuration.configuration import Configuration
-from configurun.configuration.configuration_model import ConfigurationModel
-from configurun.examples.ExampleOptions.ExampleOptions import (
+from configurun.examples.example_options.example_options import (
     ExampleDatasetOptions, ExampleGeneralOptions,
     ExtendedExampleDatasetOptions)
-from configurun.examples.ExampleOptions.SklearnOptions import (
+from configurun.examples.example_options.example_sklearn_options import (
     SKLEARN_NAME_DATACLASS_DICT, SklearnMainOptions)
 
 log = logging.getLogger(__name__)
@@ -68,4 +67,3 @@ if __name__ == "__main__":
 		target_function = example_run_function,
 		options_source = SklearnMainOptions
 	)
-
