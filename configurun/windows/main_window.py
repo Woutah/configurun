@@ -514,11 +514,14 @@ class MainWindow():
 					msg.setWindowTitle("Warning")
 					msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
 					msg.setText(f"The loaded configuration from <tt>{new_path}</tt> is not stable.")
-					msg.setInformativeText((f"<b>{type(exception).__name__}:</b> {exception}\n\n"
+					replaced_exception = str(exception).replace("\n", "<br>")
+					print("kaas", replaced_exception)
+					print("frikandel", exception)
+					msg.setInformativeText((f"<b>{type(exception).__name__}:</b> {replaced_exception}<br><br>"
 			     			"This could be the result of a change in the settings format, the type-deducer, "
 							"the option-names, or due to file corruption. <br>"
-							"You can continue using the configuration, but any changes might overwrite the whole subgroup"
-							" mentioned above.<br>").replace(r"\\n", "kaas"))
+							"You can continue using the configuration, but any changes to the config will overwrite the "
+							" option-subgroup(s) mentioned above.<br>"))
 					msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
 					msg.setDefaultButton(QtWidgets.QMessageBox.StandardButton.Ok)
 					msg.exec()
@@ -584,6 +587,7 @@ class MainWindow():
 		self._save_settings()
 		return
 
+	
 
 
 	def get_base_name(self) -> str:
@@ -712,6 +716,7 @@ if __name__ == "__main__":
 	from configurun.examples.example_configuration import \
 	    deduce_new_option_class_types
 	logging.getLogger('matplotlib').setLevel(logging.INFO)
+	logging.getLogger('PySide6').setLevel(logging.DEBUG)
 	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}] {levelname:<7s}   {message}", style='{')
 	handler = logging.StreamHandler()
 	handler.setFormatter(formatter)

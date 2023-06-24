@@ -570,10 +570,10 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 			deduced_type_names = ", ".join([i.__name__ for i in deduced_types.values()])
 			option_type_mismatch_names = ", ".join([i.__name__ for i in option_type_mismatches])
 			error_msgs.append(f"The configuration has types that differ "
-				f"differ from the expected (deduced) types.\n"
+				f"differ from the expected (deduced) types.\n\n"
 				f"Current Types:\n{current_type_names}\n\n"
 				f"Deduced Types:\n{deduced_type_names}\n\n"
-				f"Difference (should be none):\n{option_type_mismatch_names}\n\n")
+				f"Difference (should be none):\n{option_type_mismatch_names}")
 		if len(error_msgs) > 0:
 			raise OptionTypesMismatch("\n\n".join(error_msgs))
 
