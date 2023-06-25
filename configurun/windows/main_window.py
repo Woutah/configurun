@@ -240,7 +240,7 @@ class MainWindow():
 			if option_name in self._cur_option_proxy_models:
 				#check if the same model is used
 				if self._cur_option_proxy_models[option_name] == option_model:
-					log.debug(f"Model for {option_name} has not changed, not updating its model or window")
+					log.debug(f"Model for {option_name} has not changed, now updating its model or window")
 				else:
 					self._cur_option_proxy_models[option_name] = option_model
 					self._cur_option_tree_view[option_name].setModel(option_model)

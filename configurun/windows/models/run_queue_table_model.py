@@ -473,36 +473,6 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		) #TODO: Only emit changed. rows
 
 
-	# def _run_list_changed(self, run_list_copy):
-	# 	""""Run-list changed is emitted when an item is added, removed or re
-	# 	"""
-	# 	cur_new_item_nr = 0
-	# 	for cur_item_nr in range(len(self._cur_run_list_copy)):
-
-
-
-	# 	print("TODO: instead find the difference between current and new and only emit those rows so model")
-	# 	print("TODO: add datachanged (itemid, column) to runqueueitem and emit that, then emit datachanged here")
-	# 	start_func = lambda: None
-	# 	end_func = lambda: None
-	# 	if len(run_list_copy) < len(self._cur_run_list_copy):
-	# 		start_func = self.beginRemoveColumns
-	# 		end_func = self.endRemoveColumns
-	# 	elif len(run_list_copy) > len(self._cur_run_list_copy):
-	# 		start_func = self.beginInsertColumns
-	# 		end_func = self.endInsertColumns
-
-	# 	start_func(QtCore.QModelIndex(), 0, self.rowCount())
-
-	# 	self._cur_run_list_copy = run_list_copy
-	# 	end_func()
-
-	# 	# self.layoutChanged.emit()
-	# 	self.dataChanged.emit(
-	# 		self.index(0, 0),
-	# 		self.index(self.rowCount(), self.columnCount())
-	# 	) #TODO: Only emit for the changed rows
-
 	def _run_item_changed(self, changed_item_id : int, new_item_copy : RunQueueItem):
 		# row = list(self._cur_run_queue_item_dict_copy.keys()).index(changed_item_id)
 		row = self.get_index_row_by_id(changed_item_id)
@@ -600,8 +570,6 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 				return RunQueue.get_actions_from_status(status)
 			else:
 				return []
-			# item_id = self._cur_item_dict_id_order[index.row()]
-			# return self._run_queue.get_actions_for_id(item_id)
 		else:
 			return []
 

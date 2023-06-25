@@ -26,6 +26,8 @@ import multiprocess.queues
 
 from PySide6 import QtCore
 
+from pyside6_utils.utility.utility_functions import copy_over_dict, copy_over_list
+
 from configurun.configuration.configuration_model import Configuration
 
 
@@ -160,6 +162,20 @@ class RunQueueItem():
 	dt_started : typing.Union[datetime, None] = None #When running started
 	exit_code : typing.Union[int, None] = None
 	stderr : str = ""
+
+	@staticmethod
+	def copy_to(source : "RunQueueItem", target : "RunQueueItem"):
+		""" Copy the data from the source item to the target item """
+		target.item_id = source.item_id
+		target.name = source.name
+		target.dt_added = source.dt_added
+		target.config = source.config
+		target.dt_started = source.dt_started
+		target.status = source.status
+		target.dt_done = source.dt_done
+		target.exit_code = source.exit_code
+		target.stderr = source.stderr
+
 
 	def get_copy(self):
 		"""
@@ -324,6 +340,8 @@ class RunQueue(QtCore.QObject):
 			# TODO: Make this an ordered dict to make clear that new items are appended to the end, this is not
 			# really necceasry for this class itself, but makes it easier to use in qt-models (tablemodels/treeviews)
 			# because of a more predictable (next) order after item change/insertion/removal
+		# self._all_items_dict : typing.Dict[int, RunQueueItem] = self._manager.dict({1: RunQueueItem(1, "kaas", datetime.now(), "kaas")}) #type: ignore #Contains all items
+		# self._all_items_dict[1] = RunQueueItem(1, "kaas", datetime.now(), "kaas")
 		self._all_items_dict_mutex = multiprocess.Lock()
 
 
@@ -466,17 +484,23 @@ class RunQueue(QtCore.QObject):
 				raise RuntimeError("Could not load queue from dictionary, queue contains running items. Please make sure"
 		       		" no configurations are running when loading queue data.")
 			
-			#NOTE: make sure that the objects are managed by the manager, otherwise we will get errors when trying to
-			# access them from other processes
-			self._all_items_dict = self._manager.dict(contents_dict["all_items_dict"]) 
+			#NOTE: We have to make sure that the objects are managed by the manager, otherwise changes will not propagate
+			# between processes
+			self._all_items_dict = self._manager.dict(contents_dict["all_items_dict"])
+
+			for key, run_queue_item in self._all_items_dict.items():
+				#For each run_queue_item, create a managed instance of the RunQueueItem class
+				#TODO: is there a neater way to construct the managed RunQueueItem without manually copying all the data?
+				item_copy = copy(run_queue_item)
+				self._all_items_dict[key] = self._manager.RunQueueItem(None, None, None, None, None)
+				RunQueueItem.copy_to(item_copy, self._all_items_dict[key]) #Copy over the item data
+
 			self._queue = self._manager.list(contents_dict["queue_copy"])
 			self._cur_id = contents_dict["cur_id"]
 			self._cmd_id_name_path_dict = self._manager.dict(contents_dict["cmd_id_name_path_dict"]) #Load path-locations of the cmd outputs
+			#TODO: clear commandline output queue as well
 			
-			# self._all_items_dict = contents_dict["all_items_dict"]
-			# self._queue = contents_dict["queue_copy"]
-			# self._cur_id = contents_dict["cur_id"]
-			# self._cmd_id_name_path_dict = contents_dict["cmd_id_name_path_dict"] #Load path-locations of the cmd outputs
+		
 			#TODO: make cmd output relative to the workspace folder? That way we can copy between machines.
 		self.resetTriggered.emit() #Emit signal to indicate that the queue has been reset
 
