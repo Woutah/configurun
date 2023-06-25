@@ -5,9 +5,10 @@ import logging
 import typing
 
 from PySide6 import QtCore, QtWidgets
+from pyside6_utils.models import ExtendedSortFilterProxyModel
 
-from configurun.classes.run_queue import (RunQueueItemActions, RunQueue,
-                                      RunQueueItemStatus)
+from configurun.classes.run_queue import (RunQueue, RunQueueItemActions,
+                                          RunQueueItemStatus)
 from configurun.windows.models.run_queue_table_model import RunQueueTableModel
 
 log = logging.getLogger(__name__)
@@ -16,8 +17,6 @@ class RunQueueTreeView(QtWidgets.QTreeView):
 	"""
 	Treeview-equivalent used for run-queue items (MLQueueItems)
 	"""
-
-	# modelChanged = QtCore.Signal(object) #Emits the new model on model-change (should practically always be a MLQueueModel)
 
 	def __init__(self, parent: typing.Optional[QtWidgets.QWidget] = None) -> None:
 		super().__init__(parent)
@@ -32,6 +31,7 @@ class RunQueueTreeView(QtWidgets.QTreeView):
 		self._move_down_action = self._rc_menu.addAction("Move Down")
 		self._move_top_action = self._rc_menu.addAction("Move to Top")
 		self._stop_action = self._rc_menu.addAction("Stop")
+		self._start_action = self._rc_menu.addAction("Run Item")
 
 		self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
 		self.customContextMenuRequested.connect(self.custom_menu_requested)
@@ -45,7 +45,8 @@ class RunQueueTreeView(QtWidgets.QTreeView):
 			RunQueueItemActions.MOVEUP: self._move_up_action,
 			RunQueueItemActions.MOVEDOWN: self._move_down_action,
 			RunQueueItemActions.MOVETOP: self._move_top_action,
-			RunQueueItemActions.STOP: self._stop_action
+			RunQueueItemActions.STOP: self._stop_action,
+			RunQueueItemActions.START: self._start_action,
 		}
 
 		# =========== Link actions ===========
@@ -56,8 +57,9 @@ class RunQueueTreeView(QtWidgets.QTreeView):
 		#Stop is a special case, ask for confirmation
 		self._action_dict[RunQueueItemActions.STOP].triggered.connect(lambda *_: self.confirm_stop_current_index())
 
-		self.proxy_model = QtCore.QSortFilterProxyModel(self)
+		self.proxy_model = ExtendedSortFilterProxyModel(self)
 		self.proxy_model.setDynamicSortFilter(True)
+		self.proxy_model.set_filter_function("status_filter", self.check_if_current_filter_accepts_row)
 		#Make sure the dataChanged signal is emitted when the source model changes
 
 		super().setModel(self.proxy_model)
@@ -65,6 +67,68 @@ class RunQueueTreeView(QtWidgets.QTreeView):
 
 		#Connect double-click
 		self.doubleClicked.connect(self._on_double_click)
+		self._hide_status_list = []
+
+	def check_if_current_filter_accepts_row(self,
+				source_row: int,
+				source_parent: QtCore.QModelIndex | QtCore.QPersistentModelIndex,
+				source_model: QtCore.QAbstractItemModel
+			) -> bool:
+		"""Check if the passed row should be visible or not
+
+		Args:
+			source_row (int): The row to check
+			source_parent (QtCore.QModelIndex): The parent of the row to check
+
+		Returns:
+			bool: True if the row should be visible, False otherwise
+		"""
+		#Status column:
+		index = source_model.index(source_row, 0, source_parent)
+		# data_roles = [role for role in RunQueueTableModel.CustomDataRoles]
+		status = index.data(RunQueueTableModel.CustomDataRoles.StatusRole)[0]
+		if status in self._hide_status_list:
+			return False
+		return True
+
+	def set_item_status_filter(self, hide_status_list : list[RunQueueItemStatus] | None = None) -> None:
+		"""Sets the list of statuses that should be filtered (hidden)
+
+		Args:
+			hide_status_list (list[RunQueueItemStatus], optional): A list of statuses that should be filtered (hidden).
+				Defaults to None.
+		"""
+		if hide_status_list is None:
+			hide_status_list = []
+		self._hide_status_list = hide_status_list
+		self.proxy_model.invalidateFilter()
+
+	def set_whether_status_filtered(self, status : RunQueueItemStatus,  hide_item : bool) -> None:
+		"""Sets whether the passed status should be filtered (hidden) or not
+
+		Args:
+			status (RunQueueItemStatus): The status to hide or show
+			hide_item (bool): Whether to hide the passed status or not
+		"""
+		if hide_item:
+			if status not in self._hide_status_list:
+				self._hide_status_list.append(status)
+				self.proxy_model.invalidateFilter()
+		else:
+			if status in self._hide_status_list:
+				self._hide_status_list.remove(status)
+				self.proxy_model.invalidateFilter()
+
+
+	def get_item_status_filter(self) -> list[RunQueueItemStatus]:
+		"""Returns a list of all statuses that are filtered (hidden)
+
+		Returns:
+			list[RunQueueItemStatus]: A list of all statuses that are filtered (hidden)
+		"""
+		return self._hide_status_list
+
+
 
 	def _on_double_click(self, index: QtCore.QModelIndex) -> None:
 		"""Set the hightlight-item when double-clicking on an item
@@ -90,12 +154,12 @@ class RunQueueTreeView(QtWidgets.QTreeView):
 		NOTE: this treeview uses a proxy model, so the passed model is set as the source model of the proxy model
 			<this>.getModel() will return the proxy model, not this passed model
 		"""
-		ret= self.proxy_model.setSourceModel(new_model)
-
+		ret = self.proxy_model.setSourceModel(new_model)
 		#Make sure the dataChanged signal is emitted when the source model changes:
-		new_model.dataChanged.connect(self.proxy_model.dataChanged) #NOTE: if we don't this, the proxy model won't emit dataChanged signals
-			# This seems to be a bug in Qt, though I could not find a mention of it on 25-06-2023
+		new_model.dataChanged.connect(self.proxy_model.dataChanged) #NOTE: if we don't this, the proxy model won't emit
+			# dataChanged signals. This seems to be a bug in Qt, though I could not find a mention of it on 25-06-2023
 
+		return ret
 	def confirm_stop_index(self, index : QtCore.QModelIndex) -> None:
 		""" Ask user for confirmation to stop the item at the passed index
 		Args:
@@ -103,7 +167,7 @@ class RunQueueTreeView(QtWidgets.QTreeView):
 		"""
 		msg = QtWidgets.QMessageBox()
 		msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
-		msg.setText(f"Are you sure you want to stop this item?")
+		msg.setText("Are you sure you want to stop this item?")
 		msg.setInformativeText("This will force stop the item process - any unsaved progress of this run will be lost.")
 		msg.setWindowTitle("Confirm stop")
 		msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No)
@@ -190,8 +254,9 @@ class RunQueueTreeView(QtWidgets.QTreeView):
 def run_example_app():
 	""" Run an example of the run_queue tree view"""
 	#pylint: disable=import-outside-toplevel
-	from configurun.examples.example_run_function import example_run_function
 	import sys
+
+	from configurun.examples.example_run_function import example_run_function
 	app = QtWidgets.QApplication([])
 	window = QtWidgets.QMainWindow()
 	window.resize(800, 600)

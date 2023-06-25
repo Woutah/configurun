@@ -6,6 +6,7 @@ Implements the RunQueueTableModel class. Enabling the user to display a RunQueue
 import logging
 import typing
 from enum import IntEnum
+import textwrap
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
@@ -35,7 +36,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		#pylint: disable=invalid-name
 		IDRole = QtCore.Qt.ItemDataRole.UserRole.value + 1
 		ActionRole = QtCore.Qt.ItemDataRole.UserRole.value + 2 #An action is being performed on this item
-
+		StatusRole = QtCore.Qt.ItemDataRole.UserRole.value + 3 #The status of this item (Queued, Running etc.)
 
 
 	def __init__(self,
@@ -120,22 +121,11 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		for connection in self._run_queue_connections:
 			connection.disconnect()
 
-
-		# if self._queue_changed_signal_connection is not None:
-		# 	self._run_queue.queueChanged.disconnect(self._queue_changed_signal_connection)
-		# if self._run_list_changed_signal_connection is not None:
-		# 	self._run_queue.runListChanged.disconnect(self._run_list_changed_signal_connection)
-		# if self._run_item_changed_signal_connection is not None:
-		# 	self._run_queue.itemDataChanged.disconnect(self._run_item_changed_signal_connection)
-		# if self._autoprocessing_state_signal_connection is not None:
-		# 	self._run_queue.autoProcessingStateChanged.disconnect(self._autoprocessing_state_signal_connection)
-
 		self._run_queue_connections.append(self._run_queue.queueChanged.connect(self._queue_changed))
-		# self._run_queue_connections.append(self._run_queue.runListChanged.connect(self._run_list_changed))
-		self._run_queue_connections.append(
+		self._run_queue_connections.append( #On item-insertion in runQueue
 			self._run_queue.allItemsDictInsertion.connect(self._handle_run_queue_insertion)
-		)		
-		self._run_queue_connections.append(
+		)
+		self._run_queue_connections.append( #On item deletion in runQueue
 			self._run_queue.allItemsDictRemoval.connect(self._handle_run_queue_deletion)
 		)
 		self._run_queue_connections.append(self._run_queue.itemDataChanged.connect(self._run_item_changed))
@@ -238,11 +228,6 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		return len(self.column_names)
 
 
-
-	def parent(self, index: QtCore.QModelIndex) -> QtCore.QModelIndex:
-		"""Table model, so no parents"""
-		return QtCore.QModelIndex()
-
 	def _handle_run_queue_insertion(self, new_item_ids : list[int], new_items_dict : typing.Dict[int, RunQueueItem]):
 		"""
 		Handles the insertion of new item(s) in the runQueue. Should be linked to the allItemsDictInsertion signal
@@ -266,7 +251,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		#Make the insertion points negative so we can iteratively add items while the insertion points will be determined
 
 		cur_insertion_point_index = 0
-		while(True): #Group all consecutive insertions together ([1,2,3,5] -> [1,2,3] and [5])
+		while True: #Group all consecutive insertions together ([1,2,3,5] -> [1,2,3] and [5])
 			start_insertion_point_idx = cur_insertion_point_index
 			stop_insertion_point_idx  = cur_insertion_point_index
 			for i, insertion_point in enumerate(insertion_points[cur_insertion_point_index+1:]): #All next insertion points
@@ -291,7 +276,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 
 	def _handle_run_queue_deletion(self, deleted_item_ids : list[int], new_items_dict : typing.Dict[int, RunQueueItem]):
 		"""
-		Handles the deletetion of item(s) in the runQueue 
+		Handles the deletetion of item(s) in the runQueue
 
 		Args:
 			deleted_item_ids (list[int]): list of ids of the deleted items
@@ -307,12 +292,13 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		new_item_dict_id_order = list(new_items_dict.keys())
 		new_item_dict_id_order.sort() #
 
-		deletion_points = [self._cur_item_dict_id_order.index(id) for id in deleted_item_ids] #Check where the new items were deleted
+		deletion_points = [self._cur_item_dict_id_order.index(id) for id in deleted_item_ids] #Check where the new items
+			#were deleted
 		deletion_points = deletion_points[::-1] #So we can delete items from the back to the front so indexes don't change
 		#Make the insertion points negative so we can iteratively add items while the insertion points will be determined
 
 		cur_deletion_point_index = 0
-		while(True): #Group all consecutive deletions together ([5,3,2,1] -> [5] [3,2,1])
+		while True : #Group all consecutive deletions together ([5,3,2,1] -> [5] [3,2,1])
 			start_deletion_point_idx = cur_deletion_point_index
 			stop_deletion_point_idx  = cur_deletion_point_index
 			for i, insertion_point in enumerate(deletion_points[cur_deletion_point_index+1:]): #All next insertion points
@@ -354,8 +340,6 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 			self.index(row, self.columnCount()),
 			[QtCore.Qt.ItemDataRole.DisplayRole, QtCore.Qt.ItemDataRole.EditRole] #Change the displayed queue-position
 		) #TODO: Only emit changed. rows
-		print("Done emitting layout changed - problem is probably here")
-
 
 
 	# def _run_list_changed(self, run_list_copy):
@@ -480,8 +464,13 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 			typing.List[QueueItemActions]: A list of possible actions for the given index.
 		"""
 		if index.isValid():
-			return self._run_queue.get_actions_for_id(
-				self._cur_run_queue_item_dict_copy[list(self._cur_run_queue_item_dict_copy.keys())[index.row()]].item_id)
+			status = self.get_item_status(index)
+			if status is not None:
+				return RunQueue.get_actions_from_status(status)
+			else:
+				return []
+			# item_id = self._cur_item_dict_id_order[index.row()]
+			# return self._run_queue.get_actions_for_id(item_id)
 		else:
 			return []
 
@@ -505,11 +494,11 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 			index (QtCore.QModelIndex): The index of the item to perform the action on
 			action (RunQueueItemActions): The action to perform
 		"""
-		id = index.data(role=RunQueueTableModel.CustomDataRoles.IDRole)
-		log.debug(f"Item id is: {id}")
+		target_id = index.data(role=RunQueueTableModel.CustomDataRoles.IDRole)
+		log.debug(f"Item id is: {target_id}")
 		if index.isValid():
-			log.debug(f"Performing action {action} on item with id {id}")
-			self._run_queue.do_action_for_id(id, action)
+			log.debug(f"Performing action {action} on item with id {target_id}")
+			self._run_queue.do_action_for_id(target_id, action)
 
 
 	def get_item_status(self, index : QtCore.QModelIndex) -> RunQueueItemStatus | None:
@@ -563,10 +552,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 
 	def data(self, index: QtCore.QModelIndex, role: int | None = None) -> typing.Any:
 		try:
-			# item = self._cur_run_queue_item_dict_copy[list(self._cur_run_queue_item_dict_copy.keys())[index.row()]]
 			item_id = self._cur_item_dict_id_order[index.row()]
-
-			# log.debug(f"Getting data for item at row {index.row()} in cur_item_dict_id_order {', '.join([str(i) for i in self._cur_item_dict_id_order])}resulting in id {item_id}")
 			item = self._cur_run_queue_item_dict_copy[item_id]
 
 			if role == QtCore.Qt.ItemDataRole.DisplayRole:
@@ -598,15 +584,26 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 					return self._icon_dict.get(item.status, None)
 				else:
 					return None
-			#Font role
-			elif role == QtCore.Qt.ItemDataRole.FontRole:
+			elif role == QtCore.Qt.ItemDataRole.ToolTipRole:
+				ret = str(self.data(index, QtCore.Qt.ItemDataRole.DisplayRole))
+				#Go over ret lines and if they are too long, split them
+				ret_lines = ret.split("\n")
+				for i, line in enumerate(ret_lines):
+					if len(line) > 80: #If line is too long, split it
+						ret_lines[i] = "\n".join(textwrap.wrap(line, 80))
+				return "\n".join(ret_lines)
+			elif role == QtCore.Qt.ItemDataRole.FontRole: #Font role: highlight if item is highlighted
 				if item.item_id == self._highlighted_id:
 					return self._highlight_font
 			elif role == RunQueueTableModel.CustomDataRoles.IDRole:
 				return item.item_id
 			elif role == RunQueueTableModel.CustomDataRoles.ActionRole:
 				return self.get_actions(index)
+			elif role == RunQueueTableModel.CustomDataRoles.StatusRole:
+				return (item.status,) #Returned as tuple, because otherwise the return value is converted to an int (?)
+				# return "kaas"
 			return None
+
 		except Exception as exception: # pylint: disable=broad-except
 			log.error(f"Failed to get data for index {index}: {exception}")
 

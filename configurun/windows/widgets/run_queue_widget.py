@@ -12,6 +12,7 @@ from pyside6_utils.utility.catch_show_exception_in_popup_decorator import \
 from configurun.classes.run_queue import RunQueueItemActions
 from configurun.windows.models.run_queue_table_model import RunQueueTableModel
 from configurun.windows.ui.run_queue_widget_ui import Ui_MLQueueWidget
+from configurun.classes.run_queue import RunQueueItemStatus
 
 log = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ class RunQueueWidget(QtWidgets.QWidget):
 		super().__init__()
 		self.ui = Ui_MLQueueWidget() #pylint: disable=invalid-name
 		self.ui.setupUi(widget)
+		self._widget = widget
 
 		# self.ui.QueueViewLayout.addWidget(self.queue_view)
 		self.queue_view = self.ui.queueView
@@ -55,12 +57,36 @@ class RunQueueWidget(QtWidgets.QWidget):
 		self.queue_model_connections = [] #Connections to the queue model for updating the UI
 		self.model : RunQueueTableModel | None = None #The used run-queue model
 
+		self.ui.toolButton.clicked.connect(self.settings_clicked)
 
-	# def set_model(self, model : RunQueueTableModel):
-	# 	"""Sets the model for the MLQueueWidget"""
-	# 	self.model = model
-	# 	self.queue_view.setModel(model)
 
+	def settings_clicked(self):
+		"""Called when a open-settings-button is clicked. Opens the settings menu."""
+		cur_mouse_pos = QtGui.QCursor.pos()
+		self.create_queue_settings_menu(cur_mouse_pos)
+
+	def create_queue_settings_menu(self, global_position : QtCore.QPoint) -> None:
+		"""Creates a menu with settings for the queue and shows it at the given position.
+		e.g. filter by status.
+
+		Args:
+			global_position (QtCore.QPoint): The position to show the menu at.
+
+		Returns:
+			None
+		"""
+		menu = QtWidgets.QMenu()
+		filter_menu = menu.addMenu("View Filter")
+		cur_filtered = self.queue_view.get_item_status_filter() #Get all filtered statuses
+		for status in RunQueueItemStatus:
+			action = QtGui.QAction(status.name, menu)
+			action.setCheckable(True)
+			action.setChecked(status not in cur_filtered)
+			action.triggered.connect(
+				lambda *_, status=status: self.queue_view.set_whether_status_filtered(status, not(status in cur_filtered))) #pylint: disable=superfluous-parens
+			filter_menu.addAction(action)
+
+		menu.exec(global_position)
 
 
 	def cancel_stop_button_pressed(self):
@@ -186,17 +212,13 @@ class RunQueueWidget(QtWidgets.QWidget):
 
 	def update_available_options(self):
 		""" Updates the available options in the user interface. """
-		# try:
-		# 	selection = self.queue_view.selectionModel().selectedRows()
-		# except AttributeError as attr_ex: #If no model is set
-		# 	log.debug(f"Could not get selection: {attr_ex}")
-		# 	return
-
 		index = self.queue_view.currentIndex()
+		log.debug(f"Updating available options for selection {index}")
 		if not index.isValid():
 			cur_available_actions = []
 		else:
 			cur_available_actions = index.data(RunQueueTableModel.CustomDataRoles.ActionRole) #Retrieve the available actions
+
 
 		for btn in self._action_btn_dict.values():
 			btn.setEnabled(False)

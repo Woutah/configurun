@@ -16,7 +16,8 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QHBoxLayout, QHeaderView, QPushButton,
-    QSizePolicy, QSpacerItem, QVBoxLayout, QWidget)
+    QSizePolicy, QSpacerItem, QToolButton, QVBoxLayout,
+    QWidget)
 
 from configurun.windows.views.run_queue_tree_view import RunQueueTreeView
 from pyside6_utils.widgets.square_frame import SquareFrame
@@ -32,6 +33,7 @@ class Ui_MLQueueWidget(object):
         self.horizontalLayout_2 = QHBoxLayout()
         self.horizontalLayout_2.setObjectName(u"horizontalLayout_2")
         self.horizontalLayout = QHBoxLayout()
+        self.horizontalLayout.setSpacing(5)
         self.horizontalLayout.setObjectName(u"horizontalLayout")
         self.squareFrame_3 = SquareFrame(MLQueueWidget)
         self.squareFrame_3.setObjectName(u"squareFrame_3")
@@ -159,6 +161,21 @@ class Ui_MLQueueWidget(object):
 
         self.horizontalLayout.addWidget(self.squareFrame)
 
+        self.toolButton = QToolButton(MLQueueWidget)
+        self.toolButton.setObjectName(u"toolButton")
+        sizePolicy3 = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        sizePolicy3.setHorizontalStretch(0)
+        sizePolicy3.setVerticalStretch(0)
+        sizePolicy3.setHeightForWidth(self.toolButton.sizePolicy().hasHeightForWidth())
+        self.toolButton.setSizePolicy(sizePolicy3)
+        self.toolButton.setMinimumSize(QSize(35, 35))
+        icon5 = QIcon()
+        icon5.addFile(u":/Icons/icons/categories/applications-system.png", QSize(), QIcon.Normal, QIcon.Off)
+        self.toolButton.setIcon(icon5)
+        self.toolButton.setIconSize(QSize(25, 25))
+
+        self.horizontalLayout.addWidget(self.toolButton)
+
         self.squareFrame_2 = SquareFrame(MLQueueWidget)
         self.squareFrame_2.setObjectName(u"squareFrame_2")
         self.verticalLayout_4 = QVBoxLayout(self.squareFrame_2)
@@ -211,5 +228,6 @@ class Ui_MLQueueWidget(object):
         self.StartRunningQueueBtn.setToolTip(QCoreApplication.translate("MLQueueWidget", u"Start automatic run-mode", None))
 #endif // QT_CONFIG(tooltip)
         self.StartRunningQueueBtn.setText("")
+        self.toolButton.setText(QCoreApplication.translate("MLQueueWidget", u"...", None))
     # retranslateUi
 
