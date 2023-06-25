@@ -36,7 +36,7 @@ class RunQueueWidget(QtWidgets.QWidget):
 		self.ui.MoveDownInQueueBtn.clicked.connect(
 			lambda *_: self.queue_view.do_action_on_selection(RunQueueItemActions.MOVEDOWN))
 		self.ui.CancelStopButton.clicked.connect(
-			lambda *_: self.queue_view.do_action_on_selection(RunQueueItemActions.STOP))
+			self.cancel_stop_button_pressed)
 		self.ui.DeleteButton.clicked.connect(
 			lambda *_: self.queue_view.do_action_on_selection(RunQueueItemActions.DELETE))
 		self.ui.StartRunningQueueBtn.clicked.connect(
@@ -53,17 +53,41 @@ class RunQueueWidget(QtWidgets.QWidget):
 		}
 
 		self.queue_model_connections = [] #Connections to the queue model for updating the UI
-		self.queue_view.modelChanged.connect(lambda *_: self.reset_model())
+		self.model : RunQueueTableModel | None = None #The used run-queue model
+
+
+	# def set_model(self, model : RunQueueTableModel):
+	# 	"""Sets the model for the MLQueueWidget"""
+	# 	self.model = model
+	# 	self.queue_view.setModel(model)
+
+
+
+	def cancel_stop_button_pressed(self):
+		"""Either cancels or stops the currently selected item in the queue, depending on its status
+		"""
+		# cur_model = self.queue_view.model()
+		# assert isinstance(cur_model, RunQueueTableModel), "Can't get options for non-MLQueueModel"
+		selection = self.queue_view.currentIndex()
+
+		actions = selection.data(RunQueueTableModel.CustomDataRoles.ActionRole)
+		if RunQueueItemActions.STOP in actions:
+			# self.queue_view.do_action_on_index(RunQueueItemActions.STOP, selection)
+			self.queue_view.confirm_stop_index(selection)
+		else:
+			self.queue_view.do_action_on_index(RunQueueItemActions.CANCEL, selection)
+
+
 
 	def _autoqueue_btn_set_state(self, is_running : bool):
 		"""Set the state of the autoqueue button (start/stop autoqueueing)"""
 		self.ui.StartRunningQueueBtn.setChecked(is_running)
-		self.ui.StartRunningQueueBtn.setToolTip("Stop queue" if is_running else "Start running queue")
+		self.ui.StartRunningQueueBtn.setToolTip("Stop autorunning" if is_running else "Start autorunning")
 
 	@catch_show_exception_in_popup_decorator
 	def toggle_queue_autoprocessing(self):
 		"""Toggles the queue autoprocessing."""
-		cur_model = self.queue_view.model()
+		cur_model = self.model
 		assert isinstance(cur_model, RunQueueTableModel)
 
 
@@ -115,28 +139,31 @@ class RunQueueWidget(QtWidgets.QWidget):
 		else:
 			cur_model.start_autoprocessing()
 
-	def reset_model(self):
+	def set_model(self, model : RunQueueTableModel):
 		"""Resets all signals and connections and invalidates the current data in the view.
 		"""
+		assert isinstance(model, RunQueueTableModel), "Can't set non-MLQueueModel as model"
 		if len(self.queue_model_connections) > 0:
 			for signal_connection in self.queue_model_connections:
 				signal_connection.disconnect()
 			self.queue_model_connections = []
 
-		cur_model = self.queue_view.model()
+		# cur_model = self.queue_view.model()
+		self.queue_view.setModel(model)
+		self.model = model
 
-		if not isinstance(cur_model, RunQueueTableModel):
+		if not isinstance(model, RunQueueTableModel):
 			self.update_available_options()
 			log.warning("MLQueueWidget: Model is not of type MLQueueModel. Cannot setup new model.")
 			return
 
 		self.queue_model_connections.append( #When any data changes, update the available options
-			cur_model.dataChanged.connect(lambda *_: self.update_available_options())
+			model.dataChanged.connect(lambda *_: self.update_available_options())
 		)
 
 		#=============== Subscribe to signals =================
 		self.queue_model_connections.append(
-			cur_model.layoutChanged.connect(lambda *_: self.update_available_options())
+			model.layoutChanged.connect(lambda *_: self.update_available_options())
 		) #When any rows are removed, update the available options (maybe selected item changed)
 		self.queue_model_connections.append(
 			self.queue_view.selectionModel().selectionChanged.connect(lambda *_: self.update_available_options())
@@ -145,10 +172,10 @@ class RunQueueWidget(QtWidgets.QWidget):
 			self.queue_view.selectionModel().currentChanged.connect(lambda *_: self.update_available_options())
 		) #When the selection changes, update the available options
 		self.queue_model_connections.append(
-			cur_model.autoProcessingStateChanged.connect(self._autoqueue_btn_set_state)
+			model.autoProcessingStateChanged.connect(self._autoqueue_btn_set_state)
 		)
 
-		self._autoqueue_btn_set_state(cur_model.is_autoprocessing_enabled())
+		self._autoqueue_btn_set_state(model.is_autoprocessing_enabled())
 		self.update_available_options()
 
 
@@ -159,26 +186,70 @@ class RunQueueWidget(QtWidgets.QWidget):
 
 	def update_available_options(self):
 		""" Updates the available options in the user interface. """
-		try:
-			selection = self.queue_view.selectionModel().selectedRows()
-		except AttributeError as attr_ex: #If no model is set
-			log.debug(f"Could not get selection: {attr_ex}")
-			return
+		# try:
+		# 	selection = self.queue_view.selectionModel().selectedRows()
+		# except AttributeError as attr_ex: #If no model is set
+		# 	log.debug(f"Could not get selection: {attr_ex}")
+		# 	return
 
-		cur_available_actions = []
-		if len(selection) > 0: #If there is a selection
-			selection = selection[0] #Only allow one selection at a time (TODO: maybe change this?)
-			try:
-				cur_model = self.queue_view.model()
-				assert isinstance(cur_model, RunQueueTableModel), "Can't get options for non-MLQueueModel"
-				cur_available_actions = cur_model.get_actions(selection)
-			except AttributeError as attr_ex:
-				log.debug(f"Could not get available actions: {attr_ex}")
-				cur_available_actions = []
+		index = self.queue_view.currentIndex()
+		if not index.isValid():
+			cur_available_actions = []
+		else:
+			cur_available_actions = index.data(RunQueueTableModel.CustomDataRoles.ActionRole) #Retrieve the available actions
 
 		for btn in self._action_btn_dict.values():
 			btn.setEnabled(False)
 
-		for action in cur_available_actions:
-			if action in self._action_btn_dict:
-				self._action_btn_dict[action].setEnabled(True)
+		if cur_available_actions is not None:
+			for action in cur_available_actions:
+				if action in self._action_btn_dict:
+					self._action_btn_dict[action].setEnabled(True)
+
+
+
+
+def run_example_app():
+	""" Run an example of the run_queue widget with some nonsense data and the example run function"""
+	#pylint: disable=import-outside-toplevel
+	from configurun.examples.example_run_function import example_run_function
+	from configurun.classes.run_queue import RunQueue
+
+	app = QtWidgets.QApplication([])
+	window = QtWidgets.QMainWindow()
+	window.resize(800, 600)
+	central_widget = QtWidgets.QWidget()
+
+	queue_widget = RunQueueWidget(central_widget)
+	run_queue = RunQueue(
+		target_function=example_run_function
+	)
+	queue_model = RunQueueTableModel(run_queue=run_queue)
+
+	queue_widget.set_model(queue_model)
+
+	for i in range(10):
+		run_queue.add_to_queue(
+			f"Testitem {i}",
+			config={"test": i}, #nonsense config #type:ignore
+		)
+
+	window.setCentralWidget(central_widget)
+
+	window.show()
+	app.exec()
+
+
+if __name__ == "__main__":
+	logging.getLogger('matplotlib').setLevel(logging.INFO)
+	logging.getLogger('PySide6').setLevel(logging.DEBUG)
+	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}] {levelname:<7s}   {message}", style='{')
+	handler = logging.StreamHandler()
+	handler.setFormatter(formatter)
+	logging.basicConfig(
+		handlers=[handler],
+		level=logging.DEBUG
+	) #Without time
+	root = logging.getLogger()
+	root.handlers = [handler]
+	run_example_app()

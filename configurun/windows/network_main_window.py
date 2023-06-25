@@ -61,7 +61,7 @@ class NetworkMainWindow(MainWindow):
 			configuration_model (ConfigurationModel): The configuration model which manages updating the ui and creating
 			run_queue (RunQueue): The runqueue which manages running the configurations
 			window (QtWidgets.QMainWindow): The window in which the app should be built
-			workspace_path (str, optional): The base output-path used for the configurations, logfiles etc. 
+			workspace_path (str, optional): The base output-path used for the configurations, logfiles etc.
 				If empty, or folder does not exist, defaults to ~/Configurun/configurations/
 			settings_in_workspace_path (bool, optional): Whether to store the settings in the workspace path or in the default
 				QSettings location. Defaults to True
@@ -73,7 +73,7 @@ class NetworkMainWindow(MainWindow):
 			workspace_path=workspace_path,
 			settings_in_workspace_path=settings_in_workspace_path
 		)
-		
+
 		# assert(type(self._run_queue) == RunQueueClient) #Make sure we're using the right type of queue
 		self._run_queue : RunQueueClient = self._run_queue #For Type hinting
 

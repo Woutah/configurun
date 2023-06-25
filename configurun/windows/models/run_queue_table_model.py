@@ -5,14 +5,17 @@ Implements the RunQueueTableModel class. Enabling the user to display a RunQueue
 # from MachineLearning.framework.RunQueueClient import RunQueueClient
 import logging
 import typing
+from enum import IntEnum
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
 # from MachineLearning.framework.RunQueue import RunQueue, RunQueueItem, RunQueueItemStatus, QueueItemActions
 from configurun.classes.run_queue import (RunQueue, RunQueueItem,
-                                      RunQueueItemActions, RunQueueItemStatus)
+                                          RunQueueItemActions,
+                                          RunQueueItemStatus)
 
 log = logging.getLogger(__name__)
+
 
 
 class RunQueueTableModel(QtCore.QAbstractTableModel):
@@ -25,88 +28,14 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 
 	autoProcessingStateChanged = QtCore.Signal(bool)
 
-	def set_run_queue(self, new_run_queue : RunQueue) -> None:
-		"""Sets the runqueue of this model to the given run_queue. This will disconnect all signals from the previous
-		run_queue and connect the signals from the new run_queue
-
-		Args:
-			run_queue (RunQueue): The new run_queue to use
-			also_instantiate (bool, optional): Whether to request the current state of the run_queue and store it in
-			this model. Defaults to True. If False, the model will only be updated upon the next change to the run_queue
-			This is useful when the runqueue is an instance of RunQueueClient, since it will not have any data until
-			an authenticated server is connected.
+	class CustomDataRoles(IntEnum):
 		"""
-		self.beginResetModel() #Invalidate all data in current views
-		self._run_queue = new_run_queue
-
-		#============= Signal connections linking UI to RunQueue =============
-		if self._queue_changed_signal_connection is not None:
-			self._run_queue.queueChanged.disconnect(self._queue_changed_signal_connection)
-		if self._run_list_changed_signal_connection is not None:
-			self._run_queue.runListChanged.disconnect(self._run_list_changed_signal_connection)
-		if self._run_item_changed_signal_connection is not None:
-			self._run_queue.runItemChanged.disconnect(self._run_item_changed_signal_connection)
-		if self._autoprocessing_state_signal_connection is not None:
-			self._run_queue.autoProcessingStateChanged.disconnect(self._autoprocessing_state_signal_connection)
-
-		self._queue_changed_signal_connection = self._run_queue.queueChanged.connect(self._queue_changed)
-		self._run_list_changed_signal_connection = self._run_queue.runListChanged.connect(self._run_list_changed)
-		self._run_item_changed_signal_connection = self._run_queue.runItemChanged.connect(self._run_item_changed)
-		self._queue_reset_signal_connection = self._run_queue.queueResetTriggered.connect(self.reset_model)
-		self._autoprocessing_state_signal_connection = self._run_queue.autoProcessingStateChanged.connect(
-			self.autoprocessing_state_changed)
-
-		self._cur_queue_copy = self._run_queue.get_queue_snapshot_copy()
-		self._cur_run_list_copy = self._run_queue.get_run_list_snapshot_copy()
-		self._cur_autoprocessing_state = self._run_queue.is_autoprocessing_enabled()
-
-
-		# if also_instantiate:
-		self._reset_model()
-		self.endResetModel()
-
-	def stop_autoprocessing(self):
-		"""Signal current runqueue to stop autoqueueing"""
-		self._run_queue.stop_autoqueueing()
-
-	def start_autoprocessing(self):
-		"""Signal current runqueue to start autoprocessing items in the runqueue"""
-		self._run_queue.start_autoprocessing()
-
-	def autoprocessing_state_changed(self, new_state : bool) -> None:
-		"""Synchronizes autoprocessing state to RunQueue
+		Enum containing custom data roles that can be used to retrieve data from the model
 		"""
-		self.autoProcessingStateChanged.emit(new_state) #Emit signal to UI
-		self._cur_autoprocessing_state = new_state
+		#pylint: disable=invalid-name
+		IDRole = QtCore.Qt.ItemDataRole.UserRole.value + 1
+		ActionRole = QtCore.Qt.ItemDataRole.UserRole.value + 2 #An action is being performed on this item
 
-	def get_running_configuration_count(self) -> int:
-		"""Return the number of configs currently running
-
-		Returns:
-			int: The number of configs currently running
-		"""
-		return self._run_queue.get_running_configuration_count()
-
-	def is_autoprocessing_enabled(self) -> bool:
-		"""Return whether autoprocessing is enabled in the current runqueue"""
-		return self._cur_autoprocessing_state
-
-	def reset_model(self) -> None:
-		"""Reset the model, this will emit the beginResetModel and endResetModel signals"""
-		self.beginResetModel()
-		self._reset_model()
-		self.endResetModel()
-
-	def _reset_model(self) -> None:
-		"""Private variant of reset_model, does not emit the beginResetModel and endResetModel signals
-		"""
-		if self._run_queue is not None:
-			self._cur_queue_copy = self._run_queue.get_queue_snapshot_copy()
-			self._cur_run_list_copy = self._run_queue.get_run_list_snapshot_copy()
-			if self._cur_queue_copy is None:
-				self._cur_queue_copy = []
-			if self._cur_run_list_copy is None:
-				self._cur_run_list_copy = {}
 
 
 	def __init__(self,
@@ -115,17 +44,16 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		) -> None:
 		super().__init__(parent)
 
-		self._run_queue_consoleoutput_signal_connection = None
-		self._queue_changed_signal_connection = None
-		self._run_list_changed_signal_connection = None
-		self._run_item_changed_signal_connection = None
-		self._autoprocessing_state_signal_connection = None
-		self._queue_reset_signal_connection = self
+		self._run_queue_connections = [] #List of signal connectiosn to the run_queue, enables us to disconnect them
 		self._run_queue = run_queue
-		self._cur_queue_copy = []
-		self._cur_run_list_copy = {}
 
-		self.set_run_queue(run_queue)
+		self._cur_queue_copy = []
+		self._cur_run_queue_item_dict_copy = {}
+		self._cur_item_dict_id_order = [] #The order of the ids in the current run_queue_item_dict, this determines
+			# the order of the items in the model since the order of the dict itself is not neccessarily guaranteed
+			# and because it makes sense to order by id because this makes it so insertions always happen at the end
+
+		self.set_run_queue(run_queue) #Connects signals etc.
 
 
 
@@ -174,6 +102,104 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		self._cur_autoprocessing_state = False
 
 
+	def set_run_queue(self, new_run_queue : RunQueue) -> None:
+		"""Sets the runqueue of this model to the given run_queue. This will disconnect all signals from the previous
+		run_queue and connect the signals from the new run_queue
+
+		Args:
+			run_queue (RunQueue): The new run_queue to use
+			also_instantiate (bool, optional): Whether to request the current state of the run_queue and store it in
+			this model. Defaults to True. If False, the model will only be updated upon the next change to the run_queue
+			This is useful when the runqueue is an instance of RunQueueClient, since it will not have any data until
+			an authenticated server is connected.
+		"""
+		self.beginResetModel() #Invalidate all data in current views
+		self._run_queue = new_run_queue
+
+		#============= Signal connections linking UI to RunQueue =============
+		for connection in self._run_queue_connections:
+			connection.disconnect()
+
+
+		# if self._queue_changed_signal_connection is not None:
+		# 	self._run_queue.queueChanged.disconnect(self._queue_changed_signal_connection)
+		# if self._run_list_changed_signal_connection is not None:
+		# 	self._run_queue.runListChanged.disconnect(self._run_list_changed_signal_connection)
+		# if self._run_item_changed_signal_connection is not None:
+		# 	self._run_queue.itemDataChanged.disconnect(self._run_item_changed_signal_connection)
+		# if self._autoprocessing_state_signal_connection is not None:
+		# 	self._run_queue.autoProcessingStateChanged.disconnect(self._autoprocessing_state_signal_connection)
+
+		self._run_queue_connections.append(self._run_queue.queueChanged.connect(self._queue_changed))
+		# self._run_queue_connections.append(self._run_queue.runListChanged.connect(self._run_list_changed))
+		self._run_queue_connections.append(
+			self._run_queue.allItemsDictInsertion.connect(self._handle_run_queue_insertion)
+		)		
+		self._run_queue_connections.append(
+			self._run_queue.allItemsDictRemoval.connect(self._handle_run_queue_deletion)
+		)
+		self._run_queue_connections.append(self._run_queue.itemDataChanged.connect(self._run_item_changed))
+		self._run_queue_connections.append(self._run_queue.queueResetTriggered.connect(self.reset_model))
+		self._run_queue_connections.append(self._run_queue.autoProcessingStateChanged.connect(
+			self.autoprocessing_state_changed))
+
+
+		# self._cur_queue_copy = self._run_queue.get_queue_snapshot_copy()
+		# self._cur_run_list_copy = self._run_queue.get_run_list_snapshot_copy()
+
+
+		# if also_instantiate:
+		self._reset_model()
+		self.endResetModel()
+
+	def stop_autoprocessing(self):
+		"""Signal current runqueue to stop autoqueueing"""
+		self._run_queue.stop_autoprocessing()
+
+	def start_autoprocessing(self):
+		"""Signal current runqueue to start autoprocessing items in the runqueue"""
+		self._run_queue.start_autoprocessing()
+
+	def autoprocessing_state_changed(self, new_state : bool) -> None:
+		"""Synchronizes autoprocessing state to RunQueue
+		"""
+		self.autoProcessingStateChanged.emit(new_state) #Emit signal to UI
+		self._cur_autoprocessing_state = new_state
+
+	def get_running_configuration_count(self) -> int:
+		"""Return the number of configs currently running
+
+		Returns:
+			int: The number of configs currently running
+		"""
+		return self._run_queue.get_running_configuration_count()
+
+	def is_autoprocessing_enabled(self) -> bool:
+		"""Return whether autoprocessing is enabled in the current runqueue"""
+		return self._cur_autoprocessing_state
+
+	def reset_model(self) -> None:
+		"""Reset the model, this will emit the beginResetModel and endResetModel signals"""
+		self.beginResetModel()
+		self._reset_model()
+		self.endResetModel()
+
+	def _reset_model(self) -> None:
+		"""Private variant of reset_model, does not emit the beginResetModel and endResetModel signals
+		"""
+		if self._run_queue is not None:
+			self._cur_queue_copy = self._run_queue.get_queue_snapshot_copy()
+			self._cur_run_queue_item_dict_copy = self._run_queue.get_run_list_snapshot_copy()
+			self._cur_autoprocessing_state = self._run_queue.is_autoprocessing_enabled()
+			if self._cur_queue_copy is None:
+				self._cur_queue_copy = []
+			if self._cur_run_queue_item_dict_copy is None:
+				self._cur_run_queue_item_dict_copy = {}
+			self._cur_item_dict_id_order = list(self._cur_run_queue_item_dict_copy.keys())
+			self._cur_item_dict_id_order.sort()
+
+
+
 	column_names = { #Used to map column index to a name/property of a RunQueueItem
 		0: ("name", "Name"),
 		1: ("status", "Status"),
@@ -185,12 +211,25 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		7: ("exit_code", "Exit Code"),
 		8: ("stderr", "Stderr")
 	}
+	column_positions = { #Opposite of column_names
+		"name": 0,
+		"status": 1,
+		"item_id": 2,
+		"dt_added": 3,
+		"dt_started": 4,
+		"config": 5,
+		"dt_done": 6,
+		"exit_code": 7,
+		"stderr": 8
+	}
 
 
 	def rowCount(self,
 	      	parent: typing.Union[QtCore.QModelIndex, QtCore.QPersistentModelIndex, None] = None #pylint: disable=unused-argument
 		) -> int:
-		return len(self._cur_run_list_copy)
+		return len(self._cur_item_dict_id_order) #NOTE: the _cur_item_dict_id order determines what items are shown
+			# even when more items are in the _cur_item_dict
+
 
 		# return super().rowCount(parent)
 	def columnCount(self,
@@ -198,29 +237,190 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		) -> int:
 		return len(self.column_names)
 
+
+
+	def parent(self, index: QtCore.QModelIndex) -> QtCore.QModelIndex:
+		"""Table model, so no parents"""
+		return QtCore.QModelIndex()
+
+	def _handle_run_queue_insertion(self, new_item_ids : list[int], new_items_dict : typing.Dict[int, RunQueueItem]):
+		"""
+		Handles the insertion of new item(s) in the runQueue. Should be linked to the allItemsDictInsertion signal
+		of the attached runQueueManager. On item insertion, updates the table-model.
+
+		Args:
+			new_item_ids (list[int]): list of ids of the new items
+			new_items_dict (typing.Dict[int, RunQueueItem]): a copy of the all_items_dict with the new item added
+		"""
+		if (len(new_item_ids) + len(new_items_dict)) != len(self._cur_run_queue_item_dict_copy):
+			log.warning("New item(s) added to runQueue, but the updated length of the runQueue is different from the currently"
+	     		"known length of the table-model plus the amount of added items. The runqueue seems to be out of sync...")
+
+		self._cur_run_queue_item_dict_copy = new_items_dict #Update the copy of the runQueue
+
+		#Also look for the new item-order (sort the dict keys = sort by id)
+		new_item_dict_id_order = list(new_items_dict.keys())
+		new_item_dict_id_order.sort()
+
+		insertion_points = [new_item_dict_id_order.index(id) for id in new_item_ids] #Check where the new items were inserted
+		#Make the insertion points negative so we can iteratively add items while the insertion points will be determined
+
+		cur_insertion_point_index = 0
+		while(True): #Group all consecutive insertions together ([1,2,3,5] -> [1,2,3] and [5])
+			start_insertion_point_idx = cur_insertion_point_index
+			stop_insertion_point_idx  = cur_insertion_point_index
+			for i, insertion_point in enumerate(insertion_points[cur_insertion_point_index+1:]): #All next insertion points
+				last_insertion_point = insertion_points[cur_insertion_point_index]
+				if (last_insertion_point + i + 1) == insertion_point:
+					stop_insertion_point_idx  = insertion_point
+					cur_insertion_point_index += 1
+				else:
+					break
+
+			self.beginInsertRows(QtCore.QModelIndex(), start_insertion_point_idx, stop_insertion_point_idx)
+			for i in range(start_insertion_point_idx, stop_insertion_point_idx +1): #Insert the ids into the id-order-list
+				insert_loc  = insertion_points[i]
+				self._cur_item_dict_id_order.insert(insert_loc, new_item_dict_id_order[insert_loc])
+			self.endInsertRows()
+			cur_insertion_point_index += 1
+			if cur_insertion_point_index >= len(insertion_points): #If inserted all items
+				break
+
+		if self._cur_item_dict_id_order != new_item_dict_id_order:
+			log.warning("Item order in model does not match item order in runQueue")
+
+	def _handle_run_queue_deletion(self, deleted_item_ids : list[int], new_items_dict : typing.Dict[int, RunQueueItem]):
+		"""
+		Handles the deletetion of item(s) in the runQueue 
+
+		Args:
+			deleted_item_ids (list[int]): list of ids of the deleted items
+			new_items_dict (typing.Dict[int, RunQueueItem]): a copy of the all_items_dict with the new item added
+		"""
+		if (len(new_items_dict) - len(deleted_item_ids)) != len(self._cur_run_queue_item_dict_copy):
+			log.warning("Item(s) removed from runQueue, but the updated length of the runQueue is different from the currently"
+	     		"known length of the table-model minus the amount of removed items. The runqueue seems to be out of sync...")
+
+		# self._cur_run_queue_item_dict_copy = new_items_dict #Update the copy of the runQueue
+
+		#Also look for the new item-order (sort the dict keys = sort by id)
+		new_item_dict_id_order = list(new_items_dict.keys())
+		new_item_dict_id_order.sort() #
+
+		deletion_points = [self._cur_item_dict_id_order.index(id) for id in deleted_item_ids] #Check where the new items were deleted
+		deletion_points = deletion_points[::-1] #So we can delete items from the back to the front so indexes don't change
+		#Make the insertion points negative so we can iteratively add items while the insertion points will be determined
+
+		cur_deletion_point_index = 0
+		while(True): #Group all consecutive deletions together ([5,3,2,1] -> [5] [3,2,1])
+			start_deletion_point_idx = cur_deletion_point_index
+			stop_deletion_point_idx  = cur_deletion_point_index
+			for i, insertion_point in enumerate(deletion_points[cur_deletion_point_index+1:]): #All next insertion points
+				last_insertion_point = deletion_points[cur_deletion_point_index]
+				if (last_insertion_point + i - 1) == insertion_point:
+					stop_deletion_point_idx  = insertion_point
+					cur_deletion_point_index += 1
+				else:
+					break
+
+			# self.beginInsertRows(QtCore.QModelIndex(), start_deletion_point_idx, stop_deletion_point_idx)
+			self.beginRemoveRows(QtCore.QModelIndex(), start_deletion_point_idx, stop_deletion_point_idx)
+			for i in range(start_deletion_point_idx, stop_deletion_point_idx +1): #Insert the ids into the id-order-list
+				delete_loc  = deletion_points[i]
+				delete_id = self._cur_item_dict_id_order[delete_loc]
+
+				#Remove item from dict and id-order-list
+				del self._cur_run_queue_item_dict_copy[delete_id]
+				del self._cur_item_dict_id_order[delete_loc]
+
+				# self._cur_item_dict_id_order.insert(delete_loc, new_item_dict_id_order[delete_loc])
+			self.endRemoveRows()
+			cur_deletion_point_index += 1
+			if cur_deletion_point_index >= len(deletion_points): #If inserted all items
+				break
+
+		if self._cur_item_dict_id_order != new_item_dict_id_order:
+			log.warning("Item order in model after deletion does not match item order in runQueue")
+
 	def _queue_changed(self, queue_copy):
 		self._cur_queue_copy = queue_copy
-		self.layoutChanged.emit()
-		self.dataChanged.emit(
-			self.index(0, 0),
-			self.index(self.rowCount(), self.columnCount())
-		) #TODO: Only emit changed. rows
+		# self.layoutChanged.emit()
+		log.debug(f"The queue order changed to {', '.join([str(i) for i in queue_copy])}. "
+	    	"Now emitting datachanged for column...")
 
-	def _run_list_changed(self, run_list_copy):
-		self._cur_run_list_copy = run_list_copy
-		self.layoutChanged.emit()
+		row = self.column_positions["status"]
 		self.dataChanged.emit(
-			self.index(0, 0),
-			self.index(self.rowCount(), self.columnCount())
-		) #TODO: Only emit for the changed rows
+			self.index(row, 0),
+			self.index(row, self.columnCount()),
+			[QtCore.Qt.ItemDataRole.DisplayRole, QtCore.Qt.ItemDataRole.EditRole] #Change the displayed queue-position
+		) #TODO: Only emit changed. rows
+		print("Done emitting layout changed - problem is probably here")
+
+
+
+	# def _run_list_changed(self, run_list_copy):
+	# 	""""Run-list changed is emitted when an item is added, removed or re
+	# 	"""
+	# 	cur_new_item_nr = 0
+	# 	for cur_item_nr in range(len(self._cur_run_list_copy)):
+
+
+
+	# 	print("TODO: instead find the difference between current and new and only emit those rows so model")
+	# 	print("TODO: add datachanged (itemid, column) to runqueueitem and emit that, then emit datachanged here")
+	# 	start_func = lambda: None
+	# 	end_func = lambda: None
+	# 	if len(run_list_copy) < len(self._cur_run_list_copy):
+	# 		start_func = self.beginRemoveColumns
+	# 		end_func = self.endRemoveColumns
+	# 	elif len(run_list_copy) > len(self._cur_run_list_copy):
+	# 		start_func = self.beginInsertColumns
+	# 		end_func = self.endInsertColumns
+
+	# 	start_func(QtCore.QModelIndex(), 0, self.rowCount())
+
+	# 	self._cur_run_list_copy = run_list_copy
+	# 	end_func()
+
+	# 	# self.layoutChanged.emit()
+	# 	self.dataChanged.emit(
+	# 		self.index(0, 0),
+	# 		self.index(self.rowCount(), self.columnCount())
+	# 	) #TODO: Only emit for the changed rows
 
 	def _run_item_changed(self, changed_item_id : int, new_item_copy : RunQueueItem):
-		row = list(self._cur_run_list_copy.keys()).index(changed_item_id)
-		self._cur_run_list_copy[changed_item_id] = new_item_copy
+		# row = list(self._cur_run_queue_item_dict_copy.keys()).index(changed_item_id)
+		row = self.get_index_row_by_id(changed_item_id)
+
+		assert(changed_item_id in self._cur_run_queue_item_dict_copy), "ID of update-item not in currently known itemList"
+		self._cur_run_queue_item_dict_copy[changed_item_id] = new_item_copy
 		self.dataChanged.emit(
 			self.index(row, 0),
 			self.index(row, self.columnCount())
 		) #TODO: Only emit for the changed rows
+
+	def get_index_row_by_id(self, item_id : int) -> int:
+		"""Get the index-row of the item with the given id
+
+		Args:
+			item_id (int): The id of the item to get the index for
+
+		Returns:
+			row (int): The row of the item with the given id
+		"""
+		if item_id in self._cur_item_dict_id_order:
+			# id_list = list(self._cur_run_queue_item_dict_copy.keys())
+			# id_list.sort()
+			# return id_list.index(item_id)
+			return self._cur_item_dict_id_order.index(item_id)
+		else:
+			return -1
+
+	def get_index_by_id(self, item_id : int, column : int):
+		"""Get the row if the index by id, and construct the index from that row and the given column"""
+		return self.index(self.get_index_row_by_id(item_id), column)
+
+
 
 	def set_highlight_by_index(self, index: QtCore.QModelIndex) -> None:
 		"""Set the highlighted item by its index in the model
@@ -228,10 +428,21 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 			index (QtCore.QModelIndex): The index of the item to highlight
 		"""
 		if index.isValid():
-			new_id = self._cur_run_list_copy[list(self._cur_run_list_copy.keys())[index.row()]].item_id
+			new_id = index.data(role=RunQueueTableModel.CustomDataRoles.IDRole)
 			self._prev_highlighted_id = self._highlighted_id
 			self._highlighted_id = new_id
-			self.dataChanged.emit(index, index)
+
+			self.dataChanged.emit(
+				self.index(index.row(), 0),
+				self.index(index.row(),self.columnCount()), #update column
+				[QtCore.Qt.ItemDataRole.FontRole] #Only update font as it is the only thing that changes due to highlighting
+			)
+			if self._prev_highlighted_id is not None: #Also clear boldness of the previous item
+				self.dataChanged.emit(
+					self.index(self.get_index_row_by_id(self._prev_highlighted_id), 0),
+					self.index(self.get_index_row_by_id(self._prev_highlighted_id), self.columnCount()),
+					[QtCore.Qt.ItemDataRole.FontRole] #Only update font as it is the only thing that changes due to highlighting
+				)
 
 	def set_highligh_by_id(self, highlight_item_id: int) -> None:
 		"""Set the highlighted item by its item id
@@ -241,9 +452,16 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		self._prev_highlighted_id = self._highlighted_id
 		self._highlighted_id = highlight_item_id
 		self.dataChanged.emit(
-			self.index(0, 0),
-			self.index(self.rowCount(), self.columnCount())
+			self.get_index_by_id(self._highlighted_id, 0),
+			self.get_index_by_id(self._highlighted_id, self.columnCount()), #update column
+			[QtCore.Qt.ItemDataRole.FontRole] #Only update font as it is the only thing that changes due to highlighting
 		) #TODO: Only update the row with the new/old id
+		if self._prev_highlighted_id is not None: #Also clear boldness of the previous item
+			self.dataChanged.emit(
+				self.get_index_by_id(self._prev_highlighted_id, 0),
+				self.get_index_by_id(self._prev_highlighted_id, self.columnCount()), #update column
+				[QtCore.Qt.ItemDataRole.FontRole] #Only update font as it is the only thing that changes due to highlighting
+			)
 
 	def hightlighted_id(self) -> int | None:
 		"""return the currently highlighted item id in the model"""
@@ -263,13 +481,22 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		"""
 		if index.isValid():
 			return self._run_queue.get_actions_for_id(
-				self._cur_run_list_copy[list(self._cur_run_list_copy.keys())[index.row()]].item_id)
+				self._cur_run_queue_item_dict_copy[list(self._cur_run_queue_item_dict_copy.keys())[index.row()]].item_id)
 		else:
 			return []
 
 	def add_to_queue(self, name, config) -> None:
 		"""Addd a new item to the queue with the given name and config"""
 		self._run_queue.add_to_queue(name, config)
+
+	def do_action_by_id(self, item_id : int, action : RunQueueItemActions) -> None:
+		"""Perform the given action on the item with the given id
+
+		Args:
+			item_id (int): The id of the item to perform the action on
+			action (RunQueueItemActions): The action to perform
+		"""
+		self._run_queue.do_action_for_id(item_id, action)
 
 	def do_action(self, index : QtCore.QModelIndex, action : RunQueueItemActions) -> None:
 		"""Determine the id of the item at the given index and perform the given action on it
@@ -278,9 +505,11 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 			index (QtCore.QModelIndex): The index of the item to perform the action on
 			action (RunQueueItemActions): The action to perform
 		"""
+		id = index.data(role=RunQueueTableModel.CustomDataRoles.IDRole)
+		log.debug(f"Item id is: {id}")
 		if index.isValid():
-			self._run_queue.do_action_for_id(
-				self._cur_run_list_copy[list(self._cur_run_list_copy.keys())[index.row()]].item_id, action)
+			log.debug(f"Performing action {action} on item with id {id}")
+			self._run_queue.do_action_for_id(id, action)
 
 
 	def get_item_status(self, index : QtCore.QModelIndex) -> RunQueueItemStatus | None:
@@ -293,49 +522,96 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 			RunQueueItemStatus | None: The status of the item, or None if the index is invalid
 		"""
 		if index.isValid():
-			return self._cur_run_list_copy[index.row()].status
+			target_id = self._cur_item_dict_id_order[index.row()]
+			return self._cur_run_queue_item_dict_copy[target_id].status
 		else:
 			return None
 
+	def setData(self, index: QtCore.QModelIndex, value: typing.Any, role: int | None = None) -> bool:
+		"""The setData function, in this case only implements the action role. Makes it possible to perform an action
+		(e.g. delete, move up, etc.) on an item in the queue with proxy-models in between.
+
+		Calls to setData are propagated through all proxy-models to the underlying model (RunQueueTableModel).
+
+		NOTE: this method differs somewhat from the normal implementation of setData in that it doesn't directly
+		emit a dataChanged signal if the set was succesful. Instead, it attempts to do the action on the runqueue
+		and if that succeeds, the runQueue will emit a signal that will cause the model to update itself.
+		"""
+		log.debug(f"setData called for index {index} with value {value} and role {role}")
+		try:
+			if index.isValid():
+				# if role == QtCore.Qt.ItemDataRole.EditRole:
+				# 	if index.column() == 0:
+				# 		self._cur_run_list_copy[index.row()].name = value
+				# 		self.dataChanged.emit(index, index)
+				# 		return True
+				log.debug("Index valid, not checking type and action")
+				if role == RunQueueTableModel.CustomDataRoles.ActionRole:
+					if not isinstance(value, RunQueueItemActions):
+						log.error(f"Invalid role {role} for setData for index {index} in RunQueueTableModel")
+						return False
+					log.debug("Now actually doing action")
+					self.do_action(index, value)
+					log.debug("Done doing action")
+					#Emit whole row:
+					return False
+				else:
+					log.error(f"Invalid role {role} for setData for index {index} in RunQueueTableModel")
+		except Exception as exception: # pylint: disable=broad-except
+			log.error(f"Failed to set data for index {index}: {exception}")
+		return False
+
 	def data(self, index: QtCore.QModelIndex, role: int | None = None) -> typing.Any:
-		item = self._cur_run_list_copy[list(self._cur_run_list_copy.keys())[index.row()]]
-		if role == QtCore.Qt.ItemDataRole.DisplayRole:
-			key :str = self.column_names[index.column()][0]
-			key = key.lower()
-			attr = getattr(item, key)
+		try:
+			# item = self._cur_run_queue_item_dict_copy[list(self._cur_run_queue_item_dict_copy.keys())[index.row()]]
+			item_id = self._cur_item_dict_id_order[index.row()]
 
-			if key == "config":
-				return "-"
-			if key == "status": #Display position in queue
-				cur_id = list(self._cur_run_list_copy.keys())[index.row()]
-				if item.status == RunQueueItemStatus.Queued and cur_id in self._cur_queue_copy:
-					return f"In Queue: {self._cur_queue_copy.index(cur_id)+1}/{len(self._cur_queue_copy)}"
-				else: #Convert enum to string
-					return str(item.status.name)
-			if (key == "dt_added") or (key == "dt_done") or (key == "dt_started"):
-				if attr:
-					# print(key, attr)
-					return attr.strftime("%Y-%m-%d %H:%M:%S")
-			return attr
+			# log.debug(f"Getting data for item at row {index.row()} in cur_item_dict_id_order {', '.join([str(i) for i in self._cur_item_dict_id_order])}resulting in id {item_id}")
+			item = self._cur_run_queue_item_dict_copy[item_id]
+
+			if role == QtCore.Qt.ItemDataRole.DisplayRole:
+				key :str = self.column_names[index.column()][0]
+				key = key.lower()
+				attr = getattr(item, key)
+
+				if key == "config":
+					return "-"
+				if key == "status": #Display position in queue
+					cur_id = list(self._cur_run_queue_item_dict_copy.keys())[index.row()]
+					if item.status == RunQueueItemStatus.Queued and cur_id in self._cur_queue_copy:
+						return f"In Queue: {self._cur_queue_copy.index(cur_id)+1}/{len(self._cur_queue_copy)}"
+					elif item.status == RunQueueItemStatus.Queued:
+						#If the item says it is queued, but it is not in the queue, the model is out of sync
+						# with the current state of the queue and or the runqueue-items
+						return "ERROR: MODEL OUT OF SYNC"
+					else: #Convert enum to string
+						return str(item.status.name)
+				if (key == "dt_added") or (key == "dt_done") or (key == "dt_started"):
+					if attr:
+						# print(key, attr)
+						return attr.strftime("%Y-%m-%d %H:%M:%S")
+				return attr
 
 
-		elif role == QtCore.Qt.ItemDataRole.DecorationRole:
-			if index.column() == 0:
-				return self._icon_dict.get(item.status, None)
-			else:
-				return None
-		#Font role
-		elif role == QtCore.Qt.ItemDataRole.FontRole:
-			if item.item_id == self._highlighted_id:
-				return self._highlight_font
-		return None
+			elif role == QtCore.Qt.ItemDataRole.DecorationRole:
+				if index.column() == 0:
+					return self._icon_dict.get(item.status, None)
+				else:
+					return None
+			#Font role
+			elif role == QtCore.Qt.ItemDataRole.FontRole:
+				if item.item_id == self._highlighted_id:
+					return self._highlight_font
+			elif role == RunQueueTableModel.CustomDataRoles.IDRole:
+				return item.item_id
+			elif role == RunQueueTableModel.CustomDataRoles.ActionRole:
+				return self.get_actions(index)
+			return None
+		except Exception as exception: # pylint: disable=broad-except
+			log.error(f"Failed to get data for index {index}: {exception}")
 
 	def headerData(self, section: int, orientation: QtCore.Qt.Orientation, role: int | None = None) -> typing.Any:
 		if role == QtCore.Qt.ItemDataRole.DisplayRole:
-			if orientation == QtCore.Qt.Orientation.Horizontal:
-				# if section == 0:
-				# 	return "Name"
-				# if section == 1:
-				# 	return "Status"
+			if orientation == QtCore.Qt.Orientation.Horizontal and section > 0:
 				return self.column_names[section][1]
 		return None

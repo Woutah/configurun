@@ -238,15 +238,21 @@ class RunQueue(QtCore.QObject):
 
 	TODO: We should also be able to manually start processing items in the queue.
 	"""
-	queueChanged = QtCore.Signal(object) #Emits a snapshot of the queue when the queue changes (list of ints)
-	runListChanged = QtCore.Signal(object) #Emits a snapshot of the all_list when the all_list changes
-			# type is (typing.Dict[int, RunQueueItem])
-	runItemChanged = QtCore.Signal(int, object) #Emits an id with the new RunQueueItem when a single item in the
+	queueChanged = QtCore.Signal(object) #Emits a snapshot of the current queue when the queue changes (list of ints)
+	# runListChanged = QtCore.Signal(object) #Emits a snapshot of the all_list when the all_list changes
+	# 		# type is (typing.Dict[int, RunQueueItem])
+	allItemsDictInsertion = QtCore.Signal(list, object) #Emits a list of id(s) and the new item-dict when new item(s) are 
+		# inserted we can utilize this in qt-models to update (Tree/Table) models by just inserting rows instead of resetting
+	allItemsDictRemoval = QtCore.Signal(list, object) #Emits a list of id(s) and the new all_dict when item(s) is/are 
+		# removed we can utilize this in qt-models to update (Tree/Table) models by just removing rows instead of resetting
+
+	itemDataChanged = QtCore.Signal(int, object) #Emits an id with the new RunQueueItem when a single item in the
 			# all_dict has been changed
+
 	queueRunStateChanged = QtCore.Signal(bool) #True if the queue is running, False if it is no longer running
-	newRunConsoleOutputPath = QtCore.Signal(int, str, str) #id, name, path --- All processes' stdout/stderr will be
-			#redirected to a file, this signal will be emitted when a new file is created (and thus when a new process
-			#  is started) #NOTE: for now, both in the same file
+	# newRunConsoleOutputPath = QtCore.Signal(int, str, str) #id, name, path --- All processes' stdout/stderr will be
+	# 		#redirected to a file, this signal will be emitted when a new file is created (and thus when a new process
+	# 		#  is started) #NOTE: for now, both in the same file
 
 	autoProcessingStateChanged = QtCore.Signal(bool) #Emits True if autoprocessing is enabled, False if it is disabled
 	# newRunStderrPath = QtCore.Signal(str) #All processes' stdout/stderr will be redirected to a file,
@@ -275,7 +281,7 @@ class RunQueue(QtCore.QObject):
 			log_location (str, optional): Stdout/stderr of each subprocess is logged to a file for ease-of-access from
 				the main process/ui if no path is given, we try to find the temp-path (using tempfile.TemporaryFile()).
 				Defaults to None.
-			
+
 			log_location_make_dirs (bool, optional): Whether to create the log location if it does not exist. Defaults to True.
 		"""
 
@@ -302,7 +308,7 @@ class RunQueue(QtCore.QObject):
 				raise ValueError(f"Passed log location {self._log_location} does not exist - either create it before "
 		     		"running or set it to None to use the temp-directory, or enable log_location_make_dirs to create "
 					"the directory")
-		
+
 		log.info(f"Runqueue log location: {self._log_location}")
 
 		self._manager = CustomManager() #To share data between processes
@@ -314,9 +320,12 @@ class RunQueue(QtCore.QObject):
 			# to remove/move items in the queue
 		self._queue_mutex = multiprocess.Lock() #Lock for the queue
 
-		self._all_dict : typing.Dict[int, RunQueueItem] = self._manager.dict() #type: ignore #Should consists of a list
-			# of dicts with keys (id, dt_added, Name, Config, done, dt_done, exit_code, stderr)
-		self._all_dict_mutex = multiprocess.Lock()
+		self._all_items_dict : typing.Dict[int, RunQueueItem] = self._manager.dict() #type: ignore #Contains all items
+			# that have ever been added minus the removed ones. 
+			# TODO: Make this an ordered dict to make clear that new items are appended to the end, this is not 
+			# really necceasry for this class itself, but makes it easier to use in qt-models (tablemodels/treeviews)
+			# because of a more predictable (next) order after item change/insertion/removal
+		self._all_items_dict_mutex = multiprocess.Lock()
 
 
 		self._autoprocessing_enabled = False #Whether to automatically start processing items in the queue
@@ -420,9 +429,9 @@ class RunQueue(QtCore.QObject):
 
 		with open(path, "rb") as file:
 			loaded_all_dict, loaded_queue, loaded_cur_id = dill.load(file)
-			with self._all_dict_mutex, self._queue_mutex:
+			with self._all_items_dict_mutex, self._queue_mutex:
 				log.info(f"Loading queue from file {path}...")
-				self._all_dict = loaded_all_dict
+				self._all_items_dict = loaded_all_dict
 				self._queue = loaded_queue
 				self._cur_id = loaded_cur_id
 
@@ -435,7 +444,7 @@ class RunQueue(QtCore.QObject):
 			path (str): the path to the file to save the queue to
 		"""
 		with open(path, "wb") as file:
-			with self._all_dict_mutex, self._queue_mutex: #Make sure queue and all_dict are consistent with one another
+			with self._all_items_dict_mutex, self._queue_mutex: #Make sure queue and all_dict are consistent with one another
 				all_dict_copy = self._get_run_list_snapshot_copy_nolocks()
 				queue_copy = self._get_queue_snapshot_copy_no_locks()
 
@@ -472,24 +481,24 @@ class RunQueue(QtCore.QObject):
 				RunQueueItemActions.MOVEDOWN,
 				RunQueueItemActions.MOVETOP
 			]
-		elif item_id in self._all_dict:
+		elif item_id in self._all_items_dict:
 			#Lock queue when removing
-			with self._all_dict_mutex, self._queue_mutex:
-				if self._all_dict[item_id].status == RunQueueItemStatus.Stopped \
-						or self._all_dict[item_id].status == RunQueueItemStatus.Finished \
-						or self._all_dict[item_id].status == RunQueueItemStatus.Cancelled:
+			with self._all_items_dict_mutex, self._queue_mutex:
+				if self._all_items_dict[item_id].status == RunQueueItemStatus.Stopped \
+						or self._all_items_dict[item_id].status == RunQueueItemStatus.Finished \
+						or self._all_items_dict[item_id].status == RunQueueItemStatus.Cancelled:
 					actions = [
 						RunQueueItemActions.DELETE #TODO: Add requeue
 					]
-				elif self._all_dict[item_id].status == RunQueueItemStatus.Failed:
+				elif self._all_items_dict[item_id].status == RunQueueItemStatus.Failed:
 					actions = [
 						RunQueueItemActions.DELETE #TODO: Add retry
 					]
-				elif self._all_dict[item_id].status == RunQueueItemStatus.Running:
+				elif self._all_items_dict[item_id].status == RunQueueItemStatus.Running:
 					actions = [
 						RunQueueItemActions.STOP
 					]
-				elif self._all_dict[item_id].status == RunQueueItemStatus.Queued: #When popping from the queue, just before
+				elif self._all_items_dict[item_id].status == RunQueueItemStatus.Queued: #When popping from the queue, just before
 						#settings the status to "running", the status is "queued" without it being in the queue
 						# do we need to handle this case?
 					actions = [
@@ -498,7 +507,7 @@ class RunQueue(QtCore.QObject):
 
 				else:
 					raise KeyError(f"Could not get actions for item with ID {item_id} due to unknown status: \
-		     				{str(self._all_dict[item_id].status)}"
+		     				{str(self._all_items_dict[item_id].status)}"
 		     			)
 
 
@@ -516,10 +525,11 @@ class RunQueue(QtCore.QObject):
 			id (int): the id of the item to do the action for
 			action (QueueItemActions): the action to perform on the item
 		"""
+		log.info("Inside runqueue.do_action_for_id")
 		if action == RunQueueItemActions.DELETE:
 			self.delete_id(item_id)
 		elif action == RunQueueItemActions.STOP:
-			self.stop_id(item_id)
+			self.force_stop_id(item_id)
 		elif action == RunQueueItemActions.CANCEL:
 			self.cancel_id(item_id)
 		elif action == RunQueueItemActions.MOVEUP:
@@ -529,6 +539,7 @@ class RunQueue(QtCore.QObject):
 		elif action == RunQueueItemActions.MOVETOP:
 			self._move_id_in_queue(item_id, 0)
 		else:
+			log.warning(f"Unknown action: {str(action)}")
 			raise NotImplementedError(f"Unknown action: {str(action)}")
 
 	def cancel_id(self, item_id):
@@ -539,52 +550,54 @@ class RunQueue(QtCore.QObject):
 			id (int): the id of the item to cancel
 		"""
 		#Lock queue when removing
-		with self._all_dict_mutex, self._queue_mutex:
+		with self._all_items_dict_mutex, self._queue_mutex:
+			assert self._all_items_dict[item_id].status == RunQueueItemStatus.Queued, ("Can only cancel queued items but item "
+				"is currently in status: " + str(self._all_items_dict[item_id].status))
 			if item_id not in self._queue: #Only do something if the id is in the queue
 				raise KeyError(f"Could not cancel {item_id}, ID not in queue.")
-			self._all_dict[item_id].status = RunQueueItemStatus.Cancelled
+			self._all_items_dict[item_id].status = RunQueueItemStatus.Cancelled
 			self._queue.remove(item_id)
 			queue_snapshot = self._get_queue_snapshot_copy_no_locks()
-			item_copy = deepcopy(self._all_dict[item_id])
+			item_copy = deepcopy(self._all_items_dict[item_id])
 
 		self.queueChanged.emit(queue_snapshot)
-		self.runItemChanged.emit(item_id, item_copy)
+		self.itemDataChanged.emit(item_id, item_copy)
 		return
 
 
 
-	def stop_id(self, item_id : int):
-		"""
-		Stop by id. Tries to stop a currently running configuration (by id). If the configuration is not running,
-		it will be removed from the queue and it will be marked as cancelled instead of stopped.
+	# def stop_id(self, item_id : int):
+	# 	"""
+	# 	Stop by id. Tries to stop a currently running configuration (by id). If the configuration is not running,
+	# 	it will be removed from the queue and it will be marked as cancelled instead of stopped.
 
-		Args:
-			id (int): the id of the item to stop
+	# 	Args:
+	# 		id (int): the id of the item to stop
 
-		#TODO: create force_stop argument, raise ItemRunningError if not force_stop and item is running, which can then
-		be caught by the caller to ask the user if they want to force stop the item
-		"""
-		#Lock queue when removing
-		log.debug(f"Current queue: {self._queue}")
-		self._all_dict_mutex.acquire()
-		self._queue_mutex.acquire()
-		if item_id in self._queue:
-			self._queue.remove(item_id)
-			self._all_dict[item_id].status = RunQueueItemStatus.Cancelled
-			queue_snapshot = self._get_queue_snapshot_copy_no_locks()
-			item_copy = self._all_dict[item_id].get_copy()
-			self._all_dict_mutex.release()
-			self._queue_mutex.release()
-			self.queueChanged.emit(queue_snapshot)
-			self.runItemChanged.emit(item_id, item_copy)
-			return
-		elif item_id in self._all_dict: #When raising an exception, we need to release the locks
-			self._all_dict_mutex.release()
-			self._queue_mutex.release()
-			if self._all_dict[item_id].status == RunQueueItemStatus.Running:
-				raise NotImplementedError("Stopping a running process is not implemented yet.")
-			raise KeyError(f"Could not stop {item_id}, item with ID is not running, and item with this ID was not in \
-		  		queue.")
+	# 	#TODO: create force_stop argument, raise ItemRunningError if not force_stop and item is running, which can then
+	# 	be caught by the caller to ask the user if they want to force stop the item
+	# 	"""
+	# 	#Lock queue when removing
+	# 	log.debug(f"Current queue: {self._queue}")
+	# 	self._all_dict_mutex.acquire()
+	# 	self._queue_mutex.acquire()
+	# 	if item_id in self._queue:
+	# 		self._queue.remove(item_id)
+	# 		self._all_dict[item_id].status = RunQueueItemStatus.Cancelled
+	# 		queue_snapshot = self._get_queue_snapshot_copy_no_locks()
+	# 		item_copy = self._all_dict[item_id].get_copy()
+	# 		self._all_dict_mutex.release()
+	# 		self._queue_mutex.release()
+	# 		self.queueChanged.emit(queue_snapshot)
+	# 		self.runItemChanged.emit(item_id, item_copy)
+	# 		return
+	# 	elif item_id in self._all_dict: #When raising an exception, we need to release the locks
+	# 		self._all_dict_mutex.release()
+	# 		self._queue_mutex.release()
+	# 		if self._all_dict[item_id].status == RunQueueItemStatus.Running:
+	# 			raise NotImplementedError("Stopping a running process is not implemented yet.")
+	# 		raise KeyError(f"Could not stop {item_id}, item with ID is not running, and item with this ID was not in \
+	# 	  		queue.")
 
 
 
@@ -600,7 +613,7 @@ class RunQueue(QtCore.QObject):
 		"""
 		#Lock queue when removing (unless we are already holding the locks)
 		if use_locks:
-			self._all_dict_mutex.acquire()
+			self._all_items_dict_mutex.acquire()
 			self._queue_mutex.acquire()
 
 		if item_id in self._queue:
@@ -608,13 +621,13 @@ class RunQueue(QtCore.QObject):
 			self._queue.insert(new_queue_pos, item_id)
 		else: #Throw exception
 			if use_locks:
-				self._all_dict_mutex.release()
+				self._all_items_dict_mutex.release()
 				self._queue_mutex.release()
 			raise KeyError(f"Could not move item with id {item_id}, ID not in queue.")
 
 		self.queueChanged.emit(self._get_queue_snapshot_copy_no_locks())
 		if use_locks:
-			self._all_dict_mutex.release()
+			self._all_items_dict_mutex.release()
 			self._queue_mutex.release()
 
 
@@ -627,13 +640,15 @@ class RunQueue(QtCore.QObject):
 			rel_move (int): the mount to move the item. Negative values move the item up in the queue, positive values
 			  move it down
 		"""
-		with self._all_dict_mutex, self._queue_mutex:
+		log.info(f"Moving item with id {item_id} by {rel_move} positions")
+		with self._all_items_dict_mutex, self._queue_mutex:
 			if item_id in self._queue:
 				cur_pos = self._queue.index(item_id)
 				new_pos = min(len(self._queue), max(0, cur_pos + rel_move))
 				self._move_id_in_queue(item_id, new_pos, use_locks=False) #We already acquired the locks
+				log.debug(f"Moved item with id {item_id} from position {cur_pos} to {new_pos}")
 			else:
-				self._all_dict_mutex.release()
+				self._all_items_dict_mutex.release()
 				self._queue_mutex.release()
 				raise KeyError(f"Could not move item with id {item_id}, ID not in queue.")
 
@@ -648,9 +663,9 @@ class RunQueue(QtCore.QObject):
 			id (int): the id of the item to remove
 		"""
 		#Lock queue when removing
-		with self._all_dict_mutex, self._queue_mutex:
-			if self._all_dict[item_id].status == RunQueueItemStatus.Running:
-				self._all_dict_mutex.release()
+		with self._all_items_dict_mutex, self._queue_mutex:
+			if self._all_items_dict[item_id].status == RunQueueItemStatus.Running:
+				self._all_items_dict_mutex.release()
 				self._queue_mutex.release()
 				raise NotImplementedError(f"Could not delete item with id {item_id}, item is running.") #TODO: Add force del?
 
@@ -658,13 +673,13 @@ class RunQueue(QtCore.QObject):
 				self._queue.remove(item_id)
 
 			#Also remove from all_dict -> the two should be in sync
-			del self._all_dict[item_id]
+			del self._all_items_dict[item_id]
 
 			run_list_snapshot = self._get_run_list_snapshot_copy_nolocks()
 			queue_snapshot = self._get_queue_snapshot_copy_no_locks()
 
 		self.queueChanged.emit(queue_snapshot)
-		self.runListChanged.emit(run_list_snapshot)
+		self.allItemsDictRemoval.emit([item_id], run_list_snapshot)
 
 
 
@@ -693,7 +708,7 @@ class RunQueue(QtCore.QObject):
 			typing.Dict[int, RunQueueItem]: A copy of the run_list
 		"""
 		ret_dict = {}
-		for key, value in self._all_dict.items(): #Since this is a nested proxy-object, call get_copy on each item
+		for key, value in self._all_items_dict.items(): #Since this is a nested proxy-object, call get_copy on each item
 			ret_dict[key] = value.get_copy()
 		return ret_dict
 
@@ -701,7 +716,7 @@ class RunQueue(QtCore.QObject):
 		"""
 		Get a snapshot of the all_list
 		"""
-		with self._all_dict_mutex:
+		with self._all_items_dict_mutex:
 			snapshot = self._get_run_list_snapshot_copy_nolocks()
 		return snapshot
 
@@ -710,9 +725,10 @@ class RunQueue(QtCore.QObject):
 		"""
 		Start automatically processing items in the queue
 		"""
-		self._autoprocessing_enabled = True
-		self.autoProcessingStateChanged.emit(True)
-		self._run_queue()
+		if not self._autoprocessing_enabled:
+			self._autoprocessing_enabled = True
+			self.autoProcessingStateChanged.emit(True)
+			self._run_queue()
 
 	# def set_n_processes(self, n_processes):
 	# 	"""
@@ -726,8 +742,8 @@ class RunQueue(QtCore.QObject):
 		Get a list of the currently running configurations
 		"""
 		count = 0
-		with self._all_dict_mutex, self._queue_mutex:
-			for queue_item in self._all_dict.values():
+		with self._all_items_dict_mutex, self._queue_mutex:
+			for queue_item in self._all_items_dict.values():
 				if queue_item.status == RunQueueItemStatus.Running: #Count all running processes
 					count+=1
 
@@ -742,26 +758,80 @@ class RunQueue(QtCore.QObject):
 
 	# 	self._running = False
 
-	def stop_autoqueueing(self):
+	def stop_autoprocessing(self):
 		"""
 		Stop automatically processing new items, finish processing the current items and then stop the queue.
 		"""
-		# self.stop_autoqueueing()
-		self._autoprocessing_enabled = False
-		self._stopflag.set()
-		self.autoProcessingStateChanged.emit(False)
+		if self._autoprocessing_enabled:
+			self._autoprocessing_enabled = False
+			self._stopflag.set()
+			self.autoProcessingStateChanged.emit(False)
 
-		# if block:
-		# 	self._wait_stop(timeout=timeout)
-		# else:
-		# 	threading.Thread(target=self._wait_stop, args=(timeout,)).start()
-
-	def force_stop(self):
+	def force_stop_all_running(self):
 		"""
 		Force stop all running processes and set the configuration to cancelled
+		NOTE: also stops autoprocessing
 		"""
+		log.info("Now force stopping all running processes...")
+		self.stop_autoprocessing()
+
+		#First terminate all processes
+		with self._running_processes_mutex:
+			stopped_ids = list(self._running_processes.keys())
+			for item_id in stopped_ids:
+				if self._running_processes[item_id].is_alive(): #Terminate if still alive
+					try:
+						self._running_processes[item_id].terminate() #TODO: what if just about to finish?
+					except Exception as exception: #pylint: disable=broad-except
+						log.warning(f"Could not terminate process with id {item_id} - "
+		  					f"{type(exception).__name__}: {str(exception)}")
+				del self._running_processes[item_id]
+
+		self.currentlyRunningIdsChanged.emit([]) #Nothing should be running anymore
+
+		with self._all_items_dict_mutex:
+			for item_id in stopped_ids:
+				self._all_items_dict[item_id].status = RunQueueItemStatus.Stopped
+				self._all_items_dict[item_id].dt_done = datetime.now()
+				self._all_items_dict[item_id].exit_code = -1
+				self._all_items_dict[item_id].stderr = "Process was force stopped by user."
+
+
+
 		raise NotImplementedError("Force stopping the run queue is not implemented yet.")
 		#TODO: set stop flag, then force stop all running processes and set the configurations of each to cancelled
+
+
+	def force_stop_id(self, item_id : int):
+		"""
+		Force stop a single running process and set the configuration to cancelled
+
+		Args:
+			item_id (int): the id of the item to stop
+
+		Raises:
+			KeyError: if the item is not running, or if item not in queue
+		"""
+		with self._running_processes_mutex:
+			if item_id not in self._running_processes:
+				raise KeyError(f"Could not force stop item with id {item_id}, item is not running.")
+
+			self._running_processes[item_id].terminate()
+			del self._running_processes[item_id]
+			running_ids = list(self._running_processes.keys())
+
+		self.currentlyRunningIdsChanged.emit(running_ids) #TODO: move inside lock?
+
+		with self._all_items_dict_mutex, self._queue_mutex:
+			self._all_items_dict[item_id].status = RunQueueItemStatus.Stopped
+			self._all_items_dict[item_id].dt_done = datetime.now()
+			self._all_items_dict[item_id].exit_code = -1
+			self._all_items_dict[item_id].stderr = "Process was force stopped by user."
+			queue_snapshot = self._get_queue_snapshot_copy_no_locks()
+			item_copy = deepcopy(self._all_items_dict[item_id])
+
+		self.queueChanged.emit(queue_snapshot) #TODO: move inside lock?
+		self.itemDataChanged.emit(item_id, item_copy)
 
 
 	def add_to_queue(self, name : str, config : Configuration):
@@ -780,13 +850,13 @@ class RunQueue(QtCore.QObject):
 		new_item = self._manager.RunQueueItem(item_id=new_item_id,name=name, dt_added=dt_added, config=config) #pylint: disable=no-member #type: ignore
 		# new_item = RunQueueItem(item_id=new_item_id,name=name, dt_added=dt_added, config=config)
 
-		with self._all_dict_mutex, self._queue_mutex:
+		with self._all_items_dict_mutex, self._queue_mutex:
 			self._queue.append(new_item_id)
-			self._all_dict[new_item_id] = new_item
+			self._all_items_dict[new_item_id] = new_item
 			snapshot = self._get_run_list_snapshot_copy_nolocks()
 			queue_snapshot = self._get_queue_snapshot_copy_no_locks()
 
-		self.runListChanged.emit(snapshot) #Emit outside of lock
+		self.allItemsDictInsertion.emit([new_item_id], snapshot)
 		self.queueChanged.emit(queue_snapshot) #Emit outside of lock
 
 		log.debug("Done adding config to queue.")
@@ -811,11 +881,17 @@ class RunQueue(QtCore.QObject):
 
 
 
-
 	def _run_queue_item_updater(self):
 		#While we are not stopping, or there are still processes running, keep updating
 		while not self._stopflag.is_set() or len(self._running_processes) > 0:
-			self.runListChanged.emit(self.get_run_list_snapshot_copy()) #For now, just update the whole list every x s.
+			# self.runListChanged.emit(self.get_run_list_snapshot_copy()) #For now, just update the whole list every x s.
+			for item_id in copy(self._running_processes.keys()): #TODO: not very neat... but updates items that are running
+					# since they are running in another thread, we probably want to create a queue with item-updates
+					# and then update the items in the queue in this thread by checking if the item is in the queue
+					# this way, we don't update unneccesarily
+				item = self._all_items_dict.get(item_id, None)
+				if item: #Makes sure that item is not deleted just when we are updating it
+					self.itemDataChanged.emit(item_id, item)
 			self.queueChanged.emit(self.get_queue_snapshot_copy())
 			time.sleep(1)
 
@@ -928,11 +1004,11 @@ class RunQueue(QtCore.QObject):
 				if len(self._queue) > 0 and len(self._running_processes) < self._n_processes: #If there are items in the
 							# queue and there is process-space, we can start a new process
 
-					with self._all_dict_mutex, self._queue_mutex:
+					with self._all_items_dict_mutex, self._queue_mutex:
 						#Pop first, then set to running state
 						queue_item_id = self._queue.pop(0) #
-						queue_item_name = self._all_dict[queue_item_id].name
-						self._all_dict[queue_item_id].status = RunQueueItemStatus.Running #Should no longer be editable
+						queue_item_name = self._all_items_dict[queue_item_id].name
+						self._all_items_dict[queue_item_id].status = RunQueueItemStatus.Running #Should no longer be editable
 
 					log.debug(f"Attempting to start process-function for item with id {queue_item_id}")
 					#TODO: run the actual item -> maybe wrap in a try/except to catch errors. Make sure no locks are
@@ -954,7 +1030,8 @@ class RunQueue(QtCore.QObject):
 					with self._cmd_id_name_path_dict_mutex:
 						self._cmd_id_name_path_dict[queue_item_id] = (queue_item_name, cur_logfile_loc)
 
-					self.newRunConsoleOutputPath.emit(queue_item_id, queue_item_name, cur_logfile_loc)
+					# self.newRunConsoleOutputPath.emit(queue_item_id, queue_item_name, cur_logfile_loc)
+
 					assert(queue_item_id not in self._running_processes), "Queue item id already in running processes"
 					with self._running_processes_mutex:
 						self._running_processes[queue_item_id] = multiprocess.Process(
@@ -965,19 +1042,19 @@ class RunQueue(QtCore.QObject):
 									queue_item_name,
 									cur_logfile_loc,
 									self._command_line_output_queue,
-									self._all_dict,
+									self._all_items_dict,
 									self._queue,
-									self._all_dict_mutex,
+									self._all_items_dict_mutex,
 									self._queue_mutex,
 								)
 							)
 
 						self._running_processes[queue_item_id].start() #Start processing the item
-
 						running_ids = list(self._running_processes.keys())
+
 					self.currentlyRunningIdsChanged.emit(running_ids)
 					log.info(f"Started processing item with id {queue_item_id} and name {queue_item_name}, \
-	   						queue is now {self._queue}, all_dict is of size {len(self._all_dict)}")
+	   						queue is now {self._queue}, all_dict is of size {len(self._all_items_dict)}")
 				else: #TODO: maybe instead pass a "done-queue" to process_queue_item and have it put itself inside
 					updated = False
 					with self._running_processes_mutex:

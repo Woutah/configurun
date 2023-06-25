@@ -86,8 +86,8 @@ class MainWindow():
 		#====================== Base variables ===================
 		self.set_run_queue(run_queue)
 		self.ml_queue_widget = RunQueueWidget(self.ui.MLQueueWidget) #Create queue-interface with buttons
-
-		self.ml_queue_widget.queue_view.setModel(self.ml_queue_model)
+		# self.ml_queue_widget.queue_view.setModel(self.ml_queue_model)
+		self.ml_queue_widget.set_model(self.ml_queue_model)
 
 
 

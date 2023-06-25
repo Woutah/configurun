@@ -7,6 +7,7 @@ import queue
 import socket
 import threading
 import traceback
+import typing
 
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
@@ -15,16 +16,11 @@ from PySide6 import QtCore
 from configurun.classes.method_call_interceptor import (
     MethodCallInterceptedMeta, get_class_implemented_methods)
 from configurun.classes.run_queue import RunQueue
-from configurun.classes.run_queue_datatypes import (RSA_KEY_SIZE_BITS,
-                                               AESSessionKeyTransmissionData,
-                                               AuthenticationException,
-                                               LoginTransmissionData,
-                                               PickledDataType,
-                                               PickleTransmissionData,
-                                               PubKeyTransmissionData,
-                                               StateMsgType,
-                                               StateTransmissionData,
-                                               Transmission, TransmissionType)
+from configurun.classes.run_queue_datatypes import (
+    RSA_KEY_SIZE_BITS, AESSessionKeyTransmissionData, AuthenticationException,
+    LoginTransmissionData, PickledDataType, PickleTransmissionData,
+    PubKeyTransmissionData, StateMsgType, StateTransmissionData, Transmission,
+    TransmissionType)
 
 log = logging.getLogger(__name__)
 
@@ -105,9 +101,6 @@ class RunQueueClient(RunQueue,
 
 		self._disconnect_flag = True #Whether to stop listening to the server
 
-	def force_stop(self):
-		#TODO: implement
-		raise NotImplementedError("Not implemented yet")
 
 	def is_connected(self):
 		"""Returns whether the client is currently trying to connect to the server or is connected to the server
@@ -358,7 +351,7 @@ class RunQueueClient(RunQueue,
 					try:
 						data = PickleTransmissionData.from_transmission_bytes(received.transmission_data)
 						unpickled_data = data.unpickled_data #type: ignore
-						assert isinstance(unpickled_data, tuple), "First element is the type of the data, \
+						assert isinstance(unpickled_data, typing.Tuple), "First element is the type of the data, \
 							should be tuple"
 
 						if unpickled_data[0] == PickledDataType.METHOD_RETURN:
