@@ -233,7 +233,7 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 
 		self._active_ids_signal = self._run_queue.currentlyRunningIdsChanged.connect(self.running_ids_changed)
 		self._new_cmd_text_signal = self._run_queue.newCommandLineOutput.connect(self.new_command_line_output)
-		self._queue_reset_signal = self._run_queue.queueResetTriggered.connect(self.reset) #Upon queue reset ->
+		self._queue_reset_signal = self._run_queue.resetTriggered.connect(self.reset) #Upon queue reset ->
 			# re-request all data from the runqueue
 
 	def reset(self, reset_ignored_ids : bool = False):
@@ -259,7 +259,8 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 					self.append_row(item)
 
 					all_txt, last_edit_dt = self._run_queue.get_command_line_output(cur_id, -1, file_size)
-					item.on_commandline_output( #Append all text to the item
+					item.on_commandline_output( #Append all text to the item #TODO: do this before reading file to avoid
+							# missing any of the data that was added during reading
 						item_id=cur_id,
 						name=name,
 						output_path=path,

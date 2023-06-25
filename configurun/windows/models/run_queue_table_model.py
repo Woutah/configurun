@@ -7,14 +7,14 @@ import logging
 import typing
 from enum import IntEnum
 import textwrap
-
+import os
 from PySide6 import QtCore, QtGui, QtWidgets
-
+import traceback
 # from MachineLearning.framework.RunQueue import RunQueue, RunQueueItem, RunQueueItemStatus, QueueItemActions
 from configurun.classes.run_queue import (RunQueue, RunQueueItem,
                                           RunQueueItemActions,
-                                          RunQueueItemStatus)
-
+                                          RunQueueItemStatus, RunQueueHasRunningItemsException)
+import dill
 log = logging.getLogger(__name__)
 
 
@@ -129,7 +129,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 			self._run_queue.allItemsDictRemoval.connect(self._handle_run_queue_deletion)
 		)
 		self._run_queue_connections.append(self._run_queue.itemDataChanged.connect(self._run_item_changed))
-		self._run_queue_connections.append(self._run_queue.queueResetTriggered.connect(self.reset_model))
+		self._run_queue_connections.append(self._run_queue.resetTriggered.connect(self.reset_model))
 		self._run_queue_connections.append(self._run_queue.autoProcessingStateChanged.connect(
 			self.autoprocessing_state_changed))
 
@@ -212,6 +212,137 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		"exit_code": 7,
 		"stderr": 8
 	}
+
+
+	def load_from_file_popup(self):
+		"""
+		Opens a popup to load the RunQueue-items from a file.
+		Loading itself is done by the run_queue itself.
+		"""
+		file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
+			None, "Load config", QtCore.QDir.currentPath(), "RunQueue files (*.rq)") #type:ignore
+
+		file_path = file_path.replace("/", os.sep) #Get the actual path (qt uses / as separator)
+
+		#Check if user cancelled
+		if file_path is None or file_path == "":
+			log.info("User cancelled loading queue from file.")
+			return
+		try:
+			try:
+				# self._run_queue.load_queue_contents_from_file(file_path)
+				load_dict = RunQueue.get_queue_contents_dict_from_file(file_path)
+			except RunQueueHasRunningItemsException as exception: #pylint: disable=broad-except
+				msg = f"{type(exception).__name__}: {exception}"
+				log.warning(f"Could not load RunQueue from file - {msg}")
+				msg_box = QtWidgets.QMessageBox()
+				msg_box.setIcon(QtWidgets.QMessageBox.Icon.Warning)
+				msg_box.setWindowTitle("Could not load RunQueue from file")
+				msg_box.setText("Do you want to set load mode to allow importing configurations that were saved when"
+					"1 or more configurations were running?")
+				msg_box.setInformativeText(f"{msg}<br><br>All running items of this backup were saved with a 'stopped'-state "
+					"- this happens when a backup is made when an item is still running. It could be that after this point, "
+					" this item continued running so the information is outdated."
+					)
+				msg_box.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No)
+				msg_box.setDefaultButton(QtWidgets.QMessageBox.StandardButton.No)
+				msg_box.setWindowFlags(QtCore.Qt.WindowType.WindowStaysOnTopHint)
+				msg_box.show()
+				msg_box.activateWindow()
+				msg_box.exec()
+				if msg_box.result() == QtWidgets.QMessageBox.StandardButton.Yes:
+					load_dict = RunQueue.get_queue_contents_dict_from_file(file_path)
+
+			self._run_queue.load_queue_contents_dict(load_dict) #type: ignore #Actually load the queue-data into existing
+
+		except Exception as exception: #pylint: disable=broad-exception-caught
+			msg = f"{type(exception).__name__}: {exception}"
+			trace = traceback.format_exc()
+			log.warning(f"Could not load RunQueue from path {file_path} - {msg}")
+			msg_box = QtWidgets.QMessageBox()
+			msg_box.setIcon(QtWidgets.QMessageBox.Icon.Critical)
+			msg_box.setWindowTitle("Could not load RunQueue from file")
+			msg_box.setText("Could not load RunQueue from file due to an unexpected error.")
+			msg_box.setInformativeText(msg)
+			msg_box.setDetailedText(trace)
+			log.warning(trace)
+			msg_box.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
+			msg_box.setDefaultButton(QtWidgets.QMessageBox.StandardButton.Ok)
+			msg_box.show()
+			msg_box.activateWindow()
+			msg_box.exec()
+			return
+
+		log.info(f"Loaded RunQueue from file {file_path}.")
+
+
+	def save_to_file_popup(self):
+		"""Opens a popup to save the queue to a file.
+
+		Save-handling is done by the run_queue itself.
+
+		NOTE: if we make more models based on the run_queue, we should probably move this to a shared base-class
+		"""
+		try:
+			try:
+				save_dict = self._run_queue.get_queue_contents_dict(save_running_as_stopped=False)
+			except RunQueueHasRunningItemsException as exception: #pylint: disable=catch
+				log.warning("")
+				#Ask if user wants to save anyway, in the savefile, all running items will be marked as "stopped"
+				#and the queue will be saved
+				msg_box = QtWidgets.QMessageBox()
+				msg_box.setIcon(QtWidgets.QMessageBox.Icon.Warning)
+				msg_box.setWindowTitle("Save queue to file anyway?")
+				msg = f"Problem when saving queue to file: {type(exception).__name__}: {exception}"
+				log.warning(msg)
+				msg_box.setText("Do you want to set save mode to allow for running configurations? All running items "
+					" will be saved with a 'stopped'-state. Running configurations will not be stopped."
+					" Alternatively you can cancel all running items or wait for them to finish and then save."
+					)
+				msg_box.setInformativeText(f"{msg}")
+				msg_box.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No)
+				msg_box.setDefaultButton(QtWidgets.QMessageBox.StandardButton.No)
+				msg_box.setWindowFlags(QtCore.Qt.WindowType.WindowStaysOnTopHint)
+				msg_box.show()
+				msg_box.activateWindow()
+				msg_box.exec()
+
+				if msg_box.result() == QtWidgets.QMessageBox.StandardButton.Yes: #Load and allow running items
+					save_dict = self._run_queue.get_queue_contents_dict(save_running_as_stopped=True)
+				else:
+					log.info("User cancelled saving queue to file.")
+					return
+
+			file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+				None, "Save config", QtCore.QDir.currentPath(), "RunQueue files (*.rq)") #type:ignore
+
+			if file_path is None or file_path == "":
+				log.info("User cancelled saving queue to file.")
+				return
+
+			with open(file_path, "wb") as save_file:
+				dill.dump(save_dict, save_file)
+
+			log.info(f"Saved RunQueue to file {file_path}.")
+
+		except Exception as exception: #pylint: disable=broad-exception-caught
+			msg = f"{type(exception).__name__}: {exception}"
+			log.warning(f"Could not save RunQueue to file - {msg}")
+			msg_box = QtWidgets.QMessageBox()
+			msg_box.setIcon(QtWidgets.QMessageBox.Icon.Warning)
+			msg_box.setWindowTitle("Could not save RunQueue to file")
+			msg_box.setInformativeText(msg)
+			msg_box.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
+			msg_box.setDefaultButton(QtWidgets.QMessageBox.StandardButton.Ok)
+			msg_box.setWindowFlags(QtCore.Qt.WindowType.WindowStaysOnTopHint)
+			msg_box.show()
+			msg_box.exec()
+			return
+
+
+		#Check if user cancelled
+
+
 
 
 	def rowCount(self,

@@ -693,6 +693,10 @@ def run_example_app():
 	if not os.path.isdir(workspace_path):
 		os.makedirs(workspace_path)
 
+	#Set Qt workspace path
+	QtCore.QDir.setCurrent(workspace_path) #Set the current working directory to the workspace path
+
+
 	queue = RunQueue(
 			target_function=example_run_function,
 		  	log_location= os.path.join(workspace_path, "logs"),

@@ -29,7 +29,12 @@ from PySide6 import QtCore
 from configurun.configuration.configuration_model import Configuration
 
 
-
+class RunQueueHasRunningItemsException(Exception):
+	"""
+	Exception raised when trying to load a queue from file that contains running items when its allow flag is set to
+	False.
+	"""
+	pass
 
 
 log = logging.getLogger(__name__)
@@ -242,28 +247,22 @@ class RunQueue(QtCore.QObject):
 	queueChanged = QtCore.Signal(object) #Emits a snapshot of the current queue when the queue changes (list of ints)
 	# runListChanged = QtCore.Signal(object) #Emits a snapshot of the all_list when the all_list changes
 	# 		# type is (typing.Dict[int, RunQueueItem])
-	allItemsDictInsertion = QtCore.Signal(list, object) #Emits a list of id(s) and the new item-dict when new item(s) are 
+	allItemsDictInsertion = QtCore.Signal(list, object) #Emits a list of id(s) and the new item-dict when new item(s) are
 		# inserted we can utilize this in qt-models to update (Tree/Table) models by just inserting rows instead of resetting
-	allItemsDictRemoval = QtCore.Signal(list, object) #Emits a list of id(s) and the new all_dict when item(s) is/are 
+	allItemsDictRemoval = QtCore.Signal(list, object) #Emits a list of id(s) and the new all_dict when item(s) is/are
 		# removed we can utilize this in qt-models to update (Tree/Table) models by just removing rows instead of resetting
 
 	itemDataChanged = QtCore.Signal(int, object) #Emits an id with the new RunQueueItem when a single item in the
 			# all_dict has been changed
 
 	queueRunStateChanged = QtCore.Signal(bool) #True if the queue is running, False if it is no longer running
-	# newRunConsoleOutputPath = QtCore.Signal(int, str, str) #id, name, path --- All processes' stdout/stderr will be
-	# 		#redirected to a file, this signal will be emitted when a new file is created (and thus when a new process
-	# 		#  is started) #NOTE: for now, both in the same file
-
 	autoProcessingStateChanged = QtCore.Signal(bool) #Emits True if autoprocessing is enabled, False if it is disabled
-	# newRunStderrPath = QtCore.Signal(str) #All processes' stdout/stderr will be redirected to a file,
-			# this signal will be emitted when a new file is created (and thus when a new process is started)
 
 	#TODO: implement a thread that keeps watch of a separate thread in which a queue with log-updates is processed
 	newCommandLineOutput = QtCore.Signal(int, str, str, datetime, int, str) #id, name, output_path, dt, filepos, new_msg
 	currentlyRunningIdsChanged = QtCore.Signal(object) #Emits a list of ids that are currently running
 
-	queueResetTriggered = QtCore.Signal() #Emitted when the queue is reset (indicates that all models should be reset)
+	resetTriggered = QtCore.Signal() #Emitted when the queue is reset (indicates that all models should be reset)
 
 	def __init__(self,
 	      		target_function : typing.Callable[[Configuration], typing.Any],
@@ -292,7 +291,6 @@ class RunQueue(QtCore.QObject):
 		self._target_function = target_function
 		self._stopflag = multiprocess.Event()
 		self._stopflag.clear()
-		self._config_class : type = type(None) #The class of the configuration object
 
 		self._log_location = log_location
 		if self._log_location is None or self._log_location == "": #If no
@@ -322,8 +320,8 @@ class RunQueue(QtCore.QObject):
 		self._queue_mutex = multiprocess.Lock() #Lock for the queue
 
 		self._all_items_dict : typing.Dict[int, RunQueueItem] = self._manager.dict() #type: ignore #Contains all items
-			# that have ever been added minus the removed ones. 
-			# TODO: Make this an ordered dict to make clear that new items are appended to the end, this is not 
+			# that have ever been added minus the removed ones.
+			# TODO: Make this an ordered dict to make clear that new items are appended to the end, this is not
 			# really necceasry for this class itself, but makes it easier to use in qt-models (tablemodels/treeviews)
 			# because of a more predictable (next) order after item change/insertion/removal
 		self._all_items_dict_mutex = multiprocess.Lock()
@@ -415,52 +413,114 @@ class RunQueue(QtCore.QObject):
 			new_dict[key] = (val[0], val[1], length, currently_running)
 		return new_dict
 
-
-	def load_queue_contents_from_file(self, path : str):
+	@staticmethod
+	def get_queue_contents_dict_from_file(path : str, allow_load_running_items : bool = False):
 		"""
-		Load a queue from a file - using pickle as to make things easy no matter what type of settings object is used.
+		Load all data neccesary to create queue from a file.
 		Settings such as _n_processes are not loaded.
 		TODO: maybe enforce JSON?
 
 		Args:
 			path (str): the path to the file to load the queue from
+			allow_load_running_items (bool, optional): Whether to allow loading a queue that contains running items.
+				Defaults to False.
+
+		Returns:
+			dict[str, typing.Any]: a dictionary containing the contents of the queue to load.
+				Actual queue can then be loaded using load_file_contents_dict.
 		"""
 		if not os.path.exists(path):
-			raise OSError(f"Could not load queue from path {path}, path does not exist.")
+			raise OSError(f"Could not load queue-data from path {path}, path does not exist.")
 
-		with open(path, "rb") as file:
-			loaded_all_dict, loaded_queue, loaded_cur_id = dill.load(file)
-			with self._all_items_dict_mutex, self._queue_mutex:
-				log.info(f"Loading queue from file {path}...")
-				self._all_items_dict = loaded_all_dict
-				self._queue = loaded_queue
-				self._cur_id = loaded_cur_id
+		with open(path, "rb") as load_file:
+			contents_dict = dill.load(load_file) #TODO: maybe separate thread? block until done. Probably small files though.
+		assert isinstance(contents_dict, dict), "Could not load queue-data from file, file does not contain a RunQueue-dict."
+		if not allow_load_running_items and contents_dict.get("had_running_items", False):
+			raise RunQueueHasRunningItemsException(f"Could not load queue-data from file {path}, file contains running "
+				" items and allow_load_running_items is set to False.")
 
-	def save_queue_contents_to_file(self, path : str, save_running_as_stopped : bool = False):
+		neccesary_keys = "all_items_dict", "queue_copy", "cur_id", "cmd_id_name_path_dict"
+		for key in neccesary_keys:
+			if key not in contents_dict:
+				raise KeyError(f"Could not load a queue from file {path}, file does not contain (required) key: {key}.")
+
+		return contents_dict
+
+
+	def load_queue_contents_dict(self,
+				contents_dict : typing.Dict[str, typing.Any]
+			):
+		"""
+		Resets the queue contents using the passed arguments. This is a convenience function that can be used to load
+		the queue from a file.
+
+		Args:
+			contents_dict (typing.Dict[str, typing.Any]): a dictionary containing the contents of the queue to load.
+				We can get this dict from an instance using get_queue_contents_dict().
+				We can get this dict from a file using get_queue_contents_dict_from_file().
+				We can set the dict to be loaded by an instance using this function.
+		"""
+		log.info("Now resetting queue using passed contents dict")
+		with self._all_items_dict_mutex, self._queue_mutex:
+			if self._get_running_configuration_count_nolocks() > 0:
+				raise RuntimeError("Could not load queue from dictionary, queue contains running items. Please make sure"
+		       		" no configurations are running when loading queue data.")
+			
+			#NOTE: make sure that the objects are managed by the manager, otherwise we will get errors when trying to
+			# access them from other processes
+			self._all_items_dict = self._manager.dict(contents_dict["all_items_dict"]) 
+			self._queue = self._manager.list(contents_dict["queue_copy"])
+			self._cur_id = contents_dict["cur_id"]
+			self._cmd_id_name_path_dict = self._manager.dict(contents_dict["cmd_id_name_path_dict"]) #Load path-locations of the cmd outputs
+			
+			# self._all_items_dict = contents_dict["all_items_dict"]
+			# self._queue = contents_dict["queue_copy"]
+			# self._cur_id = contents_dict["cur_id"]
+			# self._cmd_id_name_path_dict = contents_dict["cmd_id_name_path_dict"] #Load path-locations of the cmd outputs
+			#TODO: make cmd output relative to the workspace folder? That way we can copy between machines.
+		self.resetTriggered.emit() #Emit signal to indicate that the queue has been reset
+
+	def get_queue_contents_dict(self, save_running_as_stopped : bool = False):
 		"""
 		Save the queue to a file - using pickle as to make things easy no matter what type of settings object is used.
 		Runqueue-settings such as _n_processes are not saved
 
+		NOTE: This function will not save the queue if there are still items running, unless save_running_as_stopped is
+		set to True. If this is the case, items that were running will be saved as being stopped. stderr will be set to
+		a msg indicating that the process was running when the queue was saved and that it might have actually finished.
+
 		Args:
 			path (str): the path to the file to save the queue to
 		"""
-		with open(path, "wb") as file:
-			with self._all_items_dict_mutex, self._queue_mutex: #Make sure queue and all_dict are consistent with one another
-				all_dict_copy = self._get_run_list_snapshot_copy_nolocks()
-				queue_copy = self._get_queue_snapshot_copy_no_locks()
+		# with open(path, "wb") as file:
+		with self._all_items_dict_mutex, self._queue_mutex: #Make sure queue and all_dict are consistent with one another
+			all_items_dict_copy = self._get_run_list_snapshot_copy_nolocks()
+			queue_copy = self._get_queue_snapshot_copy_no_locks()
+			currently_running_ids = list(self._running_processes.keys())
 
-			for key, runqueue_item in all_dict_copy.items():
-				if runqueue_item.status == RunQueueItemStatus.Running:
-					if save_running_as_stopped:
-						runqueue_item.status = RunQueueItemStatus.Stopped
-						runqueue_item.stderr = "Process was running when queue was saved, so it was saved as cancelled."
-						runqueue_item.dt_done = datetime.now()
-					else:
-						raise OSError(f"Could not save queue to file {path}, item with ID {key} is still running and\
-		      						save mode does not allow for saving running items as cancelled.")
+		had_running_items = False
+		if len(currently_running_ids) > 0:
+			had_running_items = True
+			if not save_running_as_stopped:
+				raise RunQueueHasRunningItemsException("Could not create copy of runqueue-data, queue contains running "
+					" configurations and save_running_as_stopped is set to False.")
 
 
-			dill.dump((all_dict_copy, queue_copy, self._cur_id), file) #Save a tuple of the queue and all_dict
+		for runqueue_item in all_items_dict_copy.values():
+			if runqueue_item.status == RunQueueItemStatus.Running:
+				runqueue_item.status = RunQueueItemStatus.Stopped
+				runqueue_item.stderr = "Process was running when queue was saved, so it was saved as stopped."
+				runqueue_item.dt_done = datetime.now()
+
+		return {
+				"all_items_dict" : all_items_dict_copy,
+				"queue_copy" : queue_copy,
+				"cur_id" : self._cur_id, #Make sure we don't start overwriting items
+				"cmd_id_name_path_dict": copy(dict(self._cmd_id_name_path_dict)), #Save the file-locations of the command line outputs
+					#NOTE: we have to copy the dict, otherwise we get errors when loading it again since it's a managed
+					# object which can't survive between app-runs (results in a FileNotFoundError when trying to load)
+				"had_running_items" : had_running_items #So we can indicate when loading that there were running items
+		}
 
 	@staticmethod
 	def get_actions_from_status(status : RunQueueItemStatus) -> typing.List[RunQueueItemActions]:
@@ -520,7 +580,7 @@ class RunQueue(QtCore.QObject):
 			#Lock queue when removing
 			with self._all_items_dict_mutex, self._queue_mutex:
 				actions = RunQueue.get_actions_from_status(self._all_items_dict[item_id].status)
-				
+
 
 
 		return actions
@@ -756,14 +816,16 @@ class RunQueue(QtCore.QObject):
 
 	def get_running_configuration_count(self):
 		"""
-		Get a list of the currently running configurations
+		Get a list of the currently running configurations while locking the queue and all_items_dict
 		"""
-		count = 0
 		with self._all_items_dict_mutex, self._queue_mutex:
-			for queue_item in self._all_items_dict.values():
-				if queue_item.status == RunQueueItemStatus.Running: #Count all running processes
-					count+=1
-
+			return self._get_running_configuration_count_nolocks()
+	
+	def _get_running_configuration_count_nolocks(self):
+		count = 0
+		for queue_item in self._all_items_dict.values():
+			if queue_item.status == RunQueueItemStatus.Running:
+				count+=1
 		return count
 
 	# def _wait_stop(self, timeout = 10_000):
@@ -909,6 +971,9 @@ class RunQueue(QtCore.QObject):
 				item = self._all_items_dict.get(item_id, None)
 				if item: #Makes sure that item is not deleted just when we are updating it
 					self.itemDataChanged.emit(item_id, item)
+			# for item_id in self.get_run_list_snapshot_copy().keys():
+				# self.itemDataChanged.emit(item_id, self._all_items_dict[item_id])
+
 			self.queueChanged.emit(self.get_queue_snapshot_copy())
 			time.sleep(1)
 
@@ -1001,7 +1066,7 @@ class RunQueue(QtCore.QObject):
 
 	def start_running_id(self, item_id : int):
 		"""Force-start running an item that is in the queue
-		
+
 		NOTE: this does not consider n_threads and will instead just start the item regardless of how many threads are
 		currently available
 		"""
@@ -1009,7 +1074,7 @@ class RunQueue(QtCore.QObject):
 		with self._all_items_dict_mutex, self._queue_mutex:
 			if item_id in self._queue: #Remove from queue if it is in the queue
 				self._queue.remove(item_id)
-				
+
 			queue_item_name = self._all_items_dict[item_id].name
 			self._all_items_dict[item_id].status = RunQueueItemStatus.Running #Should no longer be editable
 			item_copy = deepcopy(self._all_items_dict[item_id])

@@ -71,9 +71,6 @@ class RunQueueWidget(QtWidgets.QWidget):
 
 		Args:
 			global_position (QtCore.QPoint): The position to show the menu at.
-
-		Returns:
-			None
 		"""
 		menu = QtWidgets.QMenu()
 		filter_menu = menu.addMenu("View Filter")
@@ -86,7 +83,27 @@ class RunQueueWidget(QtWidgets.QWidget):
 				lambda *_, status=status: self.queue_view.set_whether_status_filtered(status, not(status in cur_filtered))) #pylint: disable=superfluous-parens
 			filter_menu.addAction(action)
 
+		backup_action = filter_menu.addAction("Backup RunQueue")
+		cur_model = self.model
+		if cur_model is not None:
+			backup_action.triggered.connect(lambda *_: cur_model.save_to_file_popup())
+		else:
+			backup_action.setEnabled(False)
+		menu.addAction(backup_action)
+
+
+		load_action = filter_menu.addAction("Load RunQueue")
+		if cur_model is not None:
+			load_action.triggered.connect(lambda *_: cur_model.load_from_file_popup())
+		menu.addAction(load_action)
+
+		#=========== Debug button ============
+		debug_action = menu.addAction("Debug")
+		debug_action.triggered.connect(lambda *_: self.model._run_queue.resetTriggered.emit()) #pylint: disable=protected-access
+		menu.addAction(debug_action)
+
 		menu.exec(global_position)
+
 
 
 	def cancel_stop_button_pressed(self):
@@ -129,7 +146,7 @@ class RunQueueWidget(QtWidgets.QWidget):
 				confirm_dialog = QtWidgets.QMessageBox()
 				#Creat a dialog with "Wait for processes to finish" and "Force Stop" and "Cancel" buttons
 				confirm_dialog = QtWidgets.QMessageBox()
-				confirm_dialog.setText("You are about to stop the autoqueue process, do you want to cancel all"
+				confirm_dialog.setText("You are about to stop the autoqueue process, do you want to cancel all "
 			   		"currently running processes as well?")
 				#Create a dialog with "Wait for processes to finish" and "Force Stop" and "Cancel" buttons
 				#If "Wait and Stop" is pressed, stop autoqueueing
@@ -213,7 +230,7 @@ class RunQueueWidget(QtWidgets.QWidget):
 	def update_available_options(self):
 		""" Updates the available options in the user interface. """
 		index = self.queue_view.currentIndex()
-		log.debug(f"Updating available options for selection {index}")
+		# log.debug(f"Updating available options for selection {index}")
 		if not index.isValid():
 			cur_available_actions = []
 		else:

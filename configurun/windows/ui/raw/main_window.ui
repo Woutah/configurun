@@ -65,7 +65,7 @@
    </property>
    <widget class="QMenu" name="menuasdf">
     <property name="title">
-     <string>File...</string>
+     <string>Configuration...</string>
     </property>
     <addaction name="actionNewConfig"/>
     <addaction name="actionUndo"/>
@@ -114,7 +114,17 @@
     <addaction name="menuSet_Font_Size"/>
     <addaction name="menuMDI_Area"/>
    </widget>
+   <widget class="QMenu" name="menuRun_Queue">
+    <property name="title">
+     <string>Run Queue...</string>
+    </property>
+    <addaction name="actionView_Filter"/>
+    <addaction name="separator"/>
+    <addaction name="actionSave_2"/>
+    <addaction name="actionSave_As_2"/>
+   </widget>
    <addaction name="menuasdf"/>
+   <addaction name="menuRun_Queue"/>
    <addaction name="menuview"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
@@ -229,7 +239,7 @@
      <normaloff>:/Icons/icons/Tango Icons/32x32/categories/applications-development.png</normaloff>:/Icons/icons/Tango Icons/32x32/categories/applications-development.png</iconset>
    </property>
    <property name="windowTitle">
-    <string>Task Queue</string>
+    <string>Run Queue</string>
    </property>
    <attribute name="dockWidgetArea">
     <number>2</number>
@@ -260,8 +270,8 @@
   </widget>
   <widget class="QDockWidget" name="UndoStack">
    <property name="windowIcon">
-    <iconset>
-     <normaloff>:/Icons/icons/Tango Icons/32x32/actions/edit-undo.png</normaloff>:/Icons/icons/Tango Icons/32x32/actions/edit-undo.png</iconset>
+    <iconset resource="../../../res/app_resources.qrc">
+     <normaloff>:/Icons/icons/actions/edit-undo.png</normaloff>:/Icons/icons/actions/edit-undo.png</iconset>
    </property>
    <property name="windowTitle">
     <string>Undo Stack</string>
@@ -480,6 +490,25 @@
    </property>
    <property name="text">
     <string>Reset Splitters</string>
+   </property>
+  </action>
+  <action name="actionView_Filter">
+   <property name="icon">
+    <iconset resource="../../../res/app_resources.qrc">
+     <normaloff>:/Icons/icons/actions/filter.png</normaloff>:/Icons/icons/actions/filter.png</iconset>
+   </property>
+   <property name="text">
+    <string>View Filter</string>
+   </property>
+  </action>
+  <action name="actionSave_2">
+   <property name="text">
+    <string>Backup...</string>
+   </property>
+  </action>
+  <action name="actionSave_As_2">
+   <property name="text">
+    <string>Load...</string>
    </property>
   </action>
  </widget>

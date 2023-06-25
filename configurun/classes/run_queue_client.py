@@ -315,7 +315,7 @@ class RunQueueClient(RunQueue,
 			self._authenticated = True
 			self._password = password #TODO: hash password twice.
 			self.authenConnectionStateChanged.emit(True)
-			self.queueResetTriggered.emit() #Emit the reset signal so all models re-request all data
+			self.resetTriggered.emit() #Emit the reset signal so all models re-request all data
 			log.info("Connected to server and authenticated. Can now request/receive/transmit data from/to server.")
 		except Exception as exception:
 			#Just pass on the exception

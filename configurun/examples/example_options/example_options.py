@@ -277,7 +277,8 @@ class ExampleMainOptions(BaseOptions):
 				"ExampleModel": "A simple example model",
 				"ExtendedExampleModel": "An extended example model, extends ExampleModel"
 			},
-			help="Model(class) to use"
+			help="Model(class) to use",
+			required=True
 		)
 	)
 
@@ -289,6 +290,7 @@ class ExampleMainOptions(BaseOptions):
 			constraints_help= {
 				"ExampleDataclass": "A simple example dataset",
 				"ExtendedExampleDataclass": "An extended example dataset, extends exampleDataclass"
-			}
+			},
+			required=True
 		)
 	)

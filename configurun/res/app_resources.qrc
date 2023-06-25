@@ -1,6 +1,7 @@
 <RCC>
   <qresource prefix="Icons">
     <file>icons/apps/accessories-calculator.png</file>
+    <file>icons/actions/filter.png</file>
     <file>icons/apps/accessories-character-map.png</file>
     <file>icons/apps/accessories-text-editor.png</file>
     <file>icons/apps/help-browser.png</file>
