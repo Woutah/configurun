@@ -29,6 +29,8 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 
 	autoProcessingStateChanged = QtCore.Signal(bool)
 
+	itemHighlightChanged = QtCore.Signal(int) #Emitted when the highlighted item changes, emits the new id 
+
 	class CustomDataRoles(IntEnum):
 		"""
 		Enum containing custom data roles that can be used to retrieve data from the model
@@ -246,7 +248,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 			try:
 				# self._run_queue.load_queue_contents_from_file(file_path)
 				load_dict = RunQueue.get_queue_contents_dict_from_file(file_path)
-			except RunQueueHasRunningItemsException as exception: #pylint: disable=broad-except
+			except RunQueueHasRunningItemsException as exception:
 				msg = f"{type(exception).__name__}: {exception}"
 				log.warning(f"Could not load RunQueue from file - {msg}")
 				msg_box = QtWidgets.QMessageBox()
@@ -548,6 +550,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 					self.index(self.get_index_row_by_id(self._prev_highlighted_id), self.columnCount()),
 					[QtCore.Qt.ItemDataRole.FontRole] #Only update font as it is the only thing that changes due to highlighting
 				)
+			self.itemHighlightChanged.emit(new_id) #Emit signal to UI
 
 	def set_highligh_by_id(self, highlight_item_id: int) -> None:
 		"""Set the highlighted item by its item id
@@ -567,6 +570,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 				self.get_index_by_id(self._prev_highlighted_id, self.columnCount()), #update column
 				[QtCore.Qt.ItemDataRole.FontRole] #Only update font as it is the only thing that changes due to highlighting
 			)
+		self.itemHighlightChanged.emit(highlight_item_id) #Emit signal to UI
 
 	def hightlighted_id(self) -> int | None:
 		"""return the currently highlighted item id in the model"""

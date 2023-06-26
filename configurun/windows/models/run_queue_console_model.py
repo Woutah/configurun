@@ -210,6 +210,7 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 		self._id_item_map_mutex = threading.Lock()
 		self._id_item_map : typing.OrderedDict[int, RunQueueConsoleItem] = OrderedDict({}) #Maps run queue id to item
 			# Note: we use an ordered dict to keep a consistent item-order for the UI
+		self._id_order : typing.List[int] = [] #The order of the ids in the model
 		self._ignored_ids : typing.Set[int] = set() #Ids that are ignored/not tracked
 
 
@@ -354,6 +355,7 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 					filepos=0,
 					msg=all_txt
 				) #TODO: maybe only import active items?
+				self.append_row(item)
 
 		# item = RunQueueConsoleItem()
 

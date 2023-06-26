@@ -33,6 +33,9 @@
     </property>
     <item>
      <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,0">
+      <property name="spacing">
+       <number>0</number>
+      </property>
       <property name="leftMargin">
        <number>0</number>
       </property>
@@ -40,15 +43,30 @@
        <widget class="ExtendedMdiArea" name="ConfigurationMdiArea"/>
       </item>
       <item>
-       <widget class="QPushButton" name="addToQueueButton">
-        <property name="text">
-         <string>Add to Queue</string>
-        </property>
-        <property name="icon">
-         <iconset resource="../../../res/app_resources.qrc">
-          <normaloff>:/Icons/icons/actions/format-indent-more.png</normaloff>:/Icons/icons/actions/format-indent-more.png</iconset>
-        </property>
-       </widget>
+       <layout class="QHBoxLayout" name="horizontalLayout_2">
+        <item>
+         <widget class="QPushButton" name="addToQueueButton">
+          <property name="text">
+           <string>Append to Queue</string>
+          </property>
+          <property name="icon">
+           <iconset resource="../../../res/app_resources.qrc">
+            <normaloff>:/Icons/icons/actions/format-indent-more.png</normaloff>:/Icons/icons/actions/format-indent-more.png</iconset>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="saveToQueueItemBtn">
+          <property name="text">
+           <string>Save to Queue-Item</string>
+          </property>
+          <property name="icon">
+           <iconset resource="../../../res/app_resources.qrc">
+            <normaloff>:/Icons/icons/actions/savesymbol.png</normaloff>:/Icons/icons/actions/savesymbol.png</iconset>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </item>
      </layout>
     </item>
@@ -118,7 +136,12 @@
     <property name="title">
      <string>Run Queue...</string>
     </property>
-    <addaction name="actionView_Filter"/>
+    <widget class="QMenu" name="menuView_Filter">
+     <property name="title">
+      <string>View Filter</string>
+     </property>
+    </widget>
+    <addaction name="menuView_Filter"/>
     <addaction name="separator"/>
     <addaction name="actionSave_2"/>
     <addaction name="actionSave_As_2"/>
@@ -490,15 +513,6 @@
    </property>
    <property name="text">
     <string>Reset Splitters</string>
-   </property>
-  </action>
-  <action name="actionView_Filter">
-   <property name="icon">
-    <iconset resource="../../../res/app_resources.qrc">
-     <normaloff>:/Icons/icons/actions/filter.png</normaloff>:/Icons/icons/actions/filter.png</iconset>
-   </property>
-   <property name="text">
-    <string>View Filter</string>
    </property>
   </action>
   <action name="actionSave_2">

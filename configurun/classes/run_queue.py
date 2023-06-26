@@ -26,7 +26,6 @@ import multiprocess.queues
 
 from PySide6 import QtCore
 
-from pyside6_utils.utility.utility_functions import copy_over_dict, copy_over_list
 
 from configurun.configuration.configuration_model import Configuration
 
@@ -572,6 +571,23 @@ class RunQueue(QtCore.QObject):
 			else:
 				raise KeyError(f"Could not set configuration for item with id {item_id} in state "
 		   			f"{self._all_items_dict[item_id].status}, ")
+	
+	
+	def get_item_config(self, item_id : int): 
+		"""
+		Get the configuration of an item in the queue.
+
+		Args:
+			item_id (int): the id of the item to get the configuration for
+		Raises:
+			KeyError: if the item_id config is not a know id (not in all_items_dict)
+		"""
+		with self._all_items_dict_mutex:
+			if item_id not in self._all_items_dict:
+				raise KeyError(f"Could not get configuration for item with id {item_id}, id not in queue.")
+			return self._all_items_dict[item_id].config
+	
+	
 	@staticmethod
 	def get_actions_from_status(status : RunQueueItemStatus) -> typing.List[RunQueueItemActions]:
 		"""

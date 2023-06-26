@@ -27,6 +27,7 @@ from configurun.windows.models.run_queue_console_model import \
 from configurun.windows.models.run_queue_table_model import RunQueueTableModel
 from configurun.windows.ui.main_window_ui import \
     Ui_MainWindow
+from configurun.configuration.configuration import Configuration
 from configurun.windows.widgets.run_queue_widget import RunQueueWidget
 
 log = logging.getLogger(__name__)
@@ -68,36 +69,38 @@ class MainWindow():
 			configuration_model (ConfigurationModel): The configuration model which manages updating the ui and creating
 			run_queue (RunQueue): The runqueue which manages running the configurations
 			window (QtWidgets.QMainWindow): The window in which the app should be built
-			workspace_path (str, optional): The base output-path used for the configurations, logfiles etc. 
+			workspace_path (str, optional): The base output-path used for the configurations, logfiles etc.
 				If empty, or folder does not exist, defaults to ~/Configurun/configurations/
 			settings_in_workspace_path (bool, optional): Whether to store the settings in the workspace path or in the default
 				QSettings location. Defaults to True
 		"""
-		
+
 		self.ui = Ui_MainWindow() # pylint: disable=C0103
 		self.ui.setupUi(window)
 
 		self.window = window
 		self._cur_source = None
+		self._queue_source_id = -1 #The id of the queue item which is currently selected (if cur_source == QUEUE)
 		self._default_splitter_states = {
 			splitter.objectName() : splitter.saveState() \
 				for splitter in self.window.findChildren(QtWidgets.QSplitter)
 		} #Save all splitter states (to be able to reset them later)
+
+		self.ui.saveToQueueItemBtn.setHidden(True) #Hide the save to queue button until queue-item is selected
 		#====================== Base variables ===================
 		self.set_run_queue(run_queue)
 		self.ml_queue_widget = RunQueueWidget(self.ui.MLQueueWidget) #Create queue-interface with buttons
-		# self.ml_queue_widget.queue_view.setModel(self.ml_queue_model)
 		self.ml_queue_widget.set_model(self.ml_queue_model)
 
 
 
-		self._workspace_path = workspace_path 
+		self._workspace_path = workspace_path
 		if workspace_path is None or len(workspace_path) == 0 or not os.path.isdir(workspace_path):
 			self._workspace_path = os.path.join(os.path.expanduser("~"), APP_NAME)
 			if not os.path.isdir(self._workspace_path):
 				os.makedirs(self._workspace_path)
 			log.info(f"Using default workspace path: {self._workspace_path}")
-		
+
 
 		config_save_path = os.path.join(self._workspace_path, "configurations")
 		if not os.path.isdir(config_save_path):
@@ -137,8 +140,7 @@ class MainWindow():
 		assert isinstance(self._cur_file_path, (str, type(None))), (f"Loaded file path should be a string or None, this "
 			f"but is a {type(self._cur_file_path)}.")
 
-		# for splitter in self.window.findChildren(QtWidgets.QSplitter):
-		# 	splitter.restoreState(self._settings.value(f"splitter_state_{splitter.objectName()}", splitter.saveState()))
+		
 
 		#====================== Suboptions window and automatic updating ===================
 		self._config_model = configuration_model
@@ -297,6 +299,37 @@ class MainWindow():
 		"""
 		self._run_queue = run_queue
 		self.ml_queue_model = RunQueueTableModel(self._run_queue)
+
+		self._highlight_connection = self.ml_queue_model.itemHighlightChanged.connect(
+			self.set_current_config_to_queue_item)
+
+	@catch_show_exception_in_popup_decorator
+	def set_current_config_to_queue_item(self, queue_item_id : int) -> None:
+		"""
+		Sets the current configuration to the configuration of the queue item with the provided id. If the queue item
+		does not exist, raises a KeyError.
+
+		Args:
+			queue_item_id (int): The id of the config we should attemt to load from the current RunQueue
+		"""
+		if queue_item_id == -1: 
+			log.warning("Queue item id is -1, ignoring request to set current config to queue item")
+			return
+
+		new_config = self._run_queue.get_item_config(queue_item_id)
+		if new_config is None:
+			raise ValueError(f"Queue item with id {queue_item_id} did not return a configuration, skipping.")
+		assert isinstance(new_config, Configuration), ("Queue item did not return a Configuration-object - instead, "
+			f"returned a {type(new_config)}")
+		self._config_model.set_configuration_data(new_config, validate_after_setting=True)
+
+		#========= Update source ===========
+		self._queue_source_id = queue_item_id
+		self.ui.saveToQueueItemBtn.setHidden(False) #Show the save to queue button
+		self._cur_source = OptionsSource.QUEUE
+
+		#========= Update the file picker view ===========
+		self._config_file_picker_model.reset_hightlight() #Reset the hightlight
 
 	def update_ui_by_connection_state(self, new_connection_state : bool) -> None:
 		"""Updates the UI based on the connection state (disabled certain buttons, etc).
@@ -578,7 +611,7 @@ class MainWindow():
 			else:
 				event.ignore()
 				return
-			
+
 		#Check whether queue is running an item - if so, ask for confirmation
 
 
@@ -587,7 +620,7 @@ class MainWindow():
 		self._save_settings()
 		return
 
-	
+
 
 
 	def get_base_name(self) -> str:
