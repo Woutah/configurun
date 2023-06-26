@@ -5,6 +5,7 @@ import argparse
 
 parser_example = argparse.ArgumentParser()
 
+parser_example.add_argument("--required_arg", type=str, required=True, help="Required argument help")
 parser_example.add_argument("--str_arg", type=str, default="Default str", help="Comment")
 parser_example.add_argument("--int_arg", type=int, default=0, help="Int argument help")
 parser_example.add_argument("--float_arg", type=float, default=0.0, help="Float argument help")
@@ -18,8 +19,6 @@ parser_example.add_argument("--store_true_arg", action="store_true", help="Do so
 parser_example.add_argument("--str_choice_arg", type=str, choices=["a", "b", "c"], default="a", help="Choice 1")
 parser_example.add_argument("--int_choice_arg", type=int, choices=[1, 2, 3], default=1, help="Choice 2")
 
-
-parsed_args = parser_example.parse_args()
 
 
 if __name__ == "__main__":
