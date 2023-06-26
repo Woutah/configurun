@@ -621,7 +621,7 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 			self.proxyModelDictChanged.emit(self._option_proxy_model_dict)
 
 		if self.undo_stack:
-			self.undo_stack.clear()
+			# self.undo_stack.clear()
 			self.undo_stack.setActive(True)
 
 		if validate_after_setting:
