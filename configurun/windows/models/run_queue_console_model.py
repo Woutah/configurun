@@ -355,7 +355,6 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 					filepos=0,
 					msg=all_txt
 				) #TODO: maybe only import active items?
-				self.append_row(item)
 
 		# item = RunQueueConsoleItem()
 
