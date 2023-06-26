@@ -83,24 +83,17 @@ class RunQueueWidget(QtWidgets.QWidget):
 				lambda *_, status=status: self.queue_view.set_whether_status_filtered(status, not(status in cur_filtered))) #pylint: disable=superfluous-parens
 			filter_menu.addAction(action)
 
-		backup_action = filter_menu.addAction("Backup RunQueue")
+		backup_action = menu.addAction("Backup...")
 		cur_model = self.model
 		if cur_model is not None:
 			backup_action.triggered.connect(lambda *_: cur_model.save_to_file_popup())
 		else:
 			backup_action.setEnabled(False)
-		menu.addAction(backup_action)
 
 
-		load_action = filter_menu.addAction("Load RunQueue")
+		load_action = menu.addAction("Load...")
 		if cur_model is not None:
 			load_action.triggered.connect(lambda *_: cur_model.load_from_file_popup())
-		menu.addAction(load_action)
-
-		#=========== Debug button ============
-		debug_action = menu.addAction("Debug")
-		debug_action.triggered.connect(lambda *_: self.model._run_queue.resetTriggered.emit()) #pylint: disable=protected-access
-		menu.addAction(debug_action)
 
 		menu.exec(global_position)
 
