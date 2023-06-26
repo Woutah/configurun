@@ -479,6 +479,8 @@ class RunQueue(QtCore.QObject):
 				We can set the dict to be loaded by an instance using this function.
 		"""
 		log.info("Now resetting queue using passed contents dict")
+		self.stop_autoprocessing() #Stop autoprocessing when loading (though the locks should prevent any issues)
+
 		with self._all_items_dict_mutex, self._queue_mutex:
 			if self._get_running_configuration_count_nolocks() > 0:
 				raise RuntimeError("Could not load queue from dictionary, queue contains running items. Please make sure"
@@ -520,14 +522,14 @@ class RunQueue(QtCore.QObject):
 		with self._all_items_dict_mutex, self._queue_mutex: #Make sure queue and all_dict are consistent with one another
 			all_items_dict_copy = self._get_run_list_snapshot_copy_nolocks()
 			queue_copy = self._get_queue_snapshot_copy_no_locks()
-			currently_running_ids = list(self._running_processes.keys())
+			running_ids_count = self._get_running_configuration_count_nolocks()
 
 		had_running_items = False
-		if len(currently_running_ids) > 0:
+		if running_ids_count > 0:
 			had_running_items = True
 			if not save_running_as_stopped:
-				raise RunQueueHasRunningItemsException("Could not create copy of runqueue-data, queue contains running "
-					" configurations and save_running_as_stopped is set to False.")
+				raise RunQueueHasRunningItemsException("Could not create a copy of runqueue-data, the queue contains "
+					" configurations that are currently running and save_running_as_stopped is set to False.")
 
 
 		for runqueue_item in all_items_dict_copy.values():
@@ -664,41 +666,6 @@ class RunQueue(QtCore.QObject):
 		self.queueChanged.emit(queue_snapshot)
 		self.itemDataChanged.emit(item_id, item_copy)
 		return
-
-
-
-	# def stop_id(self, item_id : int):
-	# 	"""
-	# 	Stop by id. Tries to stop a currently running configuration (by id). If the configuration is not running,
-	# 	it will be removed from the queue and it will be marked as cancelled instead of stopped.
-
-	# 	Args:
-	# 		id (int): the id of the item to stop
-
-	# 	#TODO: create force_stop argument, raise ItemRunningError if not force_stop and item is running, which can then
-	# 	be caught by the caller to ask the user if they want to force stop the item
-	# 	"""
-	# 	#Lock queue when removing
-	# 	log.debug(f"Current queue: {self._queue}")
-	# 	self._all_dict_mutex.acquire()
-	# 	self._queue_mutex.acquire()
-	# 	if item_id in self._queue:
-	# 		self._queue.remove(item_id)
-	# 		self._all_dict[item_id].status = RunQueueItemStatus.Cancelled
-	# 		queue_snapshot = self._get_queue_snapshot_copy_no_locks()
-	# 		item_copy = self._all_dict[item_id].get_copy()
-	# 		self._all_dict_mutex.release()
-	# 		self._queue_mutex.release()
-	# 		self.queueChanged.emit(queue_snapshot)
-	# 		self.runItemChanged.emit(item_id, item_copy)
-	# 		return
-	# 	elif item_id in self._all_dict: #When raising an exception, we need to release the locks
-	# 		self._all_dict_mutex.release()
-	# 		self._queue_mutex.release()
-	# 		if self._all_dict[item_id].status == RunQueueItemStatus.Running:
-	# 			raise NotImplementedError("Stopping a running process is not implemented yet.")
-	# 		raise KeyError(f"Could not stop {item_id}, item with ID is not running, and item with this ID was not in \
-	# 	  		queue.")
 
 
 

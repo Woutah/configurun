@@ -219,6 +219,20 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		Opens a popup to load the RunQueue-items from a file.
 		Loading itself is done by the run_queue itself.
 		"""
+		if self._run_queue.get_running_configuration_count() > 0:
+			msg_box = QtWidgets.QMessageBox()
+			msg_box.setIcon(QtWidgets.QMessageBox.Icon.Warning)
+			msg_box.setWindowTitle("Cannot load queue from file")
+			msg_box.setText("Cannot load queue from file while there are still running items in the queue.")
+			msg_box.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
+			msg_box.setDefaultButton(QtWidgets.QMessageBox.StandardButton.Ok)
+			msg_box.setWindowFlags(QtCore.Qt.WindowType.WindowStaysOnTopHint)
+			msg_box.show()
+			msg_box.activateWindow()
+			msg_box.exec()
+			return
+
+
 		file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
 			None, "Load config", QtCore.QDir.currentPath(), "RunQueue files (*.rq)") #type:ignore
 
@@ -238,11 +252,11 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 				msg_box = QtWidgets.QMessageBox()
 				msg_box.setIcon(QtWidgets.QMessageBox.Icon.Warning)
 				msg_box.setWindowTitle("Could not load RunQueue from file")
-				msg_box.setText("Do you want to set load mode to allow importing configurations that were saved when"
-					"1 or more configurations were running?")
-				msg_box.setInformativeText(f"{msg}<br><br>All running items of this backup were saved with a 'stopped'-state "
-					"- this happens when a backup is made when an item is still running. It could be that after this point, "
-					" this item continued running so the information is outdated."
+				msg_box.setText("<b>Do you want to set load mode to allow importing configurations that were saved when "
+					"1 or more configurations were running?</b>")
+				msg_box.setInformativeText(f"<b>{type(exception).__name__}:</b> {exception}<br><br>All running items "
+			       	"of this backup were saved with a 'stopped'-state, this might indicate that the loaded runQueue-data "
+				    "is not entirely up to date."
 					)
 				msg_box.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No)
 				msg_box.setDefaultButton(QtWidgets.QMessageBox.StandardButton.No)
@@ -251,7 +265,10 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 				msg_box.activateWindow()
 				msg_box.exec()
 				if msg_box.result() == QtWidgets.QMessageBox.StandardButton.Yes:
-					load_dict = RunQueue.get_queue_contents_dict_from_file(file_path)
+					load_dict = RunQueue.get_queue_contents_dict_from_file(file_path, allow_load_running_items=True)
+				else:
+					log.info("User cancelled loading queue from file.")
+					return
 
 			self._run_queue.load_queue_contents_dict(load_dict) #type: ignore #Actually load the queue-data into existing
 
@@ -295,11 +312,14 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 				msg_box.setWindowTitle("Save queue to file anyway?")
 				msg = f"Problem when saving queue to file: {type(exception).__name__}: {exception}"
 				log.warning(msg)
-				msg_box.setText("Do you want to set save mode to allow for running configurations? All running items "
-					" will be saved with a 'stopped'-state. Running configurations will not be stopped."
-					" Alternatively you can cancel all running items or wait for them to finish and then save."
-					)
-				msg_box.setInformativeText(f"{msg}")
+				msg_box.setText("<b>Do you want to set save mode to allow saving running configurations?</b>")
+				msg_box.setInformativeText(
+					f"<b>{type(exception).__name__}:</b> {exception} <br><br>"
+					"We can enable saving running configurations, but this will cause the running configurations to "
+					"be saved with a 'stopped'-state.  "
+					"Alternatively, you can cancel all running items or wait for them to finish and try again. "
+
+				)
 				msg_box.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No)
 				msg_box.setDefaultButton(QtWidgets.QMessageBox.StandardButton.No)
 				msg_box.setWindowFlags(QtCore.Qt.WindowType.WindowStaysOnTopHint)
