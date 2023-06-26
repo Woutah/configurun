@@ -23,19 +23,20 @@ from configurun.windows.views.run_queue_tree_view import RunQueueTreeView
 from pyside6_utils.widgets.square_frame import SquareFrame
 import configurun.res.app_resources_rc
 
-class Ui_MLQueueWidget(object):
-    def setupUi(self, MLQueueWidget):
-        if not MLQueueWidget.objectName():
-            MLQueueWidget.setObjectName(u"MLQueueWidget")
-        MLQueueWidget.resize(596, 551)
-        self.verticalLayout = QVBoxLayout(MLQueueWidget)
+class Ui_RunQueueWidget(object):
+    def setupUi(self, RunQueueWidget):
+        if not RunQueueWidget.objectName():
+            RunQueueWidget.setObjectName(u"RunQueueWidget")
+        RunQueueWidget.resize(596, 551)
+        self.verticalLayout = QVBoxLayout(RunQueueWidget)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.horizontalLayout_2 = QHBoxLayout()
         self.horizontalLayout_2.setObjectName(u"horizontalLayout_2")
         self.horizontalLayout = QHBoxLayout()
         self.horizontalLayout.setSpacing(5)
         self.horizontalLayout.setObjectName(u"horizontalLayout")
-        self.squareFrame_3 = SquareFrame(MLQueueWidget)
+        self.horizontalLayout.setContentsMargins(-1, -1, 0, -1)
+        self.squareFrame_3 = SquareFrame(RunQueueWidget)
         self.squareFrame_3.setObjectName(u"squareFrame_3")
         self.verticalLayout_5 = QVBoxLayout(self.squareFrame_3)
         self.verticalLayout_5.setSpacing(0)
@@ -60,7 +61,7 @@ class Ui_MLQueueWidget(object):
 
         self.horizontalLayout.addWidget(self.squareFrame_3)
 
-        self.squareFrame_4 = SquareFrame(MLQueueWidget)
+        self.squareFrame_4 = SquareFrame(RunQueueWidget)
         self.squareFrame_4.setObjectName(u"squareFrame_4")
         self.verticalLayout_6 = QVBoxLayout(self.squareFrame_4)
         self.verticalLayout_6.setSpacing(0)
@@ -82,7 +83,7 @@ class Ui_MLQueueWidget(object):
 
         self.horizontalLayout.addWidget(self.squareFrame_4)
 
-        self.squareFrame_5 = SquareFrame(MLQueueWidget)
+        self.squareFrame_5 = SquareFrame(RunQueueWidget)
         self.squareFrame_5.setObjectName(u"squareFrame_5")
         self.verticalLayout_7 = QVBoxLayout(self.squareFrame_5)
         self.verticalLayout_7.setSpacing(0)
@@ -104,7 +105,7 @@ class Ui_MLQueueWidget(object):
 
         self.horizontalLayout.addWidget(self.squareFrame_5)
 
-        self.squareFrame_6 = SquareFrame(MLQueueWidget)
+        self.squareFrame_6 = SquareFrame(RunQueueWidget)
         self.squareFrame_6.setObjectName(u"squareFrame_6")
         self.verticalLayout_8 = QVBoxLayout(self.squareFrame_6)
         self.verticalLayout_8.setSpacing(0)
@@ -130,7 +131,7 @@ class Ui_MLQueueWidget(object):
 
         self.horizontalLayout.addItem(self.horizontalSpacer)
 
-        self.squareFrame = SquareFrame(MLQueueWidget)
+        self.squareFrame = SquareFrame(RunQueueWidget)
         self.squareFrame.setObjectName(u"squareFrame")
         sizePolicy1 = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         sizePolicy1.setHorizontalStretch(0)
@@ -161,7 +162,7 @@ class Ui_MLQueueWidget(object):
 
         self.horizontalLayout.addWidget(self.squareFrame)
 
-        self.toolButton = QToolButton(MLQueueWidget)
+        self.toolButton = QToolButton(RunQueueWidget)
         self.toolButton.setObjectName(u"toolButton")
         sizePolicy3 = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         sizePolicy3.setHorizontalStretch(0)
@@ -176,7 +177,7 @@ class Ui_MLQueueWidget(object):
 
         self.horizontalLayout.addWidget(self.toolButton)
 
-        self.squareFrame_2 = SquareFrame(MLQueueWidget)
+        self.squareFrame_2 = SquareFrame(RunQueueWidget)
         self.squareFrame_2.setObjectName(u"squareFrame_2")
         self.verticalLayout_4 = QVBoxLayout(self.squareFrame_2)
         self.verticalLayout_4.setObjectName(u"verticalLayout_4")
@@ -191,43 +192,43 @@ class Ui_MLQueueWidget(object):
 
         self.QueueViewLayout = QVBoxLayout()
         self.QueueViewLayout.setObjectName(u"QueueViewLayout")
-        self.queueView = RunQueueTreeView(MLQueueWidget)
-        self.queueView.setObjectName(u"queueView")
+        self.runQueueTreeView = RunQueueTreeView(RunQueueWidget)
+        self.runQueueTreeView.setObjectName(u"runQueueTreeView")
 
-        self.QueueViewLayout.addWidget(self.queueView)
+        self.QueueViewLayout.addWidget(self.runQueueTreeView)
 
 
         self.verticalLayout.addLayout(self.QueueViewLayout)
 
         self.verticalLayout.setStretch(1, 1)
 
-        self.retranslateUi(MLQueueWidget)
+        self.retranslateUi(RunQueueWidget)
 
-        QMetaObject.connectSlotsByName(MLQueueWidget)
+        QMetaObject.connectSlotsByName(RunQueueWidget)
     # setupUi
 
-    def retranslateUi(self, MLQueueWidget):
-        MLQueueWidget.setWindowTitle(QCoreApplication.translate("MLQueueWidget", u"Form", None))
+    def retranslateUi(self, RunQueueWidget):
+        RunQueueWidget.setWindowTitle(QCoreApplication.translate("RunQueueWidget", u"Form", None))
 #if QT_CONFIG(tooltip)
-        self.MoveUpInQueueBtn.setToolTip(QCoreApplication.translate("MLQueueWidget", u"Move item up in Queue", None))
+        self.MoveUpInQueueBtn.setToolTip(QCoreApplication.translate("RunQueueWidget", u"Move item up in Queue", None))
 #endif // QT_CONFIG(tooltip)
         self.MoveUpInQueueBtn.setText("")
 #if QT_CONFIG(tooltip)
-        self.MoveDownInQueueBtn.setToolTip(QCoreApplication.translate("MLQueueWidget", u"Move item down in Queue", None))
+        self.MoveDownInQueueBtn.setToolTip(QCoreApplication.translate("RunQueueWidget", u"Move item down in Queue", None))
 #endif // QT_CONFIG(tooltip)
         self.MoveDownInQueueBtn.setText("")
 #if QT_CONFIG(tooltip)
-        self.CancelStopButton.setToolTip(QCoreApplication.translate("MLQueueWidget", u"Dequeue/Stop item", None))
+        self.CancelStopButton.setToolTip(QCoreApplication.translate("RunQueueWidget", u"Dequeue/Stop item", None))
 #endif // QT_CONFIG(tooltip)
         self.CancelStopButton.setText("")
 #if QT_CONFIG(tooltip)
-        self.DeleteButton.setToolTip(QCoreApplication.translate("MLQueueWidget", u"Delete item", None))
+        self.DeleteButton.setToolTip(QCoreApplication.translate("RunQueueWidget", u"Delete item", None))
 #endif // QT_CONFIG(tooltip)
         self.DeleteButton.setText("")
 #if QT_CONFIG(tooltip)
-        self.StartRunningQueueBtn.setToolTip(QCoreApplication.translate("MLQueueWidget", u"Start automatic run-mode", None))
+        self.StartRunningQueueBtn.setToolTip(QCoreApplication.translate("RunQueueWidget", u"Start automatic run-mode", None))
 #endif // QT_CONFIG(tooltip)
         self.StartRunningQueueBtn.setText("")
-        self.toolButton.setText(QCoreApplication.translate("MLQueueWidget", u"...", None))
+        self.toolButton.setText(QCoreApplication.translate("RunQueueWidget", u"...", None))
     # retranslateUi
 

@@ -35,7 +35,12 @@ class RunQueueHasRunningItemsException(Exception):
 	Exception raised when trying to load a queue from file that contains running items when its allow flag is set to
 	False.
 	"""
-	pass
+
+class ConfigurationIsFirmException(Exception):
+	"""
+	Exception raised when trying to change a configuration for an item for which the configuration is firm (for example:
+	configurations that are currently running)
+	"""
 
 
 log = logging.getLogger(__name__)
@@ -386,6 +391,7 @@ class RunQueue(QtCore.QObject):
 		with self._cmd_id_name_path_dict_mutex:
 			if item_id not in self._cmd_id_name_path_dict or not os.path.exists(self._cmd_id_name_path_dict[item_id][1]):
 				return ("", last_edit_dt)
+			#TODO: if file doesn't exist - return string to indicate file is missing?
 
 			last_edit_dt = datetime.fromtimestamp(os.path.getmtime(self._cmd_id_name_path_dict[item_id][1]))
 			filepath = self._cmd_id_name_path_dict[item_id][1]
@@ -418,10 +424,10 @@ class RunQueue(QtCore.QObject):
 		new_dict = {}
 
 		for key, val in cur_dict.items():
-			if not os.path.exists(val[1]) and os.path.isfile(val[1]):
-				length = 0
-			else:
+			if os.path.exists(val[1]) and os.path.isfile(val[1]):
 				length = os.path.getsize(val[1])
+			else:
+				length = -1 #Indicate file not found
 
 			currently_running = False
 			with self._running_processes_mutex:
@@ -569,11 +575,13 @@ class RunQueue(QtCore.QObject):
 				self._all_items_dict[item_id].config = new_config
 				self.itemDataChanged.emit(item_id, self._all_items_dict[item_id].get_copy())
 			else:
-				raise KeyError(f"Could not set configuration for item with id {item_id} in state "
-		   			f"{self._all_items_dict[item_id].status}, ")
-	
-	
-	def get_item_config(self, item_id : int): 
+				raise ConfigurationIsFirmException(
+					f"Could not set configuration for item with id {item_id}. \n\nCannot change the item "
+		   			f"configuration when it is in state: {self._all_items_dict[item_id].status}"
+				)
+
+
+	def get_item_config(self, item_id : int):
 		"""
 		Get the configuration of an item in the queue.
 
@@ -586,8 +594,8 @@ class RunQueue(QtCore.QObject):
 			if item_id not in self._all_items_dict:
 				raise KeyError(f"Could not get configuration for item with id {item_id}, id not in queue.")
 			return self._all_items_dict[item_id].config
-	
-	
+
+
 	@staticmethod
 	def get_actions_from_status(status : RunQueueItemStatus) -> typing.List[RunQueueItemActions]:
 		"""
@@ -837,13 +845,23 @@ class RunQueue(QtCore.QObject):
 			self._autoprocessing_enabled = True
 			self.autoProcessingStateChanged.emit(True)
 			self._run_queue()
+	
+	def get_n_processes(self):
+		"""
+		Get the number of processes this runqueue can use (at max).
+		If -1, the number of processes is unlimited.
+		"""
+		return self._n_processes
 
-	# def set_n_processes(self, n_processes):
-	# 	"""
-	# 	Set the number of processes
-	# 	"""
-	# 	self._n_processes = n_processes
-	# 	self.start()
+	def set_n_processes(self, n_processes : int):
+		"""
+		Set the number of processes, does not affect currently running processes, but might start new ones
+		if the number of running processes is below the new n_processes value and autoprocessing is enabled.
+
+		Args:
+			n_processes (int): the new number of processes to use
+		"""
+		self._n_processes = n_processes
 
 	def get_running_configuration_count(self):
 		"""
@@ -968,8 +986,6 @@ class RunQueue(QtCore.QObject):
 
 		self.allItemsDictInsertion.emit([new_item_id], snapshot)
 		self.queueChanged.emit(queue_snapshot) #Emit outside of lock
-
-		log.debug("Done adding config to queue.")
 
 	def _run_queue(self):
 		"""
@@ -1172,7 +1188,9 @@ class RunQueue(QtCore.QObject):
 			if self._stopflag.is_set(): #If stopping, break TODO: force stop?
 				return
 			try:
-				if len(self._queue) > 0 and len(self._running_processes) < self._n_processes: #If there are items in the
+				if len(self._queue) > 0\
+						and (len(self._running_processes) < self._n_processes \
+							or self._n_processes == -1): #If there are items in the
 							# queue and there is process-space, we can start a new process
 					with self._all_items_dict_mutex, self._queue_mutex: #Get the first item in the queue
 						queue_item_id = self._queue.pop(0)

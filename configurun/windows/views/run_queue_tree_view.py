@@ -36,7 +36,6 @@ class RunQueueTreeView(QtWidgets.QTreeView):
 		self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
 		self.customContextMenuRequested.connect(self.custom_menu_requested)
 
-
 		self.setSortingEnabled(True)
 
 		self._action_dict = {
@@ -66,7 +65,7 @@ class RunQueueTreeView(QtWidgets.QTreeView):
 
 
 		#Connect double-click
-		self.doubleClicked.connect(self._on_double_click)
+		self._double_click_connection = self.doubleClicked.connect(self._default_on_double_click)
 		self._hide_status_list = []
 
 	def check_if_current_filter_accepts_row(self,
@@ -129,9 +128,25 @@ class RunQueueTreeView(QtWidgets.QTreeView):
 		return self._hide_status_list
 
 
+	def set_double_click_callback(self, 
+				function : typing.Callable[[QtCore.QModelIndex], None]
+			) -> None:
+		"""Used to overwrite the current callback when double-clicking on an item. 
+		E.g. if we first want to try to load the clicked-item, and on fail, do nothing 
+		
+		NOTE: disconnects any existing connections
 
-	def _on_double_click(self, index: QtCore.QModelIndex) -> None:
-		"""Set the hightlight-item when double-clicking on an item
+		Args:
+			function (typing.Callable[[QtCore.QModelIndex], None]): The function to call when double-clicking on an item
+				should take a single argument, the index of the double-clicked item
+		"""
+		if self._double_click_connection is not None:
+			self.doubleClicked.disconnect(self._double_click_connection)
+		self._double_click_connection = self.doubleClicked.connect(function)
+
+	def _default_on_double_click(self, index: QtCore.QModelIndex) -> None:
+		""" Default action when double-clicking on an item in the treeview.
+		Set the hightlight-item when double-clicking on an item
 
 		Args:
 			index (QtCore.QModelIndex): The double-clicked item
@@ -182,6 +197,7 @@ class RunQueueTreeView(QtWidgets.QTreeView):
 		"""
 		index = self.currentIndex()
 		return self.confirm_stop_index(index)
+	
 
 
 	def custom_menu_requested(self, pos : QtCore.QPoint) -> None:

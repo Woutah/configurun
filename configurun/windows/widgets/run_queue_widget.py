@@ -1,6 +1,6 @@
 """
-Implements the MLQueueWidget class which contains a treeview and several buttons to control the underlying queue-model
-as well as (indirectly) the RunQueue underlying this model
+Implements the RunQueueWidget class which contains a treeview and several buttons to control the underlying queue-model
+as well as (indirectly) the underlying RunQueue
 """
 
 import logging
@@ -11,7 +11,7 @@ from pyside6_utils.utility.catch_show_exception_in_popup_decorator import \
 
 from configurun.classes.run_queue import RunQueueItemActions
 from configurun.windows.models.run_queue_table_model import RunQueueTableModel
-from configurun.windows.ui.run_queue_widget_ui import Ui_MLQueueWidget
+from configurun.windows.ui.run_queue_widget_ui import Ui_RunQueueWidget
 from configurun.classes.run_queue import RunQueueItemStatus
 
 log = logging.getLogger(__name__)
@@ -20,27 +20,26 @@ log = logging.getLogger(__name__)
 
 class RunQueueWidget(QtWidgets.QWidget):
 	"""
-	A wrapper-widget for a MLQueueView with some buttons to control the queue (start, stop, move up, move down, delete,
+	A wrapper-widget for a RunQueueTreeView with some buttons to control the queue (start, stop, move up, move down, delete,
 	cancel etc.)
 	"""
 	def __init__(self, widget : QtWidgets.QWidget) -> None:
 		super().__init__()
-		self.ui = Ui_MLQueueWidget() #pylint: disable=invalid-name
+		self.ui = Ui_RunQueueWidget() #pylint: disable=invalid-name
 		self.ui.setupUi(widget)
 		self._widget = widget
 
-		# self.ui.QueueViewLayout.addWidget(self.queue_view)
-		self.queue_view = self.ui.queueView
+		self.runQueueTreeView = self.ui.runQueueTreeView #pylint: disable=invalid-name #Make it easier to access treeview
 
 		#=============Link buttons to functions================
 		self.ui.MoveUpInQueueBtn.clicked.connect(
-			lambda *_: self.queue_view.do_action_on_selection(RunQueueItemActions.MOVEUP))
+			lambda *_: self.runQueueTreeView.do_action_on_selection(RunQueueItemActions.MOVEUP))
 		self.ui.MoveDownInQueueBtn.clicked.connect(
-			lambda *_: self.queue_view.do_action_on_selection(RunQueueItemActions.MOVEDOWN))
+			lambda *_: self.runQueueTreeView.do_action_on_selection(RunQueueItemActions.MOVEDOWN))
 		self.ui.CancelStopButton.clicked.connect(
 			self.cancel_stop_button_pressed)
 		self.ui.DeleteButton.clicked.connect(
-			lambda *_: self.queue_view.do_action_on_selection(RunQueueItemActions.DELETE))
+			lambda *_: self.runQueueTreeView.do_action_on_selection(RunQueueItemActions.DELETE))
 		self.ui.StartRunningQueueBtn.clicked.connect(
 			self.toggle_queue_autoprocessing)
 
@@ -55,7 +54,7 @@ class RunQueueWidget(QtWidgets.QWidget):
 		}
 
 		self.queue_model_connections = [] #Connections to the queue model for updating the UI
-		self.model : RunQueueTableModel | None = None #The used run-queue model
+		self._run_queue_table_model : RunQueueTableModel | None = None #The used run-queue model
 
 		self.ui.toolButton.clicked.connect(self.settings_clicked)
 
@@ -63,38 +62,115 @@ class RunQueueWidget(QtWidgets.QWidget):
 	def settings_clicked(self):
 		"""Called when a open-settings-button is clicked. Opens the settings menu."""
 		cur_mouse_pos = QtGui.QCursor.pos()
-		self.create_queue_settings_menu(cur_mouse_pos)
+		self.popup_queue_settings_context_menu(cur_mouse_pos)
 
-	def create_queue_settings_menu(self, global_position : QtCore.QPoint) -> None:
+	def get_current_view_filter_menu(self) -> QtWidgets.QMenu:
+		"""Returns the current view filter-menu for the queue view. E.g. a checkmark for all statuses that
+		are being shown, and none for all statuses that are being filtered out from the tree-view
+
+		Returns:
+			QtWidgets.QMenu: The current view filter-settings for the queue view
+		"""
+		menu = QtWidgets.QMenu()
+		cur_filtered = self.runQueueTreeView.get_item_status_filter() #Get all filtered statuses
+		for status in RunQueueItemStatus:
+			action = QtGui.QAction(status.name, menu)
+			action.setCheckable(True)
+			action.setChecked(status not in cur_filtered)
+			action.triggered.connect(
+				lambda *_, status=status: self.runQueueTreeView.set_whether_status_filtered(
+					status, not(status in cur_filtered))
+				) #pylint: disable=superfluous-parens
+			menu.addAction(action)
+
+		return menu
+
+
+	def save_to_file_popup(self):
+		"""Shows a popup to save the current queue to a file."""
+		cur_model = self._run_queue_table_model
+		assert isinstance(cur_model, RunQueueTableModel), f"Can't save Queue for non-RunQueueModel of type {type(cur_model)}"
+		cur_model.save_to_file_popup()
+		
+	def load_from_file_popup(self):
+		"""Shows a popup to load a queue from a file."""
+		cur_model = self._run_queue_table_model
+		assert isinstance(cur_model, RunQueueTableModel), f"Can't load Queue for non-RunQueueModel of type {type(cur_model)}"
+		cur_model.load_from_file_popup()
+
+
+	def get_queue_settings_context_menu(self) -> QtWidgets.QMenu:
+		"""Returns the context menu for the current RunQueue, e.g. which items are filtered in the tree view
+		and whether the queue is backed up to a file.
+
+		Returns:
+			QtWidgets.QMenu: The context menu for the current RunQueue
+		"""
+		menu = QtWidgets.QMenu()
+		# filter_menu = menu.addMenu("View Filter")
+		filter_menu = self.get_current_view_filter_menu()
+		filter_menu.setTitle("View Filter")
+		filter_menu.setIcon(QtGui.QIcon(":/Icons/icons/actions/filter.png"))
+		menu.addMenu(filter_menu)
+
+
+		backup_action = menu.addAction("Backup...")
+		backup_action.setIcon(QtGui.QIcon(":/Icons/icons/actions/document-save-as.png"))
+		cur_model = self._run_queue_table_model
+		if cur_model is not None:
+			backup_action.triggered.connect(self.save_to_file_popup)
+		else:
+			backup_action.setEnabled(False)
+
+
+		load_action = menu.addAction("Load...")
+		load_action.setIcon(QtGui.QIcon(":/Icons/icons/actions/document-open.png"))
+		if cur_model is not None:
+			load_action.triggered.connect(self.load_from_file_popup)
+		else:
+			load_action.setEnabled(False)
+
+		n_processes_action = menu.addAction("Set number of processes...")
+		n_processes_action.setIcon(QtGui.QIcon(":/Icons/icons/status/network-receive.png"))
+		n_processes_action.triggered.connect(self.runQueueTreeView.set_n_processes_popup)
+
+		return menu
+
+	def set_n_processes_popup(self):
+		"""Shows a popup to set the number of processes to use in the run queue."""
+		#Ask user for integer
+		#Set number of processes to that integer
+
+		if self._run_queue_table_model is None:
+			QtWidgets.QMessageBox.warning(
+				self._widget,
+				"Can't set number of processes",
+				"Can't set number of processes, as RunQueueModel is not set"
+			)
+			return
+		cur_n_processes = self._run_queue_table_model.get_n_processes()
+
+
+		integer, ok = QtWidgets.QInputDialog.getInt(
+			self._widget,
+			"Set number of processes",
+			f"Number of processes (current={cur_n_processes}):",
+			value=cur_n_processes,
+			min=-1,
+			max=30,
+			step=1
+		)
+		if ok:
+			self._run_queue_table_model.set_n_processes(integer)
+
+	def popup_queue_settings_context_menu(self, global_position : QtCore.QPoint) -> None:
 		"""Creates a menu with settings for the queue and shows it at the given position.
 		e.g. filter by status.
 
 		Args:
 			global_position (QtCore.QPoint): The position to show the menu at.
 		"""
-		menu = QtWidgets.QMenu()
-		filter_menu = menu.addMenu("View Filter")
-		cur_filtered = self.queue_view.get_item_status_filter() #Get all filtered statuses
-		for status in RunQueueItemStatus:
-			action = QtGui.QAction(status.name, menu)
-			action.setCheckable(True)
-			action.setChecked(status not in cur_filtered)
-			action.triggered.connect(
-				lambda *_, status=status: self.queue_view.set_whether_status_filtered(status, not(status in cur_filtered))) #pylint: disable=superfluous-parens
-			filter_menu.addAction(action)
-
-		backup_action = menu.addAction("Backup...")
-		cur_model = self.model
-		if cur_model is not None:
-			backup_action.triggered.connect(lambda *_: cur_model.save_to_file_popup())
-		else:
-			backup_action.setEnabled(False)
-
-
-		load_action = menu.addAction("Load...")
-		if cur_model is not None:
-			load_action.triggered.connect(lambda *_: cur_model.load_from_file_popup())
-
+		menu = self.get_queue_settings_context_menu()
 		menu.exec(global_position)
 
 
@@ -104,14 +180,14 @@ class RunQueueWidget(QtWidgets.QWidget):
 		"""
 		# cur_model = self.queue_view.model()
 		# assert isinstance(cur_model, RunQueueTableModel), "Can't get options for non-MLQueueModel"
-		selection = self.queue_view.currentIndex()
+		selection = self.runQueueTreeView.currentIndex()
 
 		actions = selection.data(RunQueueTableModel.CustomDataRoles.ActionRole)
 		if RunQueueItemActions.STOP in actions:
 			# self.queue_view.do_action_on_index(RunQueueItemActions.STOP, selection)
-			self.queue_view.confirm_stop_index(selection)
+			self.runQueueTreeView.confirm_stop_index(selection)
 		else:
-			self.queue_view.do_action_on_index(RunQueueItemActions.CANCEL, selection)
+			self.runQueueTreeView.do_action_on_index(RunQueueItemActions.CANCEL, selection)
 
 
 
@@ -123,7 +199,7 @@ class RunQueueWidget(QtWidgets.QWidget):
 	@catch_show_exception_in_popup_decorator
 	def toggle_queue_autoprocessing(self):
 		"""Toggles the queue autoprocessing."""
-		cur_model = self.model
+		cur_model = self._run_queue_table_model
 		assert isinstance(cur_model, RunQueueTableModel)
 
 
@@ -185,8 +261,8 @@ class RunQueueWidget(QtWidgets.QWidget):
 			self.queue_model_connections = []
 
 		# cur_model = self.queue_view.model()
-		self.queue_view.setModel(model)
-		self.model = model
+		self.runQueueTreeView.setModel(model)
+		self._run_queue_table_model = model
 
 		if not isinstance(model, RunQueueTableModel):
 			self.update_available_options()
@@ -202,10 +278,10 @@ class RunQueueWidget(QtWidgets.QWidget):
 			model.layoutChanged.connect(lambda *_: self.update_available_options())
 		) #When any rows are removed, update the available options (maybe selected item changed)
 		self.queue_model_connections.append(
-			self.queue_view.selectionModel().selectionChanged.connect(lambda *_: self.update_available_options())
+			self.runQueueTreeView.selectionModel().selectionChanged.connect(lambda *_: self.update_available_options())
 		) #When the selection changes, update the available options
 		self.queue_model_connections.append(
-			self.queue_view.selectionModel().currentChanged.connect(lambda *_: self.update_available_options())
+			self.runQueueTreeView.selectionModel().currentChanged.connect(lambda *_: self.update_available_options())
 		) #When the selection changes, update the available options
 		self.queue_model_connections.append(
 			model.autoProcessingStateChanged.connect(self._autoqueue_btn_set_state)
@@ -222,7 +298,7 @@ class RunQueueWidget(QtWidgets.QWidget):
 
 	def update_available_options(self):
 		""" Updates the available options in the user interface. """
-		index = self.queue_view.currentIndex()
+		index = self.runQueueTreeView.currentIndex()
 		# log.debug(f"Updating available options for selection {index}")
 		if not index.isValid():
 			cur_available_actions = []

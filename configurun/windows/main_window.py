@@ -19,7 +19,7 @@ from pyside6_utils.widgets import DataClassTreeView
 from pyside6_utils.widgets.frameless_mdi_window import FramelessMdiWindow
 from pyside6_utils.widgets.delegates import DataclassEditorsDelegate
 
-from configurun.classes.run_queue import RunQueue
+from configurun.classes.run_queue import RunQueue, ConfigurationIsFirmException
 from configurun.configuration.configuration_model import (
     ConfigurationModel, NoClassTypesError, UnkownOptionClassError, OptionTypesMismatch)
 from configurun.windows.models.run_queue_console_model import \
@@ -28,7 +28,6 @@ from configurun.windows.models.run_queue_table_model import RunQueueTableModel
 from configurun.windows.ui.main_window_ui import \
     Ui_MainWindow
 from configurun.configuration.configuration import Configuration
-from configurun.windows.widgets.run_queue_widget import RunQueueWidget
 
 log = logging.getLogger(__name__)
 
@@ -84,14 +83,13 @@ class MainWindow():
 		self._default_splitter_states = {
 			splitter.objectName() : splitter.saveState() \
 				for splitter in self.window.findChildren(QtWidgets.QSplitter)
-		} #Save all splitter states (to be able to reset them later)
+		} #Save all splitter states (to be able to reset them later
 
 		self.ui.saveToQueueItemBtn.setHidden(True) #Hide the save to queue button until queue-item is selected
 		#====================== Base variables ===================
 		self.set_run_queue(run_queue)
-		self.ml_queue_widget = RunQueueWidget(self.ui.MLQueueWidget) #Create queue-interface with buttons
-		self.ml_queue_widget.set_model(self.ml_queue_model)
-
+		self.ui.runQueueWidget.set_model(self.run_queue_table_model)
+		self.ui.runQueueWidget.runQueueTreeView.set_double_click_callback(self.run_queue_widget_item_double_click)
 
 
 		self._workspace_path = workspace_path
@@ -140,10 +138,11 @@ class MainWindow():
 		assert isinstance(self._cur_file_path, (str, type(None))), (f"Loaded file path should be a string or None, this "
 			f"but is a {type(self._cur_file_path)}.")
 
-		
+
 
 		#====================== Suboptions window and automatic updating ===================
-		self._config_model = configuration_model
+		self._configuration_model = configuration_model #The configuration model manages creation/changes in the currently
+			# loaded configuration
 
 		self._mdi_area = self.ui.ConfigurationMdiArea
 		self._cur_option_proxy_models : typing.Dict[str, QtCore.QSortFilterProxyModel]= {}
@@ -151,11 +150,12 @@ class MainWindow():
 		self._cur_option_tree_view : typing.Dict[str, DataClassTreeView] = {}
 		self._cur_edited_signals : typing.Dict[str, typing.Callable] = {}
 
-		self._config_model.proxyModelDictChanged.connect(self.option_proxy_models_changed)
-		self.option_proxy_models_changed(self._config_model.get_proxy_model_dict()) #Initialize the mdi windows
+		self._configuration_model.proxyModelDictChanged.connect(self.option_proxy_models_changed)
+		self.option_proxy_models_changed(self._configuration_model.get_proxy_model_dict()) #Initialize the mdi windows
 
 
-
+		#====================== File explorer ===================
+		self._config_file_picker_model.setNameFilters(["*.json", "*.yaml", ""])
 		self._config_file_picker_model.setReadOnly(False)
 		log.debug(f"Root path used for saving machine learning settings: {self._config_save_path}")
 		self._config_file_picker_model.setRootPath(QtCore.QDir.rootPath()) #Subscribe to changes in this path
@@ -163,26 +163,27 @@ class MainWindow():
 		self.ui.ConfigFilePickerView.setRootIndex(
 			self._config_file_picker_model.index(self._config_save_path)
 		)
-
+		self.ui.ConfigFilePickerView.set_double_click_callback(self.file_explorer_item_double_click)
 		self.ui.ConfigFilePickerView.header().setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents) #type: ignore
+		#Filter only .json and folders
 
 
 		#======== Open a window which shows the undo/redo stack ========
-		if self._config_model.undo_stack:
-			self.ui.undoView.setStack(self._config_model.undo_stack)
+		if self._configuration_model.undo_stack:
+			self.ui.undoView.setStack(self._configuration_model.undo_stack)
 
 		#Un undo-stack change, change the title of the window with a * to indicate that the file has been changed
-		if self._config_model.undo_stack:
-			self._config_model.undo_stack.cleanChanged.connect(
-				lambda: self.window.setWindowModified(not self._config_model.undo_stack.isClean()) #type:ignore
+		if self._configuration_model.undo_stack:
+			self._configuration_model.undo_stack.cleanChanged.connect(
+				lambda: self.window.setWindowModified(not self._configuration_model.undo_stack.isClean()) #type:ignore
 			)
 
 		#Link close-event to a confirmation box
 		self.window.closeEvent = self.close_event
 
 
-		self._hightlight_changed_signal = self._config_file_picker_model.highlightPathChanged.connect(
-			self._config_file_picker_model_highlight_path_changed)
+		# self._highlight_changed_signal = self._config_file_picker_model.highlightPathChanged.connect(
+		# 	self._config_file_picker_model_highlight_path_changed)
 
 		#============= Post-load settings =============
 		if self._cur_file_path is not None:
@@ -207,14 +208,17 @@ class MainWindow():
 
 
 		#======================== Actions/Shortcuts ========================
-		self.ui.OpenFileLocationBtn.clicked.connect(self.open_save_location_in_explorer)
+
+		###### Configuration Actions ########
+		self.ui.actionNewConfig.triggered.connect(self.new_configuration) #Set to empty config
+		self.ui.actionOpenConfig.triggered.connect(self.load_config_from_file_popup)
 
 		self.ui.actionUndo.triggered.connect(self.undo_triggered)
 		self.ui.actionRedo.triggered.connect(self.redo_triggered)
-		self.ui.saveCurrentConfigAsBtn.clicked.connect(self.save_config_as_triggered)
-		self.ui.saveCurrentConfigBtn.clicked.connect(self.save_config_triggered)
-
-		self.ui.addToQueueButton.clicked.connect(self.add_to_queue_triggered)
+		self.ui.actionSave.triggered.connect(self.save_config_triggered)
+		self.ui.actionSave_As.triggered.connect(self.save_config_as_triggered)
+		
+		######### View Actions ##########
 		self.ui.actionIncreaseFontSize.triggered.connect(
 			lambda *_: self.set_font_point_size(min(96, self._font_point_size + 1)) #type: ignore
 		) #This should be more than enough
@@ -224,15 +228,71 @@ class MainWindow():
 		self.ui.actionDefaultFontSize.triggered.connect(
 			lambda *_: self.set_font_point_size(0) #0 makes it so that the system default is used
 		)
-
-		self.ui.actionSave.triggered.connect(self.save_config_triggered)
-		self.ui.actionSave_As.triggered.connect(self.save_config_as_triggered)
-
-		self.ui.actionNewConfig.triggered.connect(self.new_configuration) #Set
-			#to empty config
-
 		self.ui.menuMDI_Area.removeAction(self.ui.actionNone) #Remove the "none" action from the mdi menu
 		self.ui.ConfigurationMdiArea.add_actions_to_menu(self.ui.menuMDI_Area)
+
+		###### File overview buttons #########
+		self.ui.saveCurrentConfigAsBtn.clicked.connect(self.save_config_as_triggered)
+		self.ui.saveCurrentConfigBtn.clicked.connect(self.save_config_triggered)
+		self.ui.OpenFileLocationBtn.clicked.connect(self.open_save_location_in_explorer)
+
+
+		###### Run Queue Actions ########
+		# self.ui.menuRun_Queue.mousePressEvent().triggered.connect(self.ui.runQueueWidget.show)
+		self.ui.menuRun_Queue.aboutToShow.connect(self.expand_run_queue_view_filter_options)
+		# self.ui.actionViewRunQueueFilter.triggered.connect(lambda *_: self.expand_run_queue_view_filter_options())
+		# self.ui.actionViewRunQueueFilter.triggered.connect(lambda *_: print("kaas"))
+		# self.ui.actionBackupRunQueue.triggered.connect(self.runQu
+		self.ui.actionBackupRunQueue.triggered.connect(lambda *_: self.ui.runQueueWidget.save_to_file_popup())
+		self.ui.actionLoadRunQueue.triggered.connect(lambda *_: self.ui.runQueueWidget.load_from_file_popup())
+
+		###### Buttom-config editor buttons ########
+		self.ui.addToQueueButton.clicked.connect(self.add_to_queue_triggered)
+		self.ui.saveToQueueItemBtn.clicked.connect(self.save_to_queue_item_triggered)
+
+
+	@catch_show_exception_in_popup_decorator
+	def load_config_from_file_popup(self):
+		"""Creates a popup that asks the user to select a path, if a path is selected, we will attempt to load the
+		configuration from the selected path
+		"""
+		file_path = QtWidgets.QFileDialog.getOpenFileName(
+			self.window, "Select configuration file", self._config_save_path, "Config files (*.json *.yaml)"
+		)[0]
+		if file_path == "" or file_path is None:
+			return
+		self.load_from_file(file_path)
+
+	@catch_show_exception_in_popup_decorator
+	def save_to_queue_item_triggered(self) -> None:
+		"""
+		Saves the current configuration to the queue item with the id self._queue_source_id. If it does not exists,
+		a keyerror is raised.
+		"""
+		assert self._cur_source == OptionsSource.QUEUE, (f"Cannot save the config to an existing queue item " 
+			f"since the current source is {self._cur_source}, not {OptionsSource.QUEUE}")
+
+		try:
+			self._run_queue.set_item_config(self._queue_source_id, self._configuration_model.get_configuration_data_copy())
+			if self._configuration_model.undo_stack: #Undo stack is saved
+				self._configuration_model.undo_stack.setClean()
+		except ConfigurationIsFirmException as exception:
+			QtWidgets.QMessageBox.warning(self.window, "Cannot save to Queue item", str(exception))
+			return
+		except KeyError as exception:
+			QtWidgets.QMessageBox.warning(self.window, "Cannot save to Queue item", 
+				f"{exception}. <br> This is likely because the queue item was removed from the queue. <br>"
+			)
+
+	def expand_run_queue_view_filter_options(self):
+		"""Popules the run queue view filter menu with a copy of the menu provided in the run queue widget"""
+		self._cur_run_queue_view_menu = self.ui.runQueueWidget.get_queue_settings_context_menu() #NOTE: even though
+			# we don't use this after creation of the menu, we need to keep a reference for it not to be garbage collected
+
+		for action in self.ui.menuRun_Queue.actions(): #Remove all actions from the menu
+			self.ui.menuRun_Queue.removeAction(action)
+		for action in self._cur_run_queue_view_menu.actions():
+			self.ui.menuRun_Queue.addAction(action)
 
 
 	def option_proxy_models_changed(self, dict_of_models : typing.OrderedDict[str, QtCore.QSortFilterProxyModel]) -> None:
@@ -282,13 +342,14 @@ class MainWindow():
 		#Create a context menu with all ids, when clicked, un-ignore the id
 		menu = QtWidgets.QMenu()
 		#Add text "Re-show ignored ids" to the menu, followed by a splitter
+
 		if len(ignored_ids) == 0:
 			action = menu.addAction("(No ignored ids)")
 			action.setEnabled(False)
 		for cur_id in ignored_ids:
 			log.info(f"Ignored ids {ignored_ids} - currently adding item {cur_id} to menu")
 			action = menu.addAction(f"(Re)show item: {cur_id}")
-			action.triggered.connect(lambda id=int(cur_id): self._console_item_model.un_ignore_id(int(id)))
+			action.triggered.connect(lambda *_, id=cur_id: self._console_item_model.un_ignore_id(id))
 		menu.exec(self.ui.consoleWidget.ui.fileSelectionTableView.mapToGlobal(pos))
 
 	def set_run_queue(self, run_queue : RunQueue):
@@ -298,30 +359,84 @@ class MainWindow():
 			run_queue (RunQueue): the new runQueue
 		"""
 		self._run_queue = run_queue
-		self.ml_queue_model = RunQueueTableModel(self._run_queue)
+		self.run_queue_table_model : RunQueueTableModel = RunQueueTableModel(self._run_queue)
+		# if self._highlight_connection is not None:
+		# 	self._highlight_connection.disconnect()
+		# self._highlight_connection = self.run_queue_table_model.itemHighlightIdChanged.connect(
+		# 	self.queue_highlight_id_changed)
 
-		self._highlight_connection = self.ml_queue_model.itemHighlightChanged.connect(
-			self.set_current_config_to_queue_item)
+		# self.run_queue_table_model.highligh
 
 	@catch_show_exception_in_popup_decorator
-	def set_current_config_to_queue_item(self, queue_item_id : int) -> None:
+	def run_queue_widget_item_double_click(self, index : QtCore.QModelIndex) -> None:
+		"""
+		Replaces the default behaviour of the on-double click signal of the RunQueueTableView.
+		In this method, we first try to load the item, to the configuration-editor. 
+		If it fails, we just ignore the request. Otherwise mark the item as selected in the model and load
+		"""
+		cur_id = index.data(RunQueueTableModel.CustomDataRoles.IDRole)
+		log.debug(f"Double clicked on index {index.row()} with id {cur_id}")
+
+		ret = self.load_config_from_queue(cur_id)
+		if not ret:
+			log.warning(f"Failed to load queue item with id {cur_id}, ignoring request")
+			return
+		else:
+			self.run_queue_table_model.set_highligh_by_id(cur_id)
+
+		self.set_source(OptionsSource.QUEUE) #Source from queue
+		self._queue_source_id = cur_id #Set the id of the queue item which is currently selected
+
+		log.info(f"Loaded Configuration of queue item with id {cur_id} from RunQueue")
+
+	@catch_show_exception_in_popup_decorator
+	def file_explorer_item_double_click(self, index : QtCore.QModelIndex | QtCore.QPersistentModelIndex) -> None:
+		"""
+		Replaces the default behaviour of the on-double click signal of the FileExplorerView.
+		In this method, we first try to load the item, to the configuration-editor. 
+		If it fails, we just ignore the request. Otherwise mark the item as selected in the model and load it.
+		"""
+		file_path = self._config_file_picker_model.filePath(index)
+		log.debug(f"Double clicked on index {index.row()} with path {file_path}")
+
+		ret = self.load_from_file(file_path)
+		if not ret:
+			log.warning(f"Failed to load file {file_path}, ignoring request")
+			return
+		else:
+			self._config_file_picker_model.set_highlight_using_index(index)
+		# self.set_source(OptionsSource.FILE)
+
+
+	@catch_show_exception_in_popup_decorator
+	def load_config_from_queue(self, queue_item_id : int) -> bool:
 		"""
 		Sets the current configuration to the configuration of the queue item with the provided id. If the queue item
-		does not exist, raises a KeyError.
+		does not exist, raises a KeyError. If queue-item had no valid Configuration-instance, raises a ValueError.
 
 		Args:
 			queue_item_id (int): The id of the config we should attemt to load from the current RunQueue
 		"""
-		if queue_item_id == -1: 
+		#Check if undo stack is clean, if not -> ask user if they want to save
+		if self._configuration_model.undo_stack and not self._configuration_model.undo_stack.isClean():
+			if not self._ask_overwrite_unsaved_changes():
+				log.info("User chose not to overwrite unsaved changes, ignoring request to load config from queue")
+				return False
+
+		if queue_item_id == -1:
 			log.warning("Queue item id is -1, ignoring request to set current config to queue item")
-			return
+			raise KeyError("Queue item id is -1, ignoring request to set current config to queue item")
 
 		new_config = self._run_queue.get_item_config(queue_item_id)
-		if new_config is None:
-			raise ValueError(f"Queue item with id {queue_item_id} did not return a configuration, skipping.")
-		assert isinstance(new_config, Configuration), ("Queue item did not return a Configuration-object - instead, "
-			f"returned a {type(new_config)}")
-		self._config_model.set_configuration_data(new_config, validate_after_setting=True)
+		if new_config is None or not isinstance(new_config, Configuration):
+			raise ValueError(f"Queue item with id {queue_item_id} did not return a Configuration. Instead, returned "
+		    	f"{type(new_config)}.")
+
+
+
+		self._configuration_model.set_configuration_data(new_config, validate_after_setting=True)
+		if self._configuration_model.undo_stack: #Reset undo stack
+			self._configuration_model.undo_stack.clear()
 
 		#========= Update source ===========
 		self._queue_source_id = queue_item_id
@@ -329,7 +444,33 @@ class MainWindow():
 		self._cur_source = OptionsSource.QUEUE
 
 		#========= Update the file picker view ===========
-		self._config_file_picker_model.reset_hightlight() #Reset the hightlight
+		self._config_file_picker_model.reset_highlight() #Reset the hightlight
+
+		return True
+	
+	def set_source(self, new_source : OptionsSource) -> None:
+		"""
+		Sets the current source of the configuration (self._cur_source). 
+		If the source changed, the ui will be updated to reflect the new source 
+		(e.g. show load-to-queue-button, clear any highlights in other source etc.)
+
+		Args:
+			new_source (OptionsSource): The new source
+		"""
+		if new_source == self._cur_source:
+			return
+
+		self._cur_source = new_source
+		self._cur_file_path = None
+		self.ui.saveToQueueItemBtn.setHidden(new_source != OptionsSource.QUEUE) #Show the save button if item from queue
+
+		if new_source == OptionsSource.FILE:
+			#Clear highlight from RunQueue
+			self.run_queue_table_model.set_highligh_by_id(-1)
+		elif new_source == OptionsSource.QUEUE:
+			self._config_file_picker_model.reset_highlight() #Reset the hightlight
+
+		# self._config_file_picker_model.reset_highlight()
 
 	def update_ui_by_connection_state(self, new_connection_state : bool) -> None:
 		"""Updates the UI based on the connection state (disabled certain buttons, etc).
@@ -341,20 +482,12 @@ class MainWindow():
 		"""
 
 		if not new_connection_state:
-			self.ui.MLQueueWidget.set_overlay_hidden(False)
+			self.ui.runQueueOverlayWidget.set_overlay_hidden(False)
 			self.ui.ConsoleOverlayWidget.set_overlay_hidden(False)
 		else:
-			self.ui.MLQueueWidget.set_overlay_hidden(True)
+			self.ui.runQueueOverlayWidget.set_overlay_hidden(True)
 			self.ui.ConsoleOverlayWidget.set_overlay_hidden(True)
 
-
-	# def reset_splitter_states(self):
-	# 	"""
-	# 	Resets the state of all splitters to the default state
-	# 	"""
-	# 	for splitter in self.window.findChildren(QtWidgets.QSplitter):
-	# 		if splitter.objectName() in self._default_splitter_states.keys():
-	# 			splitter.restoreState(self._default_splitter_states[splitter.objectName()])
 
 	def set_font_point_size(self, new_font_size : int) -> None:
 		"""
@@ -385,8 +518,6 @@ class MainWindow():
 			self._settings.setValue(f"splitter_state_{splitter.objectName()}", splitter.saveState())
 
 
-
-
 	def open_save_location_in_explorer(self) -> None:
 		"""
 		Open the folder containing the current config file in the file explorer
@@ -400,6 +531,28 @@ class MainWindow():
 		else:
 			QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(self._config_save_path))
 
+	@staticmethod
+	def _ask_overwrite_unsaved_changes() -> bool:
+		"""Can be used when the configuration has unsaved changes. Asks the user if they want to overwrite the current
+		config with a new one. Returns True if the user wants to overwrite, False otherwise.
+
+		Returns:
+			bool: Whether the user wants to overwrite the current config with a new one
+		"""
+		new_msgbox = QtWidgets.QMessageBox()
+		new_msgbox.setWindowTitle("Warning")
+		new_msgbox.setIcon(QtWidgets.QMessageBox.Icon.Warning)
+		new_msgbox.setText(
+			"The current config has unsaved changed, do you want to overwrite them with the selected config?"
+		)
+		new_msgbox.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No)
+		new_msgbox.setDefaultButton(QtWidgets.QMessageBox.StandardButton.No)
+		new_msgbox.setEscapeButton(QtWidgets.QMessageBox.StandardButton.No)
+		ret = new_msgbox.exec()
+		if ret == QtWidgets.QMessageBox.StandardButton.Yes:
+			return True
+		return False
+
 	def new_configuration(self, ignore_modified_window : bool=False) -> None:
 		"""
 		Create a new configuration with default values. If the current config has unsaved changes, a dialog will be
@@ -411,29 +564,29 @@ class MainWindow():
 				overwrites the current config without asking the user. Defaults to False.
 		"""
 		if self.window.isWindowModified() and not ignore_modified_window:
-			new_msg = QtWidgets.QMessageBox()
-			new_msg.setWindowTitle("Warning")
-			new_msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
-			new_msg.setText("The current config has unsaved changed, do you want to overwrite them with a new config?")
-			new_msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No)
-			new_msg.setDefaultButton(QtWidgets.QMessageBox.StandardButton.No)
-			new_msg.setEscapeButton(QtWidgets.QMessageBox.StandardButton.No)
-			ret = new_msg.exec()
-			if ret == QtWidgets.QMessageBox.StandardButton.No:
-				self._config_file_picker_model.set_hightlight_using_path(self._cur_file_path) #Hightlight path -> original
+			if not self._ask_overwrite_unsaved_changes():
 				return
+
+			self._config_file_picker_model.set_highlight_using_path(self._cur_file_path) #Hightlight path -> original
+			return
 
 		self.window.setWindowModified(False)
 		self._cur_file_path = None
-		self._config_file_picker_model.reset_hightlight()
-		self._config_model.reset_configuration_data_to_default()
+		self._config_file_picker_model.reset_highlight()
+		self._configuration_model.reset_configuration_data_to_default()
 
-	def load_from_file(self, new_path : str | None, show_dialog_on_problem=True) -> bool:
+	def load_from_file(self, 
+				new_path : str | None,
+				show_dialog_on_problem=True,
+				ignore_modified = False
+			) -> bool:
 		"""Loads the config from a file
 
 		Args:
 			new_path (str): The new path from which to load the config
 			show_dialog_on_problem (bool, optional): Whether to show a dialog when there are problems. Defaults to True.
+			ignore_modified (bool, optional): Whether to ignore the current modified window state. If true,
+				overwrites the current config without asking the user. Defaults to False (ask user if modified).
 
 		Returns:
 			bool: Whether loading a config was succesful NOTE: still returns True if the passed file was already loaded,
@@ -443,11 +596,11 @@ class MainWindow():
 			return False
 
 		if new_path == self._cur_file_path and self._cur_source == OptionsSource.FILE: #If file is already loaded
-			if self._config_file_picker_model.get_hightlight_path() != new_path:
-				self._config_file_picker_model.set_hightlight_using_path(self._cur_file_path) #Do update the highlight path
+			if self._config_file_picker_model.get_highlight_path() != new_path:
+				self._config_file_picker_model.set_highlight_using_path(self._cur_file_path) #Do update the highlight path
 			return True #Ignore -> but action was successful
 
-		if self.window.isWindowModified():
+		if self.window.isWindowModified() and not ignore_modified:
 			msg = QtWidgets.QMessageBox()
 			msg.setWindowTitle("Warning")
 			msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
@@ -457,18 +610,16 @@ class MainWindow():
 			msg.setEscapeButton(QtWidgets.QMessageBox.StandardButton.No)
 			ret = msg.exec()
 			if ret == QtWidgets.QMessageBox.StandardButton.No:
-				self._config_file_picker_model.set_hightlight_using_path(self._cur_file_path) #Hightlight path -> original
 				return False
 
 		self._cur_file_path = new_path
-		self._cur_source = OptionsSource.FILE
-		self._config_file_picker_model.set_hightlight_using_path(self._cur_file_path) #Also update the highlight path
-		log.debug(f"Started trying to load config from {new_path}")
+		self.set_source(OptionsSource.FILE)
+		self._config_file_picker_model.set_highlight_using_path(self._cur_file_path) #Also update the highlight path
 		try:
 			if new_path:
 				problem_dict = {}
 				try: #First try loading using class-type keys that are inside the json file
-					problem_dict = self._config_model.load_json_from(new_path)
+					problem_dict = self._configuration_model.load_json_from(new_path)
 				except (UnkownOptionClassError, NoClassTypesError) as exception:
 
 					msg = QtWidgets.QMessageBox()
@@ -509,9 +660,9 @@ class MainWindow():
 
 					msg.exec()
 					if msg.clickedButton() == button_deduce: #Deduce
-						problem_dict = self._config_model.load_json_from(new_path, load_using_classtypes_key=False)
+						problem_dict = self._configuration_model.load_json_from(new_path, load_using_classtypes_key=False)
 					elif msg.clickedButton() == button_discard: #Discard
-						problem_dict = self._config_model.load_json_from(new_path, ignore_unknown_option_types=True)
+						problem_dict = self._configuration_model.load_json_from(new_path, ignore_unknown_option_types=True)
 					else:
 						#Reset settings
 						self.new_configuration(ignore_modified_window=True) #If loading failed -> reset to default config
@@ -541,7 +692,7 @@ class MainWindow():
 					msg.exec()
 
 				try:
-					self._config_model.validate_current_configuration()
+					self._configuration_model.validate_current_configuration()
 				except OptionTypesMismatch as exception:
 					msg = QtWidgets.QMessageBox()
 					msg.setWindowTitle("Warning")
@@ -559,7 +710,7 @@ class MainWindow():
 					msg.setDefaultButton(QtWidgets.QMessageBox.StandardButton.Ok)
 					msg.exec()
 
-				self._config_file_picker_model.set_hightlight_using_path(new_path)
+				self._config_file_picker_model.set_highlight_using_path(new_path)
 				return True
 		except Exception as exception: #pylint: disable=broad-except #Allow broad-exception, catch all and display
 			msg = QtWidgets.QMessageBox()
@@ -571,12 +722,10 @@ class MainWindow():
 			msg.exec()
 			log.error(f"Could not load config from {new_path}. Error: {exception}")
 			self._cur_file_path = None
-			self._config_file_picker_model.reset_hightlight()
+			self._config_file_picker_model.reset_highlight()
 		return False
 
 
-	def _config_file_picker_model_highlight_path_changed(self, new_path : str) -> None:
-		self.load_from_file(new_path) #Load from this file
 
 
 	def close_event(self, event : QtGui.QCloseEvent) -> None:
@@ -631,8 +780,8 @@ class MainWindow():
 			# return os.path.basename(self._cur_file_path) #If already saved, use the save-name
 			return os.path.basename(self._cur_file_path).rsplit(".", 1)[0] #If already saved, use the save-name
 
-		if hasattr(self._config_model, "experiment_name"): #If experiment name is set -> use that
-			return self._config_model.experiment_name
+		if hasattr(self._configuration_model, "experiment_name"): #If experiment name is set -> use that
+			return self._configuration_model.experiment_name
 
 		# name = ""
 		# name += ("_" + self._config_model.data_class) if self._config_model.data_class else ""
@@ -652,15 +801,15 @@ class MainWindow():
 					    QtWidgets.QLineEdit.EchoMode.Normal, name)
 		if ok_clicked:
 			# self.ml_queue.add_to_queue(name, self._options.get_options_data_copy())
-			self.ml_queue_model.add_to_queue(name, self._config_model.get_configuration_data_copy())
+			self.run_queue_table_model.add_to_queue(name, self._configuration_model.get_configuration_data_copy())
 
 	def undo_triggered(self):
 		"""
 		Triggered when undo is clicked. Undoes the last change to the options
 		"""
 		log.info("Undo triggered")
-		if self._config_model.undo_stack:
-			self._config_model.undo_stack.undo()
+		if self._configuration_model.undo_stack:
+			self._configuration_model.undo_stack.undo()
 
 	def redo_triggered(self):
 		"""
@@ -668,8 +817,8 @@ class MainWindow():
 		"""
 
 		log.info("Redo triggered")
-		if self._config_model.undo_stack:
-			self._config_model.undo_stack.redo()
+		if self._configuration_model.undo_stack:
+			self._configuration_model.undo_stack.redo()
 
 	def save_config_triggered(self) -> bool:
 		"""Save the config to the current file path. If no file path is set, calls save_config_as_triggered instead.
@@ -681,9 +830,9 @@ class MainWindow():
 		if self._cur_file_path is None or (self._cur_source != OptionsSource.FILE) or not os.path.isfile(self._cur_file_path):
 			ret = self.save_config_as_triggered() #Already cleans undo-stack if successful
 		else:
-			ret = self._config_model.save_json_to(self._cur_file_path)
-			if ret and self._config_model.undo_stack: #If save was successful -> set clean state
-				self._config_model.undo_stack.setClean()
+			ret = self._configuration_model.save_json_to(self._cur_file_path)
+			if ret and self._configuration_model.undo_stack: #If save was successful -> set clean state
+				self._configuration_model.undo_stack.setClean()
 				self.window.setWindowModified(False)
 		return ret
 
@@ -705,11 +854,11 @@ class MainWindow():
 			None, "Save config", start_path, "JSON (*.json)") #type:ignore
 		if file_path:
 			self._cur_file_path = file_path #If source is file -> this sets current file path
-			self._config_file_picker_model.set_hightlight_using_path(self._cur_file_path) #Also update the highlighted path
-			ret = self._config_model.save_json_to(file_path)
+			self._config_file_picker_model.set_highlight_using_path(self._cur_file_path) #Also update the highlighted path
+			ret = self._configuration_model.save_json_to(file_path)
 			log.info(f"Save as returned {ret}")
-			if ret and self._config_model.undo_stack: #If save was successful -> set clean state
-				self._config_model.undo_stack.setClean()
+			if ret and self._configuration_model.undo_stack: #If save was successful -> set clean state
+				self._configuration_model.undo_stack.setClean()
 				self.window.setWindowModified(False)
 		else:
 			log.info("No Save Path Selected")

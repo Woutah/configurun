@@ -4,17 +4,21 @@ Implements the RunQueueTableModel class. Enabling the user to display a RunQueue
 
 # from MachineLearning.framework.RunQueueClient import RunQueueClient
 import logging
+import os
+import textwrap
+import traceback
 import typing
 from enum import IntEnum
-import textwrap
-import os
-from PySide6 import QtCore, QtGui, QtWidgets
-import traceback
-# from MachineLearning.framework.RunQueue import RunQueue, RunQueueItem, RunQueueItemStatus, QueueItemActions
-from configurun.classes.run_queue import (RunQueue, RunQueueItem,
-                                          RunQueueItemActions,
-                                          RunQueueItemStatus, RunQueueHasRunningItemsException)
+
 import dill
+from PySide6 import QtCore, QtGui, QtWidgets
+
+# from MachineLearning.framework.RunQueue import RunQueue, RunQueueItem, RunQueueItemStatus, QueueItemActions
+from configurun.classes.run_queue import (RunQueue,
+                                          RunQueueHasRunningItemsException,
+                                          RunQueueItem, RunQueueItemActions,
+                                          RunQueueItemStatus)
+
 log = logging.getLogger(__name__)
 
 
@@ -29,7 +33,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 
 	autoProcessingStateChanged = QtCore.Signal(bool)
 
-	itemHighlightChanged = QtCore.Signal(int) #Emitted when the highlighted item changes, emits the new id 
+	itemHighlightIdChanged = QtCore.Signal(int) #Emitted when the highlighted item changes, emits the new id 
 
 	class CustomDataRoles(IntEnum):
 		"""
@@ -295,6 +299,19 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		log.info(f"Loaded RunQueue from file {file_path}.")
 
 
+	def get_n_processes(self) -> int:
+		"""Returns the number of processes to use for the queue.
+		"""
+		return self._run_queue.get_n_processes()
+	
+	def set_n_processes(self, n_processes : int) -> None:
+		"""Sets the number of processes to use for the queue.
+
+		Args:
+			n_processes (int): The number of processes to use for the queue
+		"""
+		self._run_queue.set_n_processes(n_processes)
+
 	def save_to_file_popup(self):
 		"""Opens a popup to save the queue to a file.
 
@@ -390,7 +407,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 			new_item_ids (list[int]): list of ids of the new items
 			new_items_dict (typing.Dict[int, RunQueueItem]): a copy of the all_items_dict with the new item added
 		"""
-		if (len(new_item_ids) + len(new_items_dict)) != len(self._cur_run_queue_item_dict_copy):
+		if (len(new_item_ids) - len(new_items_dict)) != len(self._cur_run_queue_item_dict_copy):
 			log.warning("New item(s) added to runQueue, but the updated length of the runQueue is different from the currently"
 	     		"known length of the table-model plus the amount of added items. The runqueue seems to be out of sync...")
 
@@ -544,33 +561,42 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 				self.index(index.row(),self.columnCount()), #update column
 				[QtCore.Qt.ItemDataRole.FontRole] #Only update font as it is the only thing that changes due to highlighting
 			)
-			if self._prev_highlighted_id is not None: #Also clear boldness of the previous item
-				self.dataChanged.emit(
-					self.index(self.get_index_row_by_id(self._prev_highlighted_id), 0),
-					self.index(self.get_index_row_by_id(self._prev_highlighted_id), self.columnCount()),
-					[QtCore.Qt.ItemDataRole.FontRole] #Only update font as it is the only thing that changes due to highlighting
-				)
-			self.itemHighlightChanged.emit(new_id) #Emit signal to UI
 
-	def set_highligh_by_id(self, highlight_item_id: int) -> None:
+			self.itemHighlightIdChanged.emit(new_id) #Emit signal to UI
+		else:
+			log.info("Invalid index given to set_highlight_by_index, resetting highlight")
+			self.itemHighlightIdChanged.emit(None) #Emit signal to UI
+			self._highlighted_id = -1
+
+		if self._prev_highlighted_id is not None: #Also clear boldness of the previous item
+			self.dataChanged.emit(
+				self.index(self.get_index_row_by_id(self._prev_highlighted_id), 0),
+				self.index(self.get_index_row_by_id(self._prev_highlighted_id), self.columnCount()),
+				[QtCore.Qt.ItemDataRole.FontRole] #Only update font as it is the only thing that changes due to highlighting
+			)
+		
+	def set_highligh_by_id(self, highlight_item_id : int | None) -> None:
 		"""Set the highlighted item by its item id
 		Args:
-			id (int): The id of the item to highlight
+			id (int): The id of the item to highlight or None/--1 to clear the highlight
 		"""
 		self._prev_highlighted_id = self._highlighted_id
-		self._highlighted_id = highlight_item_id
-		self.dataChanged.emit(
-			self.get_index_by_id(self._highlighted_id, 0),
-			self.get_index_by_id(self._highlighted_id, self.columnCount()), #update column
-			[QtCore.Qt.ItemDataRole.FontRole] #Only update font as it is the only thing that changes due to highlighting
-		) #TODO: Only update the row with the new/old id
+		if highlight_item_id is None or highlight_item_id < 0:
+			self._highlighted_id = -1
+		else:
+			self._highlighted_id = highlight_item_id
+			self.dataChanged.emit(
+				self.get_index_by_id(self._highlighted_id, 0),
+				self.get_index_by_id(self._highlighted_id, self.columnCount()), #update column
+				[QtCore.Qt.ItemDataRole.FontRole] #Only update font as it is the only thing that changes due to highlighting
+			) #TODO: Only update the row with the new/old id
 		if self._prev_highlighted_id is not None: #Also clear boldness of the previous item
 			self.dataChanged.emit(
 				self.get_index_by_id(self._prev_highlighted_id, 0),
 				self.get_index_by_id(self._prev_highlighted_id, self.columnCount()), #update column
 				[QtCore.Qt.ItemDataRole.FontRole] #Only update font as it is the only thing that changes due to highlighting
 			)
-		self.itemHighlightChanged.emit(highlight_item_id) #Emit signal to UI
+		self.itemHighlightIdChanged.emit(highlight_item_id) #Emit signal to UI
 
 	def hightlighted_id(self) -> int | None:
 		"""return the currently highlighted item id in the model"""

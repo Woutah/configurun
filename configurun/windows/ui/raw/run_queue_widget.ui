@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>MLQueueWidget</class>
- <widget class="QWidget" name="MLQueueWidget">
+ <class>RunQueueWidget</class>
+ <widget class="QWidget" name="RunQueueWidget">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -377,7 +377,7 @@
    <item>
     <layout class="QVBoxLayout" name="QueueViewLayout">
      <item>
-      <widget class="RunQueueTreeView" name="queueView"/>
+      <widget class="RunQueueTreeView" name="runQueueTreeView"/>
      </item>
     </layout>
    </item>

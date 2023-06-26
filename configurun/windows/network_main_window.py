@@ -82,7 +82,7 @@ class NetworkMainWindow(MainWindow):
 		self.reconnect_button_2, self._console_overlay_msg = self.get_connection_overlay_ui()
 
 
-		self.ml_overlay_widget = self.ui.MLQueueWidget
+		self.ml_overlay_widget = self.ui.runQueueOverlayWidget
 		self.console_overlay_widget = self.ui.ConsoleOverlayWidget
 
 		self.ml_overlay_widget.set_overlay_widget(self._task_queue_overlay_msg)
@@ -170,7 +170,7 @@ class NetworkMainWindow(MainWindow):
 			self.network_connection_widget.client_connected(cur_ip, str(cur_port), cur_pw)
 			self.connection_window.close()
 
-			self.ml_queue_model.reset_model() #Re-request all data from the server
+			self.run_queue_table_model.reset_model() #Re-request all data from the server
 			self.window.statusBar().showMessage(f"Connected to {cur_ip}:{cur_port}", timeout=0) #Show message until next msg
 
 		else:
