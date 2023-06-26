@@ -68,7 +68,8 @@ def argparse_to_dataclass(
 					metadata=dict(
 						display_name = display_name,
 						help = action.help,
-						constraints = new_constraints #TODO: add constraints
+						constraints = new_constraints, #TODO: add constraints
+						required = action.required
 					)
 				)
 			)
