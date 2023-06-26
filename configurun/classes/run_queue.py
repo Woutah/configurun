@@ -485,7 +485,7 @@ class RunQueue(QtCore.QObject):
 			if self._get_running_configuration_count_nolocks() > 0:
 				raise RuntimeError("Could not load queue from dictionary, queue contains running items. Please make sure"
 		       		" no configurations are running when loading queue data.")
-			
+
 			#NOTE: We have to make sure that the objects are managed by the manager, otherwise changes will not propagate
 			# between processes
 			self._all_items_dict = self._manager.dict(contents_dict["all_items_dict"])
@@ -501,8 +501,8 @@ class RunQueue(QtCore.QObject):
 			self._cur_id = contents_dict["cur_id"]
 			self._cmd_id_name_path_dict = self._manager.dict(contents_dict["cmd_id_name_path_dict"]) #Load path-locations of the cmd outputs
 			#TODO: clear commandline output queue as well
-			
-		
+
+
 			#TODO: make cmd output relative to the workspace folder? That way we can copy between machines.
 		self.resetTriggered.emit() #Emit signal to indicate that the queue has been reset
 
@@ -548,6 +548,30 @@ class RunQueue(QtCore.QObject):
 				"had_running_items" : had_running_items #So we can indicate when loading that there were running items
 		}
 
+	def set_item_config(self, item_id : int, new_config : Configuration):
+		"""
+		Set the configuration of an item in the queue.
+
+		Args:
+			item_id (int): the id of the item to set the configuration for
+			new_config (Configuration): the new configuration to set
+
+		Raises:
+			KeyError: if the item_id config cannot be set. This can only be done when the item is cancelled or
+				when it's in-queue. Already-finished/stopped items cannot be changed to make sure the history is
+				accurate
+		"""
+		with self._all_items_dict_mutex:
+			if self._all_items_dict[item_id].status in [
+								RunQueueItemStatus.Queued,
+								RunQueueItemStatus.Cancelled
+						   ]:
+
+				self._all_items_dict[item_id].config = new_config
+				self.itemDataChanged.emit(item_id, self._all_items_dict[item_id].get_copy())
+			else:
+				raise KeyError(f"Could not set configuration for item with id {item_id} in state "
+		   			f"{self._all_items_dict[item_id].status}, ")
 	@staticmethod
 	def get_actions_from_status(status : RunQueueItemStatus) -> typing.List[RunQueueItemActions]:
 		"""
@@ -811,7 +835,7 @@ class RunQueue(QtCore.QObject):
 		"""
 		with self._all_items_dict_mutex, self._queue_mutex:
 			return self._get_running_configuration_count_nolocks()
-	
+
 	def _get_running_configuration_count_nolocks(self):
 		count = 0
 		for queue_item in self._all_items_dict.values():
