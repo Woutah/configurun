@@ -376,7 +376,7 @@ class RunQueueClient(RunQueue,
 							signal : QtCore.SignalInstance = getattr(self, signal_name)
 							log.debug(
 								f"Received signal {signal_name} from server - resulting in a re-transmit of signal"
-									"{signal} of type {type(signal)}"
+									f"{signal} of type {type(signal)}"
 							)
 							assert isinstance(signal, QtCore.SignalInstance)
 							#Emit the signal

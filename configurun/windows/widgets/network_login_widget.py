@@ -25,9 +25,13 @@ class NetworkLoginWidget(QtWidgets.QWidget):
 		self._ui = Ui_NetworkLoginWidget()
 		self._ui.setupUi(widget)
 		self._settings = settings
-		
-		self.server_ip_history : list[str] = self._settings.value("server_ip_history", []) # type: ignore
-		self.server_port_history : list[str] = self._settings.value("server_port_history", []) # type: ignore
+
+		self.server_ip_history : list[str] = self._settings.value("server_ip_history", None) # type: ignore
+		self.server_port_history : list[str] = self._settings.value("server_port_history", None) # type: ignore
+		if self.server_ip_history is None:
+			self.server_ip_history = []
+		if self.server_port_history is None:
+			self.server_port_history = []
 		assert isinstance(self.server_ip_history, list)
 		assert isinstance(self.server_port_history, list)
 
@@ -92,6 +96,11 @@ class NetworkLoginWidget(QtWidgets.QWidget):
 
 	def save_histories(self) -> None:
 		"""Save the history of the comboboxes to the settings"""
+		if len(self.server_ip_history) == 1: #TODO: somehow loading settings goes wrong if only 1 item in list
+			self.server_ip_history.append('')
+		if len(self.server_port_history) == 1:
+			self.server_port_history.append('')
+
 		self._settings.setValue("server_ip_history", self.server_ip_history)
 		self._settings.setValue("server_port_history", self.server_port_history)
 

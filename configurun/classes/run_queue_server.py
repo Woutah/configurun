@@ -178,7 +178,6 @@ class RunQueueServer():
 		Args:
 			client_sock (socket.socket): The client socket
 			address (str): The client address
-
 		"""
 		log.info(f"Started authentication process of new client ({address})")
 		#Attempt to get client public key

@@ -5,19 +5,7 @@ RunQueueServer (see MLQueue.classes.RunQueueServer) and run machine learning tas
 """
 
 import logging
-
-log = logging.getLogger(__name__)
-if __name__ == "__main__":
-	logging.getLogger('matplotlib').setLevel(logging.INFO)
-	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}] {levelname:<7s}   {message}", style='{')
-	log.propagate = False
-	handler = logging.StreamHandler()
-	handler.setFormatter(formatter)
-	logging.basicConfig(
-		handlers=[handler],
-		level=logging.DEBUG) #Without time
-
-#pylint: disable=wrong-import-position
+import os
 import typing
 
 from PySide6 import QtCore, QtGui, QtWidgets
@@ -29,6 +17,7 @@ from configurun.configuration.configuration_model import ConfigurationModel
 from configurun.windows.main_window import MainWindow
 from configurun.windows.widgets.network_login_widget import NetworkLoginWidget
 
+log = logging.getLogger(__name__)
 
 class NetworkMainWindow(MainWindow):
 	"""
@@ -103,7 +92,7 @@ class NetworkMainWindow(MainWindow):
 
 
 		#=========== Connect/Disconnect window ==============
-		self.connection_window = QtWidgets.QMainWindow()
+		self.connection_window = QtWidgets.QMainWindow(self.window)
 		self.connection_window.setWindowTitle("Connection")
 		self.connection_window.setWindowIcon(self.window.windowIcon())
 
@@ -130,6 +119,7 @@ class NetworkMainWindow(MainWindow):
 		self.reconnect_button_1.clicked.connect(lambda *_: self.connection_window.activateWindow())
 		self.reconnect_button_2.clicked.connect(lambda *_: self.connection_window.activateWindow())
 		self.open_connection_action.triggered.connect(self.connection_window.show)
+
 
 
 	def initial_run_queue_load(self) -> None:
@@ -193,6 +183,7 @@ class NetworkMainWindow(MainWindow):
 
 	def close_event(self, event: QtGui.QCloseEvent) -> None:
 		self.network_connection_widget.save_histories() #Also save file-edit history
+		self.disconnect_from_server() #Disconnect from server
 		return super().close_event(event)
 
 
@@ -223,16 +214,24 @@ if __name__ == "__main__":
 		handlers=[handler],
 		level=logging.DEBUG) #Without time
 	app = QtWidgets.QApplication([])
+	root = logging.getLogger()
+	root.handlers = [handler]
 
 	test_window = QtWidgets.QMainWindow()
 	test_runqueue_client = RunQueueClient()
 	test_configuration_model = ConfigurationModel(
 		option_type_deduction_function=deduce_new_option_class_types
 	)
+
+	test_workspace_path = os.path.join(os.path.expanduser("~"), "Configurun-Client")
+	if not os.path.isdir(test_workspace_path):
+		os.makedirs(test_workspace_path)
+
 	ml_window = NetworkMainWindow(
 		configuration_model=test_configuration_model,
 		run_queue_client=test_runqueue_client,
-		window=test_window
+		window=test_window,
+		workspace_path=test_workspace_path
 	)
 	test_window.show()
 	app.exec()
