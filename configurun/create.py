@@ -199,7 +199,7 @@ def server(
 			run_queue=runqueue,
 			password=password,
 			hostname=hostname,
-			port=port
+			port=port,
 	)
 
 	app = QtCore.QCoreApplication(sys.argv) #Run the main event-loop (used for signals)

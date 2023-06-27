@@ -86,6 +86,21 @@ class Configuration(object):
 
 		raise AttributeError(f"Attribute {key} not found in any of the options classes")
 
+	def get(self, key : str, default : typing.Any):
+		"""
+		A safe alternative to the __getattr__ function. This function will return the default value if the given
+		key is not found.  
+
+		Args:
+			key (str): The attribute to look for
+			default (typing.Any): The default value to return if the attribute is not found
+		"""
+		try:
+			return getattr(self, key)
+		except AttributeError:
+			return default
+
+
 	def get_dict(self):
 		"""
 		Return the sub-options instances as a dictionary
