@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 
 class RunQueueWidget(QtWidgets.QWidget):
 	"""
-	A wrapper-widget for a RunQueueTreeView with some buttons to control the queue (start, stop, move up, move down, 
+	A wrapper-widget for a RunQueueTreeView with some buttons to control the queue (start, stop, move up, move down,
 	delete,	cancel etc.)
 	"""
 	def __init__(self, widget : QtWidgets.QWidget) -> None:
@@ -79,8 +79,8 @@ class RunQueueWidget(QtWidgets.QWidget):
 			action.setChecked(status not in cur_filtered)
 			action.triggered.connect(
 				lambda *_, status=status: self.runQueueTreeView.set_whether_status_filtered(
-					status, not(status in cur_filtered)) #pylint: disable=superfluous-parens 
-				) 
+					status, not(status in cur_filtered)) #pylint: disable=superfluous-parens
+				)
 			menu.addAction(action)
 
 		return menu

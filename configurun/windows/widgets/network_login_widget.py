@@ -25,7 +25,7 @@ class NetworkLoginWidget(QtWidgets.QWidget):
 		self._ui = Ui_NetworkLoginWidget()
 		self._ui.setupUi(widget)
 		self._settings = settings
-
+		
 		self.server_ip_history : list[str] = self._settings.value("server_ip_history", []) # type: ignore
 		self.server_port_history : list[str] = self._settings.value("server_port_history", []) # type: ignore
 		assert isinstance(self.server_ip_history, list)

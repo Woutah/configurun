@@ -339,7 +339,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		try:
 			try:
 				save_dict = self._run_queue.get_queue_contents_dict(save_running_as_stopped=False)
-			except RunQueueHasRunningItemsException as exception: #pylint: disable=broad-exception-caught
+			except RunQueueHasRunningItemsException as exception:
 				log.warning("")
 				#Ask if user wants to save anyway, in the savefile, all running items will be marked as "stopped"
 				#and the queue will be saved

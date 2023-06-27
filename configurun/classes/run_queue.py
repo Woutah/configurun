@@ -344,8 +344,6 @@ class RunQueue(QtCore.QObject):
 			# TODO: Make this an ordered dict to make clear that new items are appended to the end, this is not
 			# really necceasry for this class itself, but makes it easier to use in qt-models (tablemodels/treeviews)
 			# because of a more predictable (next) order after item change/insertion/removal
-		# self._all_items_dict : typing.Dict[int, RunQueueItem] = self._manager.dict({1: RunQueueItem(1, "kaas", datetime.now(), "kaas")}) #type: ignore #Contains all items
-		# self._all_items_dict[1] = RunQueueItem(1, "kaas", datetime.now(), "kaas")
 		self._all_items_dict_mutex = multiprocess.Lock()
 
 
@@ -504,10 +502,9 @@ class RunQueue(QtCore.QObject):
 
 			self._queue = self._manager.list(contents_dict["queue_copy"])
 			self._cur_id = contents_dict["cur_id"]
-			self._cmd_id_name_path_dict = self._manager.dict(contents_dict["cmd_id_name_path_dict"]) #Load path-locations of the cmd outputs
+			self._cmd_id_name_path_dict = self._manager.dict(contents_dict["cmd_id_name_path_dict"]) #Load path-locations
+			#of the cmd outputs
 			#TODO: clear commandline output queue as well
-
-
 			#TODO: make cmd output relative to the workspace folder? That way we can copy between machines.
 		self.resetTriggered.emit() #Emit signal to indicate that the queue has been reset
 
@@ -547,7 +544,8 @@ class RunQueue(QtCore.QObject):
 				"all_items_dict" : all_items_dict_copy,
 				"queue_copy" : queue_copy,
 				"cur_id" : self._cur_id, #Make sure we don't start overwriting items
-				"cmd_id_name_path_dict": copy(dict(self._cmd_id_name_path_dict)), #Save the file-locations of the command line outputs
+				"cmd_id_name_path_dict": copy(dict(self._cmd_id_name_path_dict)), #Save the file-locations of the
+					# command line outputs
 					#NOTE: we have to copy the dict, otherwise we get errors when loading it again since it's a managed
 					# object which can't survive between app-runs (results in a FileNotFoundError when trying to load)
 				"had_running_items" : had_running_items #So we can indicate when loading that there were running items
@@ -845,7 +843,7 @@ class RunQueue(QtCore.QObject):
 			self._autoprocessing_enabled = True
 			self.autoProcessingStateChanged.emit(True)
 			self._run_queue()
-	
+
 	def get_n_processes(self):
 		"""
 		Get the number of processes this runqueue can use (at max).
@@ -896,7 +894,7 @@ class RunQueue(QtCore.QObject):
 			self.autoProcessingStateChanged.emit(False)
 
 	def force_stop_all_running(self,
-				stop_msg : str = "Process was force stopped by user."    
+				stop_msg : str = "Process was force stopped by user."
 			):
 		"""
 		Force stop all running processes and set the configuration to cancelled
@@ -904,7 +902,7 @@ class RunQueue(QtCore.QObject):
 
 		Args:
 			stop_msg (str, optional): the message to set as stderr for the stopped items. Defaults to
-				"Process was force stopped by user.". 
+				"Process was force stopped by user.".
 		"""
 		log.info("Now force stopping all running processes...")
 		self.stop_autoprocessing()
@@ -935,7 +933,7 @@ class RunQueue(QtCore.QObject):
 	def save_and_stop_all(self, save_path : str):
 		"""
 		Save the queue and then try to stop all updaters/etc.
-		All running processes will be force stopped and set to a 'stopped' state. 
+		All running processes will be force stopped and set to a 'stopped' state.
 
 		Args:
 			save_path (str): the path to save the queue to

@@ -74,7 +74,6 @@ class MainWindow():
 			settings_in_workspace_path (bool, optional): Whether to store the settings in the workspace path or in the default
 				QSettings location. Defaults to True
 		"""
-
 		self.ui = Ui_MainWindow() # pylint: disable=C0103
 		self.ui.setupUi(window)
 
@@ -122,7 +121,7 @@ class MainWindow():
 		with open(os.path.join(self._workspace_path, WORKSPACE_LOCK_FILE_NAME), "w", encoding="utf-8") as lock_file:
 			lock_file.write("This file is used to indicate that the workspace at this path is in use by another instance of "
 				f"the {APP_NAME}-app. Please only remove this file if the app crashed and this file remained.")
-		
+
 
 		config_save_path = os.path.join(self._workspace_path, "configurations")
 		if not os.path.isdir(config_save_path):
@@ -391,12 +390,6 @@ class MainWindow():
 		"""
 		self._run_queue = run_queue
 		self.run_queue_table_model : RunQueueTableModel = RunQueueTableModel(self._run_queue)
-		# if self._highlight_connection is not None:
-		# 	self._highlight_connection.disconnect()
-		# self._highlight_connection = self.run_queue_table_model.itemHighlightIdChanged.connect(
-		# 	self.queue_highlight_id_changed)
-
-		# self.run_queue_table_model.highligh
 
 	@catch_show_exception_in_popup_decorator
 	def run_queue_widget_item_double_click(self, index : QtCore.QModelIndex) -> None:
@@ -436,8 +429,6 @@ class MainWindow():
 			return
 		else:
 			self._config_file_picker_model.set_highlight_using_index(index)
-		# self.set_source(OptionsSource.FILE)
-
 
 	@catch_show_exception_in_popup_decorator
 	def load_config_from_queue(self, queue_item_id : int) -> bool:
@@ -462,8 +453,6 @@ class MainWindow():
 		if new_config is None or not isinstance(new_config, Configuration):
 			raise ValueError(f"Queue item with id {queue_item_id} did not return a Configuration. Instead, returned "
 		    	f"{type(new_config)}.")
-
-
 
 		self._configuration_model.set_configuration_data(new_config, validate_after_setting=True)
 		if self._configuration_model.undo_stack: #Reset undo stack
@@ -521,35 +510,35 @@ class MainWindow():
 
 	def initial_run_queue_load(self) -> None:
 		"""
-		Should be called just after setting workspace. 
-		Tries to load the RunQueue contents from a file according to the filename that is used when the close-event is 
+		Should be called just after setting workspace.
+		Tries to load the RunQueue contents from a file according to the filename that is used when the close-event is
 		called. If the file does not exist, nothing happens.
 
 		NOTE: In the case of RunQueueClient-based run-mode, this method should probably not be called, as it tries to
 			overwrite the run-queue, which might not be desireable in the case of a running server.
 
-		TODO: also move loading settings here? 
+		TODO: also move loading settings here?
 		"""
 		if os.path.exists(os.path.join(self._workspace_path, WORKSPACE_RUN_QUEUE_SAVE_NAME)):
 			cur_items = self._run_queue.get_all_items_dict_snapshot_copy()
 			if len(cur_items.keys()) > 0:
 				#Create a popup that asks the user to select a path, if a path is selected, we will attempt to load the
-				#Use one-liner 
+				#Use one-liner
 				warning_box = QtWidgets.QMessageBox.question(self.window, "Load run queue?",
 					("Trying to reload run-queue from the workspace, but the current run-queue is not empty. Do you want "
 					"to load the run-queue from the last session anyway?"),
 					QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No)
 				if warning_box == QtWidgets.QMessageBox.StandardButton.No:
 					return
-			
+
 			path = os.path.join(self._workspace_path, WORKSPACE_RUN_QUEUE_SAVE_NAME)
 			self.run_queue_table_model.load_from_file(path, allow_load_running_items="allow")
 			# self.ui.runQueueWidget.load_from_file_popup
 		else:
 			log.info(f"No RunQueue save file found at {os.path.join(self._workspace_path, WORKSPACE_RUN_QUEUE_SAVE_NAME)}"
 					", continuing with an empty run-queue.")
-		
-		
+
+
 
 	def set_font_point_size(self, new_font_size : int) -> None:
 		"""
@@ -578,9 +567,6 @@ class MainWindow():
 
 		for splitter in self.window.findChildren(QtWidgets.QSplitter): #Save the state of all splitters
 			self._settings.setValue(f"splitter_state_{splitter.objectName()}", splitter.saveState())
-
-
-
 
 	def open_save_location_in_explorer(self) -> None:
 		"""
@@ -1011,5 +997,3 @@ if __name__ == "__main__":
 	root = logging.getLogger()
 	root.handlers = [handler]
 	run_example_app()
-
-

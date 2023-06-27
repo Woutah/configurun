@@ -42,6 +42,9 @@ def no_function(*args, **kwargs): #pylint: disable=unused-argument
 	"""Dummy function that does nothing"""
 	pass #pylint: disable=unnecessary-pass
 
+class NoAuthenticatedConnectionException(Exception):
+	"""Exception raised when a function is called on a RunQueueClient that is not connected to a server"""
+
 class RunQueueClient(RunQueue,
 		    metaclass=MethodCallInterceptedMeta,
 			intercept_list=get_class_implemented_methods(RunQueue),
@@ -123,8 +126,8 @@ class RunQueueClient(RunQueue,
 
 		log.debug(f"Intercepted call to RunQueue function {function_name}")# with args: {args} and kwargs: {kwargs}")
 		if self._socket is None or not self._authenticated or self._aes_session_key is None:
-			log.warning(f"Could not pass on method call to {function_name}, to server, as no (authenticated) connection\
-	       		to server has been established yet - returning None")
+			# raise NoAuthenticatedConnectionException(f"Could not pass on method call to {function_name}, to server, "
+			# 	"as no (authenticated) connection to server has been established yet - returning None")
 			return None
 		# Send a state message to the server of the intercepted call
 		# Transmission.send(
@@ -351,8 +354,8 @@ class RunQueueClient(RunQueue,
 					try:
 						data = PickleTransmissionData.from_transmission_bytes(received.transmission_data)
 						unpickled_data = data.unpickled_data #type: ignore
-						assert isinstance(unpickled_data, typing.Tuple), "First element is the type of the data, \
-							should be tuple"
+						assert isinstance(unpickled_data, typing.Tuple), ("First element is the type of the data,"
+							" should be tuple")
 
 						if unpickled_data[0] == PickledDataType.METHOD_RETURN:
 							#The server is sending the result of a function call
@@ -360,8 +363,8 @@ class RunQueueClient(RunQueue,
 							function_call_id, result = unpickled_data[1]
 							with self._method_reponse_dict_lock:
 								if function_call_id not in self._method_response_dict:
-									log.error(f"Received function call result with id {function_call_id} - but no \
-										function call with that id was made")
+									log.error(f"Received function call result with id {function_call_id} - but no "
+										"function call with that id was made")
 									continue
 								self._method_response_dict[function_call_id].put(result, block=True)
 						elif unpickled_data[0] == PickledDataType.SIGNAL_EMIT:
@@ -372,18 +375,18 @@ class RunQueueClient(RunQueue,
 							#Get signal by name
 							signal : QtCore.SignalInstance = getattr(self, signal_name)
 							log.debug(
-								f"Received signal {signal_name} from server - resulting in a re-transmit of signal \
-									{signal} of type {type(signal)}"
+								f"Received signal {signal_name} from server - resulting in a re-transmit of signal"
+									"{signal} of type {type(signal)}"
 							)
 							assert isinstance(signal, QtCore.SignalInstance)
 							#Emit the signal
 							signal.emit(*args) #type: ignore
 						else:
-							log.error(f"Received pickled data of type {unpickled_data[0].name} - which is not \
-		 						supported (at the client side)")
+							log.error(f"Received pickled data of type {unpickled_data[0].name} - which is not "
+		 						"supported (at the client side)")
 					except Exception as exception: # pylint: disable=broad-exception-caught
-						log.error(f"Error while unpickling pickle-transmission from server - {type(exception)}: \
-							{exception}")
+						log.error(f"Error while unpickling pickle-transmission from server - {type(exception)}: "
+							f"{exception}")
 						traceback.print_exc()
 
 		except Exception as exception: # pylint: disable=broad-exception-caught

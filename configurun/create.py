@@ -4,10 +4,11 @@ Convenience function to quickly create a local or networked app-instance (server
 target function and option source.
 """
 import argparse
+import os
 import sys
 import typing
 
-from PySide6 import QtWidgets, QtCore
+from PySide6 import QtCore, QtWidgets
 
 from configurun.classes.run_queue import RunQueue
 from configurun.classes.run_queue_client import RunQueueClient
@@ -15,7 +16,7 @@ from configurun.classes.run_queue_server import RunQueueServer
 from configurun.configuration.base_options import BaseOptions
 from configurun.configuration.configuration import Configuration
 from configurun.configuration.configuration_model import ConfigurationModel
-from configurun.windows.main_window import MainWindow
+from configurun.windows.main_window import APP_NAME, MainWindow
 from configurun.windows.network_main_window import NetworkMainWindow
 
 
@@ -53,6 +54,7 @@ def local_app(
 			argparse.ArgumentParser | \
 			typing.Type[BaseOptions]
 				,
+		workspace_path : str = "",
 		run_queue_n_processes : int = 1,
 		run_queue_kwargs : typing.Optional[typing.Dict[str, typing.Any]] = None,
 		config_model_kargs : typing.Optional[typing.Dict[str, typing.Any]] = None,
@@ -74,13 +76,14 @@ def local_app(
 				- A single BaseOptions object
 				- An argparse.ArgumentParser object
 			Defaults to None.
-
+		workspace_path (str, optional): The path to the workspace folder. Defaults to "". If empty, the default
+			workspace folder is used (~/Configurun/)
 		run_queue_n_processes (int, optional): The number of processes to use in the run queue. Defaults to 1.
 		run_queue_kwargs (typing.Dict[str, typing.Any], optional): The keyword arguments passed to the
 			RunQueue constructor. Defaults to {}.
 			E.g.:
 			- log_location (str) : The path where the log file should be outputted (should be a folder)
-				if blank, use default location using TEMP folder
+				if blank, use default location based on workspace folder
 		config_model_kargs (typing.Dict[str, typing.Any], optional): The keyword arguments passed to the
 			ConfigurationModel constructor. Defaults to {}.
 			E.g.:
@@ -95,12 +98,10 @@ def local_app(
 	if config_model_kargs is None:
 		config_model_kargs = {}
 
-	#Check if qt app is already running
-	# if QtWidgets.QApplication.instance() is not None:
-	# 	app = QtWidgets.QApplication.instance()
-	# else:
 	app = QtWidgets.QApplication(sys.argv)
 
+	if workspace_path == "":
+		workspace_path = os.path.join(os.path.expanduser("~"), APP_NAME)
 
 	run_queue = RunQueue(
 		target_function=target_function,

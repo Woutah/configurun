@@ -95,9 +95,10 @@ class NetworkMainWindow(MainWindow):
 
 		self.menubar = self.ui.menubar
 		self.connection_menu = QtWidgets.QMenu(self.menubar)
-		self.connection_menu.setTitle("Connection...")
+		self.connection_menu.setTitle("Connection")
 		self.menubar.addAction(self.connection_menu.menuAction())
 		self.open_connection_action = QtGui.QAction("Connection Settings", self.connection_menu)
+		self.open_connection_action.setIcon(QtGui.QIcon(":/Icons/icons/places/network-workgroup.png"))
 		self.connection_menu.addAction(self.open_connection_action)
 
 
@@ -133,7 +134,6 @@ class NetworkMainWindow(MainWindow):
 
 	def initial_run_queue_load(self) -> None:
 		"""Since this is a client, don't load any RunQueue on startup."""
-		pass
 
 	def check_if_running_ask_stop_items_before_close(self) -> bool:
 		"""Overloads the main_window function. Normally, the user shuts down the running items before closing the
