@@ -123,7 +123,6 @@ class MainWindow():
 			lock_file.write("This file is used to indicate that the workspace at this path is in use by another instance of "
 				f"the {APP_NAME}-app. Please only remove this file if the app crashed and this file remained.")
 		
-		self.initial_run_queue_load()
 
 		config_save_path = os.path.join(self._workspace_path, "configurations")
 		if not os.path.isdir(config_save_path):
@@ -278,6 +277,10 @@ class MainWindow():
 		self.ui.saveToQueueItemBtn.clicked.connect(self.save_to_queue_item_triggered)
 
 
+		#======================================== POST-init ========================================
+		self.initial_run_queue_load() #If all went well, try to load existing run queue data
+
+
 	@catch_show_exception_in_popup_decorator
 	def load_config_from_file_popup(self):
 		"""Creates a popup that asks the user to select a path, if a path is selected, we will attempt to load the
@@ -329,11 +332,12 @@ class MainWindow():
 			if option_name in self._cur_option_proxy_models:
 				#check if the same model is used
 				if self._cur_option_proxy_models[option_name] == option_model:
-					log.debug(f"Model for {option_name} has not changed, now updating its model or window")
+					log.debug(f"Model for {option_name} has not changed, not updating its model or window")
 				else:
 					self._cur_option_proxy_models[option_name] = option_model
 					self._cur_option_tree_view[option_name].setModel(option_model)
 			else: #Create a new mdi window
+				log.debug(f"Adding new mdi window for option {option_name}")
 				self._cur_option_mdi_windows[option_name] = FramelessMdiWindow()
 				self._cur_option_proxy_models[option_name] = option_model
 				self._cur_option_tree_view[option_name] = DataClassTreeView()
