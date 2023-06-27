@@ -18,6 +18,9 @@ from configurun.configuration.configuration import Configuration
 from configurun.configuration.configuration_model import ConfigurationModel
 from configurun.windows.main_window import APP_NAME, MainWindow
 from configurun.windows.network_main_window import NetworkMainWindow
+import logging
+
+log = logging.getLogger(__name__)
 
 
 def _get_option_function(option_source:\
@@ -61,7 +64,7 @@ def local_app(
 
 	):
 	"""Convenience function that constructs a local instance of the app with the specified target function and option
-	source.
+	source. Workspace path is option, if none is provided, uses '~/Configurun/'. 
 
 	Args:
 		target_function (typing.Callable): The target function on which tasks will be run, this function should take
@@ -76,8 +79,9 @@ def local_app(
 				- A single BaseOptions object
 				- An argparse.ArgumentParser object
 			Defaults to None.
-		workspace_path (str, optional): The path to the workspace folder. Defaults to "". If empty, the default
-			workspace folder is used (~/Configurun/)
+		workspace_path (str, optional): The path to the workspace folder. Attempts to load progress from here, also saves
+		 	progress to here. Defaults to "". If empty/default, the default workspace folder is used (~/Configurun/)
+
 		run_queue_n_processes (int, optional): The number of processes to use in the run queue. Defaults to 1.
 		run_queue_kwargs (typing.Dict[str, typing.Any], optional): The keyword arguments passed to the
 			RunQueue constructor. Defaults to {}.
@@ -100,12 +104,17 @@ def local_app(
 
 	app = QtWidgets.QApplication(sys.argv)
 
-	if workspace_path == "":
+	if workspace_path == "" or workspace_path is None:
 		workspace_path = os.path.join(os.path.expanduser("~"), APP_NAME)
+		log.info(f"No workspace path provided, using default: {workspace_path}")
+
+	os.makedirs(workspace_path, exist_ok=True) #Create the workspace folder if it does not exist yet
+	QtCore.QDir.setCurrent(workspace_path) #Set the current working directory to the workspace path
 
 	run_queue = RunQueue(
 		target_function=target_function,
 		n_processes=run_queue_n_processes,
+		log_location=os.path.join(workspace_path, "logs"),
 		**run_queue_kwargs
 	) #Create the run queue
 	options_function = _get_option_function(options_source) #Create the options-function
@@ -131,6 +140,7 @@ def local_app(
 
 def server(
 			target_function : typing.Callable,
+			workspace_path : str = "",
 			run_queue_n_processes : int = 1,
 			password : str = "",
 			hostname : str = "localhost",
@@ -145,6 +155,8 @@ def server(
 			a configuration as the first argument, and the rest of the arguments should be the arguments passed to the
 			```RunQueue._process_queue_item()```-method.
 
+		workspace_path (str, optional): The path to the workspace folder. Attempts to load progress from here, also saves
+			progress to here. Defaults to "". If empty/default, the default workspace folder is used (~/Configurun_server/)
 
 		run_queue_n_processes (int, optional): The number of processes to use in the run queue. Defaults to 1.
 
@@ -158,7 +170,23 @@ def server(
 		run_queue_kwargs = {}
 
 	assert len(password) > 0, "Password for server cannot be empty"
-	runqueue = RunQueue(target_function=target_function, n_processes=run_queue_n_processes, **run_queue_kwargs)
+
+	if workspace_path == "" or workspace_path is None:
+		workspace_path = os.path.join(os.path.expanduser("~"), APP_NAME+"-server")
+		log.info(f"No workspace path provided, using default: {workspace_path}")
+
+	os.makedirs(workspace_path, exist_ok=True) #Create the workspace folder if it does not exist yet
+	QtCore.QDir.setCurrent(workspace_path) #Set the current working directory to the workspace path
+
+
+
+	runqueue = RunQueue(
+		target_function=target_function,
+		n_processes=run_queue_n_processes,
+		log_location=os.path.join(workspace_path, "logs"),
+		**run_queue_kwargs
+	
+	)
 	run_queue_server = RunQueueServer(
 			run_queue=runqueue,
 			password=password,
@@ -171,10 +199,12 @@ def server(
 	run_queue_server.run()
 	app.exec()
 
+
 def client(
 			options_source : \
 				typing.Callable[[Configuration], typing.Dict[str, typing.Type[BaseOptions] | typing.Type[None]]] | \
 				argparse.ArgumentParser,
+			workspace_path : str = "",
 			config_model_kwargs : typing.Optional[typing.Dict[str, typing.Any]] = None
 		):
 
@@ -205,6 +235,12 @@ def client(
 	# else:
 	app = QtWidgets.QApplication(sys.argv)
 
+	if workspace_path == "" or workspace_path is None:
+		workspace_path = os.path.join(os.path.expanduser("~"), APP_NAME+"-client")
+		log.info(f"No workspace path provided, using default: {workspace_path}")
+
+	os.makedirs(workspace_path, exist_ok=True) #Create the workspace folder if it does not exist yet
+	QtCore.QDir.setCurrent(workspace_path) #Set the current working directory to the workspace path
 
 	options_function = _get_option_function(options_source) #Create the options-function
 
@@ -234,10 +270,10 @@ if __name__ == "__main__":
 	# parser.add_argument("--local", action="store_true", help="Run as both server and client")
 
 	from configurun.examples.example_configuration import \
-	    deduce_new_option_class_types
+	    example_deduce_new_option_class_types
 	from configurun.examples.example_run_function import example_run_function
 	local_app(
 		target_function=example_run_function,
-		options_source=deduce_new_option_class_types,
+		options_source=example_deduce_new_option_class_types,
 		run_queue_n_processes=1,
 	)

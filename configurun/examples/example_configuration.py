@@ -10,18 +10,19 @@ import typing
 from PySide6 import QtWidgets
 
 from configurun.classes.run_queue import RunQueue
-from configurun.windows.main_window import MainWindow
 from configurun.configuration.base_options import BaseOptions
-from configurun.configuration.configuration_model import ConfigurationModel
 from configurun.configuration.configuration import Configuration
+from configurun.configuration.configuration_model import ConfigurationModel
 from configurun.examples.example_options.example_options import (
-    ExampleDatasetOptions, ExampleGeneralOptions, ExampleMainOptions, ExampleModelOptions, ExtendedExampleModelOptions,
-    ExtendedExampleDatasetOptions)
+    ExampleDatasetOptions, ExampleGeneralOptions, ExampleMainOptions,
+    ExampleModelOptions, ExtendedExampleDatasetOptions,
+    ExtendedExampleModelOptions)
 from configurun.examples.example_run_function import example_run_function
+from configurun.windows.main_window import MainWindow
 
 log = logging.getLogger(__name__)
 
-def deduce_new_option_class_types(
+def example_deduce_new_option_class_types(
 			#NOTE: all suboptions of the configucation can be accesed via the configuration.<attr> syntax.
 			# For type hinting, we can create a union of all the suboptions classes we would like to use
 			# in this example, we only use the main options. The actual type of the configuration argument is
@@ -75,7 +76,8 @@ def deduce_new_option_class_types(
 	return ret_dict
 
 
-if __name__ == "__main__":
+def run_example_app():
+	from configurun.create import local_app
 	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}]  {levelname:<7s}   {message}", style='{')
 	handler = logging.StreamHandler()
 	handler.setFormatter(formatter)
@@ -85,24 +87,12 @@ if __name__ == "__main__":
 	log.debug("Now running a config-UI for the example options")
 
 	#=========================== Do the following to create a configuration UI ===========================
-	app = QtWidgets.QApplication([]) #We must first create a QApplication, after initializations, we call app.exec()
-
-	#Select a config-model, pass the deduce_new_option_class_types function to the constructor
-	config_model = ConfigurationModel(option_type_deduction_function=deduce_new_option_class_types)
-
-	#Create the Qt-main window
-	main_window = QtWidgets.QMainWindow()
-
-	#Create a run-queue
-	queue = RunQueue(target_function=example_run_function)
-
-	#Build the main window in the qmainwindow using the configuration model and the run-queue
-	ml_window = MainWindow(
-		configuration_model=config_model,
-		run_queue=queue,
-		window=main_window
+	local_app(
+		target_function=example_run_function,
+		options_source=example_deduce_new_option_class_types,
 	)
 
-	#Finally, show the main window and run the application
-	main_window.show() #We must call show on the main window
-	app.exec() #Run the application
+
+
+if __name__ == "__main__":
+	run_example_app()
