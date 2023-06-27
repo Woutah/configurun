@@ -7,7 +7,6 @@ import queue
 import socket
 import threading
 import traceback
-import typing
 
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
@@ -353,9 +352,11 @@ class RunQueueClient(RunQueue,
 				elif received.transmission_type == TransmissionType.PICKLED_OBJECT:
 					try:
 						data = PickleTransmissionData.from_transmission_bytes(received.transmission_data)
-						unpickled_data = data.unpickled_data #type: ignore
-						assert isinstance(unpickled_data, typing.Tuple), ("First element is the type of the data,"
+						unpickled_data : tuple = data.unpickled_data #type: ignore
+						assert isinstance(unpickled_data, tuple), ("First element is the type of the data,"
 							" should be tuple")
+						unpickled_data = tuple(unpickled_data) #For type hinting
+						# unpickled_data : tuple = unpickled_data
 
 						if unpickled_data[0] == PickledDataType.METHOD_RETURN:
 							#The server is sending the result of a function call

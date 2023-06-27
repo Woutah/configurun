@@ -126,7 +126,7 @@ class PickleTransmissionData(TransmissionData):
 	after authentication as it allows for arbitrary code execution on the server-side.
 
 	NOTE: we're using dill instead of pickle as it allows for more flexibility in what can be pickled
-	
+
 	"""
 
 	unpickled_data : object #The unpickled data
@@ -275,11 +275,11 @@ class Transmission():
 			aes_cipher_key (bytes): The aes-cipher-key used to decrypt the data - if not provided - the data is assumed
 			 to be unencrypted (e.g. when receiving a public key)
 			timeout_seconds (float): The timeout in seconds to wait for data to be available on the socket
-				if < 0 we wait forever. Raises a TimeoutError if no data is available after the given timeout.
+				if < 0 or None, we wait forever. Raises a TimeoutError if no data is available after the given timeout.
 		Returns:
 			TransmissionType: The type of the transmission
 			bytes: The raw data of the transmission
-		
+
 		Raises:
 			TimeoutError: If no data is available on the socket after the given timeout
 		"""
@@ -292,7 +292,7 @@ class Transmission():
 				raise TimeoutError("No data available on socket")
 
 
-		#Receive the transmission data	
+		#Receive the transmission data
 		transmission_size = recv_socket.recv(4)
 		transmission_size = c_uint32.from_buffer_copy(transmission_size).value #Read in uint32, convert to python type
 
@@ -348,7 +348,7 @@ class Transmission():
 		"""Sends the transmission to the given socket
 		Args:
 			socket (socket.socket): The socket to send the transmission to
-			aes_cipher (any): The AES cipher used to encrypt the data - if not provided - the data is assumed to be 
+			aes_cipher (any): The AES cipher used to encrypt the data - if not provided - the data is assumed to be
 				unencrypted (e.g. when sending a public key )
 		"""
 		packet = bytearray()
@@ -382,4 +382,4 @@ class ClientData():
 	client_public_key : RSA.RsaKey #TODO: not really necessary after authentication as of now
 	client_session_aes_key : bytes #The session key used to encrypt data between the client and the server
 	client_listening_thread : threading.Thread
-	client_listening_thread_flag : threading.Event #Flag used to stop the client listening thread
+	client_listening_thread_stop_flag : threading.Event #Flag used to stop the client listening thread

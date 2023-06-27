@@ -4,7 +4,9 @@ Convenience function to quickly create a local or networked app-instance (server
 target function and option source.
 """
 import argparse
+import logging
 import os
+import signal
 import sys
 import typing
 
@@ -18,14 +20,15 @@ from configurun.configuration.configuration import Configuration
 from configurun.configuration.configuration_model import ConfigurationModel
 from configurun.windows.main_window import APP_NAME, MainWindow
 from configurun.windows.network_main_window import NetworkMainWindow
-import logging
+from configurun.configuration.argparse_to_dataclass import argparse_to_dataclass
 
 log = logging.getLogger(__name__)
 
 
 def _get_option_function(option_source:\
 			typing.Callable[[Configuration], typing.Dict[str, typing.Type[BaseOptions] | typing.Type[None]]] | \
-			argparse.ArgumentParser
+			argparse.ArgumentParser | \
+			typing.Type[BaseOptions]
 		) -> typing.Callable[[Configuration], typing.Dict[str, typing.Type[BaseOptions] | typing.Type[None]]]:
 	"""Get the option-function from the passed argument.
 	User is able to pass:
@@ -37,7 +40,11 @@ def _get_option_function(option_source:\
 	"""
 
 	if isinstance(option_source, argparse.ArgumentParser):
-		raise NotImplementedError("argparse.ArgumentParser not yet implemented")
+		# raise NotImplementedError("argparse.ArgumentParser not yet implemented")
+		argparse_dataclass = argparse_to_dataclass(option_source, "ArgparseOptions")
+		def argparse_option_function(*_): #argparse-options: Return the argparse-dataclass
+			return {"Options" : argparse_dataclass}
+		return argparse_option_function #type: ignore
 	elif isinstance(option_source, type) and issubclass(option_source, BaseOptions):
 		def option_function(*_): #'Dumb'-options: Just return the option type
 			return {"Options" : option_source}
@@ -65,7 +72,7 @@ def local_app(
 
 	):
 	"""Convenience function that constructs a local instance of the app with the specified target function and option
-	source. Workspace path is option, if none is provided, uses '~/Configurun/'. 
+	source. Workspace path is option, if none is provided, uses '~/Configurun/'.
 
 	Args:
 		target_function (typing.Callable): The target function on which tasks will be run, this function should take
@@ -82,7 +89,7 @@ def local_app(
 			Defaults to None.
 		workspace_path (str, optional): The path to the workspace folder. Attempts to load progress from here, also saves
 		 	progress to here. Defaults to "". If empty/default, the default workspace folder is used (~/Configurun/)
-		create_workspace_path (bool, optional): Whether to create the workspace path if it does not exist. 
+		create_workspace_path (bool, optional): Whether to create the workspace path if it does not exist.
 			Defaults to True.
 		run_queue_n_processes (int, optional): The number of processes to use in the run queue. Defaults to 1.
 		run_queue_kwargs (typing.Dict[str, typing.Any], optional): The keyword arguments passed to the
@@ -144,7 +151,18 @@ def local_app(
 	app.exec()
 
 
+def _cleanup_server(app : QtCore.QCoreApplication, run_queue_server : RunQueueServer):
+	"""
+	Callback function to, on process end (Ctrl+C), cleanup the server and close the app
 
+	Args:
+		app (QtCore.QCoreApplication): The app in which the server is running
+		run_queue_server (RunQueueServer): The runqueue-server instance
+	"""
+	log.info("Received shutdown signal, now attempting to cleaning up server and close app")
+	run_queue_server.terminate() #Disconnect all, stop running and save progress
+	app.quit()
+	log.info("Server cleanup complete, exiting")
 
 def server(
 			target_function : typing.Callable,
@@ -164,7 +182,7 @@ def server(
 			```RunQueue._process_queue_item()```-method.
 
 		workspace_path (str, optional): The path to the workspace folder. Attempts to load progress from here, also saves
-			progress to here. Defaults to "". If empty/default, the default workspace folder is used (~/Configurun_server/)
+			progress to here. Defaults to "". If empty/default, the default workspace folder is used (~/Configurun-server/)
 
 		run_queue_n_processes (int, optional): The number of processes to use in the run queue. Defaults to 1.
 
@@ -187,24 +205,31 @@ def server(
 	QtCore.QDir.setCurrent(workspace_path) #Set the current working directory to the workspace path
 
 
-
 	runqueue = RunQueue(
 		target_function=target_function,
 		n_processes=run_queue_n_processes,
 		log_location=os.path.join(workspace_path, "logs"),
 		**run_queue_kwargs
-	
 	)
+
 	run_queue_server = RunQueueServer(
 			run_queue=runqueue,
 			password=password,
 			hostname=hostname,
 			port=port,
+			workspace_path=workspace_path
 	)
 
 	app = QtCore.QCoreApplication(sys.argv) #Run the main event-loop (used for signals)
 	#Create a runqueue client to run the runqueue in
 	run_queue_server.run()
+
+	timer = QtCore.QTimer()
+	timer.start(500)
+	timer.timeout.connect(lambda: None)  # Let the interpreter run each 500 ms to catch signals
+	signal.signal(signal.SIGINT, lambda *_: _cleanup_server(app, run_queue_server)) #Cleanup on Ctrl+C
+
+
 	app.exec()
 
 

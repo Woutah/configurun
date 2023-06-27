@@ -16,13 +16,9 @@ from datetime import datetime
 from enum import Enum
 
 import dill
-import multiprocess  # NOTE: 2023-06-20 we use multiprocess instead of multiprocessing because it allows
+import multiprocess  # NOTE: we use multiprocess instead of multiprocessing because it allows more flexibility in pickling
 import multiprocess.managers as managers  # Same here, use multiprocess
 import multiprocess.queues
-
-
-#Import Lock() from multiprocess
-# import multiprocess.synchronize
 
 from PySide6 import QtCore
 
@@ -42,11 +38,19 @@ class ConfigurationIsFirmException(Exception):
 	configurations that are currently running)
 	"""
 
+class WorkspaceInUseException(Exception):
+	"""
+	Exception raised when trying to use a workspace that is already in use by another process or if the last lock was
+	not properly removed.
+	"""
+
 
 log = logging.getLogger(__name__)
 
 
 CONFIGURATION_MODULE_NAME = "configuration_module"
+WORKSPACE_RUN_QUEUE_SAVE_NAME = "run_queue_data.rq" #The name of the file in which the run queue should preferably be saved
+WORKSPACE_LOCK_FILE_NAME = ".configurun_workspace.lock" #Is put in the workspace folder to indicate it is in use
 
 class LoggerWriter:
 	"""
@@ -372,6 +376,34 @@ class RunQueue(QtCore.QObject):
 		self.queue_emitter_thread.start()
 		self.queue_emitter.commandLineOutput.connect(self.newCommandLineOutput.emit)
 		# self.queue_emitter.commandLineOutput.connect(lambda *args: print(f"Got command line output: {args}"))
+
+
+	@staticmethod
+	def set_workspace_lock(workspace_path : str, lock_filename = WORKSPACE_LOCK_FILE_NAME):
+		"""
+		Lock the workspace by creating a lockfile in the workspace directory.
+
+		Raises:
+			WorkspaceInUseException: If the workspace is already locked/in use
+		"""
+		lock_filepath = os.path.join(workspace_path, lock_filename)
+		if os.path.exists(lock_filepath):
+			raise WorkspaceInUseException(f"Could not lock workspace at {workspace_path}, lockfile already exists at {lock_filepath}.")
+		with open(lock_filepath, "w", encoding='utf-8') as lock_file:
+			lock_file.write("This file is used to indicate that the workspace at this path is in use by another instance of "
+				"a configurun-app. Please only remove this file if the app was closed improperly and this file remained.")
+	
+	@staticmethod
+	def release_workspace_lock(workspace_path : str, lock_filename = WORKSPACE_LOCK_FILE_NAME):
+		"""
+		Release the workspace lock by removing the lockfile from the workspace directory. If file does not exist, nothing
+		is done.
+
+		Raises:
+			WorkspaceInUseException: If the workspace is already locked/in use
+		"""
+		lock_filepath = os.path.join(workspace_path, lock_filename)
+		os.remove(lock_filepath)
 
 	def get_command_line_output(self, item_id : int, fseek_end : int, max_bytes : int) -> typing.Tuple[str, datetime]:
 		"""
@@ -1205,9 +1237,7 @@ class RunQueue(QtCore.QObject):
 		2. Continuously checks the processes for completion and updates the queue accordingly
 		"""
 		log.debug("Now running queue item processor")
-		while True:
-			if self._stopflag.is_set(): #If stopping, break TODO: force stop?
-				return
+		while not self._stopflag.is_set():
 			try:
 				if len(self._queue) > 0\
 						and (len(self._running_processes) < self._n_processes \
@@ -1236,6 +1266,7 @@ class RunQueue(QtCore.QObject):
 
 			except queue.Empty:
 				pass
+		log.debug("Queue item processor was stopped...")
 
 
 
@@ -1244,5 +1275,5 @@ if __name__ == "__main__":
 	from PySide6 import QtWidgets  # pylint: disable=ungrouped-imports
 	test_app = QtWidgets.QApplication(sys.argv)
 	test_queue = RunQueue(lambda *_: print("Target function has been called... Now quitting..."))
-	print("Created a queue")
+	log.info("Created a queue")
 	test_app.exec()

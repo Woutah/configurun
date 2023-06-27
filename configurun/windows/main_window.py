@@ -18,7 +18,8 @@ from pyside6_utils.widgets import DataClassTreeView
 from pyside6_utils.widgets.delegates import DataclassEditorsDelegate
 from pyside6_utils.widgets.frameless_mdi_window import FramelessMdiWindow
 
-from configurun.classes.run_queue import ConfigurationIsFirmException, RunQueue
+from configurun.classes.run_queue import \
+	ConfigurationIsFirmException, RunQueue, WORKSPACE_RUN_QUEUE_SAVE_NAME, WorkspaceInUseException
 from configurun.configuration.configuration import Configuration
 from configurun.configuration.configuration_model import (
     ConfigurationModel, NoClassTypesError, OptionTypesMismatch,
@@ -32,8 +33,6 @@ from configurun.windows.ui.main_window_ui import Ui_MainWindow
 log = logging.getLogger(__name__)
 
 APP_NAME = "Configurun" #The name of the app, used for the settings file
-WORKSPACE_LOCK_FILE_NAME = ".configurun_workspace.lock" #Is put in the workspace folder to indicate it is in use
-WORKSPACE_RUN_QUEUE_SAVE_NAME = "run_queue_data.rq" #The name of the file in which the run queue is saved on close
 
 class OptionsSource(Enum):
 	"""
@@ -99,8 +98,10 @@ class MainWindow():
 				os.makedirs(self._workspace_path)
 			log.info(f"Using default workspace path: {self._workspace_path}")
 
-		#Check if workspace path is in use by another instance of the app
-		if os.path.isfile(os.path.join(self._workspace_path, WORKSPACE_LOCK_FILE_NAME)):
+
+		try:
+			self._run_queue.set_workspace_lock(self._workspace_path) #Creates a lock-file in the folder in question
+		except WorkspaceInUseException as exception:
 			msgbox = QtWidgets.QMessageBox()
 			msgbox.setText(f"<b>Workspace path {self._workspace_path} seems to be in use by another instance of "
 		  				f"the {APP_NAME}-app. Do you want to use this workspace path anyway?</b>")
@@ -112,15 +113,16 @@ class MainWindow():
 			msgbox.setDefaultButton(QtWidgets.QMessageBox.StandardButton.No)
 			ret = msgbox.exec()
 			if ret == QtWidgets.QMessageBox.StandardButton.No:
-				raise RuntimeError(f"Workspace path {self._workspace_path} is in use by another instance of the "
-					f"{APP_NAME}-app. Please close the other instance or change the workspace path.")
+				raise WorkspaceInUseException(f"Workspace path {self._workspace_path} is in use by another instance of the "
+					f"{APP_NAME}-app. Please close the other instance, change the workspace path, or allow overwriting.") \
+						from exception
 			else:
 				log.warning("User chose to use workspace path anyway, ignoring lock-file.")
 
-		#Create a lock-file to indicate that the workspace path is in use
-		with open(os.path.join(self._workspace_path, WORKSPACE_LOCK_FILE_NAME), "w", encoding="utf-8") as lock_file:
-			lock_file.write("This file is used to indicate that the workspace at this path is in use by another instance of "
-				f"the {APP_NAME}-app. Please only remove this file if the app crashed and this file remained.")
+		# #Create a lock-file to indicate that the workspace path is in use
+		# with open(os.path.join(self._workspace_path, WORKSPACE_LOCK_FILE_NAME), "w", encoding="utf-8") as lock_file:
+		# 	lock_file.write("This file is used to indicate that the workspace at this path is in use by another instance of "
+		# 		f"the {APP_NAME}-app. Please only remove this file if the app crashed and this file remained.")
 
 
 		config_save_path = os.path.join(self._workspace_path, "configurations")
@@ -821,9 +823,7 @@ class MainWindow():
 			dill.dump(save_dict, file)
 
 		self._save_settings()
-
-		if os.path.isfile(os.path.join(self._workspace_path, WORKSPACE_LOCK_FILE_NAME)): #Clean up lock-file
-			os.remove(os.path.join(self._workspace_path, WORKSPACE_LOCK_FILE_NAME))
+		self._run_queue.release_workspace_lock(self._workspace_path) #Release the lock on the workspace
 		event.accept()
 
 	def check_if_running_ask_stop_items_before_close(self) -> bool:
@@ -950,41 +950,23 @@ class MainWindow():
 			#TODO: set selection to current file
 
 
-def run_example_app():
+def run_example_local_app():
 	"""Runs the example app"""
-	from configurun.examples.example_run_function import example_run_function #pylint: disable=import-outside-toplevel
-	app = QtWidgets.QApplication([])
-	main_window = QtWidgets.QMainWindow()
-	workspace_path = os.path.join(os.path.expanduser("~"), APP_NAME)
-	if not os.path.isdir(workspace_path):
-		os.makedirs(workspace_path)
+	#pylint: disable=import-outside-toplevel
+	from configurun.examples.example_run_function import example_run_function
+	from configurun.examples.example_configuration import example_deduce_new_option_classes
+	import tempfile
+	from configurun.create import local_app
 
-	#Set Qt workspace path
-	QtCore.QDir.setCurrent(workspace_path) #Set the current working directory to the workspace path
-
-
-	queue = RunQueue(
-			target_function=example_run_function,
-		  	log_location= os.path.join(workspace_path, "logs"),
-			log_location_make_dirs=True #Create dir if it does not exist
+	tempdir = tempfile.gettempdir()
+	workspace_path = os.path.join(tempdir, APP_NAME, "Configurun-Local-Example")
+	local_app(
+		target_function=example_run_function,
+		options_source=example_deduce_new_option_classes,
+		workspace_path=workspace_path,
 	)
-	config_model = ConfigurationModel(
-		option_type_deduction_function=example_deduce_new_option_classes
-	)
-	MainWindow(
-		configuration_model=config_model,
-		run_queue=queue,
-		window=main_window,
-		workspace_path=workspace_path
-
-	)
-
-	main_window.show()
-	app.exec()
 
 if __name__ == "__main__":
-	from configurun.examples.example_configuration import example_deduce_new_option_classes
-	logging.getLogger('matplotlib').setLevel(logging.INFO)
 	logging.getLogger('PySide6').setLevel(logging.DEBUG)
 	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}] {levelname:<7s}   {message}", style='{')
 	handler = logging.StreamHandler()
@@ -995,4 +977,4 @@ if __name__ == "__main__":
 	) #Without time
 	root = logging.getLogger()
 	root.handlers = [handler]
-	run_example_app()
+	run_example_local_app()

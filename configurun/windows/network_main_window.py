@@ -5,7 +5,6 @@ RunQueueServer (see MLQueue.classes.RunQueueServer) and run machine learning tas
 """
 
 import logging
-import os
 import typing
 
 from PySide6 import QtCore, QtGui, QtWidgets
@@ -201,37 +200,36 @@ class NetworkMainWindow(MainWindow):
 		return reconnect_btn, overlay_widget
 
 
+def run_example_network_app():
+	"""
+	Runs an example-client that can connect to a running server. Uses the example_deduce_new_option_classes to
+	generate example options for the client
+	"""
+
+	#pylint: disable=import-outside-toplevel
+	import os
+	import tempfile
+	from configurun.create import client
+	from configurun.examples import example_deduce_new_option_classes
+	from configurun.windows.main_window import APP_NAME
+
+	tempdir = tempfile.gettempdir()
+	workspace_path = os.path.join(tempdir, APP_NAME, "Configurun-Client-App-Example")
+
+	client(
+		options_source=example_deduce_new_option_classes,
+		workspace_path=workspace_path
+	)
+
 
 if __name__ == "__main__":
-	# Run Small tests using runqueue-client and example options
-	from configurun.examples.example_configuration import \
-	    example_deduce_new_option_classes
-	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}] {levelname:<7s}   {message}", style='{')
-	log.propagate = False
+	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}]  {levelname:<7s}   {message}", style='{')
 	handler = logging.StreamHandler()
 	handler.setFormatter(formatter)
 	logging.basicConfig(
 		handlers=[handler],
 		level=logging.DEBUG) #Without time
-	app = QtWidgets.QApplication([])
 	root = logging.getLogger()
-	root.handlers = [handler]
+	root.setLevel(logging.DEBUG)
 
-	test_window = QtWidgets.QMainWindow()
-	test_runqueue_client = RunQueueClient()
-	test_configuration_model = ConfigurationModel(
-		option_type_deduction_function=example_deduce_new_option_classes
-	)
-
-	test_workspace_path = os.path.join(os.path.expanduser("~"), "Configurun-Client")
-	if not os.path.isdir(test_workspace_path):
-		os.makedirs(test_workspace_path)
-
-	ml_window = NetworkMainWindow(
-		configuration_model=test_configuration_model,
-		run_queue_client=test_runqueue_client,
-		window=test_window,
-		workspace_path=test_workspace_path
-	)
-	test_window.show()
-	app.exec()
+	run_example_network_app()
