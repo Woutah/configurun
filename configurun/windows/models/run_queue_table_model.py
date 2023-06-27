@@ -185,7 +185,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		"""
 		if self._run_queue is not None:
 			self._cur_queue_copy = self._run_queue.get_queue_snapshot_copy()
-			self._cur_run_queue_item_dict_copy = self._run_queue.get_run_list_snapshot_copy()
+			self._cur_run_queue_item_dict_copy = self._run_queue.get_all_items_dict_snapshot_copy()
 			self._cur_autoprocessing_state = self._run_queue.is_autoprocessing_enabled()
 			if self._cur_queue_copy is None:
 				self._cur_queue_copy = []
@@ -219,6 +219,76 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		"stderr": 8
 	}
 
+	def load_from_file(self,
+		    file_path : str,
+			allow_load_running_items : typing.Literal["allow", "ask", "disallow"] = "ask"
+		):
+		"""Loads the runqueue from a file
+
+		Args:
+			path (str): The path to the file to load from
+			allow_load_running_items (typing.Literal["allow", "ask", "disallow"], optional): Whether to allow loading
+				a RunQueue in which 1 or more items were running at save-time. Defaults to "ask".
+		"""
+
+		#Check if user cancelled
+		if file_path is None or file_path == "":
+			log.info("User cancelled loading queue from file.")
+			return
+		try:
+			try:
+				# self._run_queue.load_queue_contents_from_file(file_path)
+				load_dict = RunQueue.get_queue_contents_dict_from_file(file_path)
+			except RunQueueHasRunningItemsException as exception:
+				if allow_load_running_items == "disallow":
+					return
+				elif allow_load_running_items == "allow":
+					pass
+				elif allow_load_running_items == "ask":
+					msg = f"{type(exception).__name__}: {exception}"
+					log.warning(f"Could not load RunQueue from file - {msg}")
+					msg_box = QtWidgets.QMessageBox()
+					msg_box.setIcon(QtWidgets.QMessageBox.Icon.Warning)
+					msg_box.setWindowTitle("Could not load RunQueue from file")
+					msg_box.setText("<b>Do you want to set load mode to allow importing configurations that were saved when "
+						"1 or more configurations were running?</b>")
+					msg_box.setInformativeText(f"<b>{type(exception).__name__}:</b> {exception}<br><br>All running items "
+						"of this backup were saved with a 'stopped'-state, this might indicate that the loaded runQueue-data "
+						"is not entirely up to date."
+						)
+					msg_box.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No)
+					msg_box.setDefaultButton(QtWidgets.QMessageBox.StandardButton.No)
+					msg_box.setWindowFlags(QtCore.Qt.WindowType.WindowStaysOnTopHint)
+					msg_box.show()
+					msg_box.activateWindow()
+					msg_box.exec()
+					if msg_box.result() == QtWidgets.QMessageBox.StandardButton.Yes:
+						load_dict = RunQueue.get_queue_contents_dict_from_file(file_path, allow_load_running_items=True)
+					else:
+						log.info("User cancelled loading queue from file.")
+						return
+
+			self._run_queue.load_queue_contents_dict(load_dict) #type: ignore #Actually load the queue-data into existing
+
+		except Exception as exception: #pylint: disable=broad-exception-caught
+			msg = f"{type(exception).__name__}: {exception}"
+			trace = traceback.format_exc()
+			log.warning(f"Could not load RunQueue from path {file_path} - {msg}")
+			msg_box = QtWidgets.QMessageBox()
+			msg_box.setIcon(QtWidgets.QMessageBox.Icon.Critical)
+			msg_box.setWindowTitle("Could not load RunQueue from file")
+			msg_box.setText("Could not load RunQueue from file due to an unexpected error.")
+			msg_box.setInformativeText(msg)
+			msg_box.setDetailedText(trace)
+			log.warning(trace)
+			msg_box.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
+			msg_box.setDefaultButton(QtWidgets.QMessageBox.StandardButton.Ok)
+			msg_box.show()
+			msg_box.activateWindow()
+			msg_box.exec()
+			return
+
+		log.info(f"Loaded RunQueue from file {file_path}.")
 
 	def load_from_file_popup(self):
 		"""
@@ -244,60 +314,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 
 		file_path = file_path.replace("/", os.sep) #Get the actual path (qt uses / as separator)
 
-		#Check if user cancelled
-		if file_path is None or file_path == "":
-			log.info("User cancelled loading queue from file.")
-			return
-		try:
-			try:
-				# self._run_queue.load_queue_contents_from_file(file_path)
-				load_dict = RunQueue.get_queue_contents_dict_from_file(file_path)
-			except RunQueueHasRunningItemsException as exception:
-				msg = f"{type(exception).__name__}: {exception}"
-				log.warning(f"Could not load RunQueue from file - {msg}")
-				msg_box = QtWidgets.QMessageBox()
-				msg_box.setIcon(QtWidgets.QMessageBox.Icon.Warning)
-				msg_box.setWindowTitle("Could not load RunQueue from file")
-				msg_box.setText("<b>Do you want to set load mode to allow importing configurations that were saved when "
-					"1 or more configurations were running?</b>")
-				msg_box.setInformativeText(f"<b>{type(exception).__name__}:</b> {exception}<br><br>All running items "
-			       	"of this backup were saved with a 'stopped'-state, this might indicate that the loaded runQueue-data "
-				    "is not entirely up to date."
-					)
-				msg_box.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No)
-				msg_box.setDefaultButton(QtWidgets.QMessageBox.StandardButton.No)
-				msg_box.setWindowFlags(QtCore.Qt.WindowType.WindowStaysOnTopHint)
-				msg_box.show()
-				msg_box.activateWindow()
-				msg_box.exec()
-				if msg_box.result() == QtWidgets.QMessageBox.StandardButton.Yes:
-					load_dict = RunQueue.get_queue_contents_dict_from_file(file_path, allow_load_running_items=True)
-				else:
-					log.info("User cancelled loading queue from file.")
-					return
-
-			self._run_queue.load_queue_contents_dict(load_dict) #type: ignore #Actually load the queue-data into existing
-
-		except Exception as exception: #pylint: disable=broad-exception-caught
-			msg = f"{type(exception).__name__}: {exception}"
-			trace = traceback.format_exc()
-			log.warning(f"Could not load RunQueue from path {file_path} - {msg}")
-			msg_box = QtWidgets.QMessageBox()
-			msg_box.setIcon(QtWidgets.QMessageBox.Icon.Critical)
-			msg_box.setWindowTitle("Could not load RunQueue from file")
-			msg_box.setText("Could not load RunQueue from file due to an unexpected error.")
-			msg_box.setInformativeText(msg)
-			msg_box.setDetailedText(trace)
-			log.warning(trace)
-			msg_box.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
-			msg_box.setDefaultButton(QtWidgets.QMessageBox.StandardButton.Ok)
-			msg_box.show()
-			msg_box.activateWindow()
-			msg_box.exec()
-			return
-
-		log.info(f"Loaded RunQueue from file {file_path}.")
-
+		self.load_from_file(file_path)
 
 	def get_n_processes(self) -> int:
 		"""Returns the number of processes to use for the queue.

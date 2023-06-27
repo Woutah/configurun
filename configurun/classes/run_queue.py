@@ -525,7 +525,7 @@ class RunQueue(QtCore.QObject):
 		"""
 		# with open(path, "wb") as file:
 		with self._all_items_dict_mutex, self._queue_mutex: #Make sure queue and all_dict are consistent with one another
-			all_items_dict_copy = self._get_run_list_snapshot_copy_nolocks()
+			all_items_dict_copy = self._get_all_items_dict_snapshot_copy_nolocks()
 			queue_copy = self._get_queue_snapshot_copy_no_locks()
 			running_ids_count = self._get_running_configuration_count_nolocks()
 
@@ -791,7 +791,7 @@ class RunQueue(QtCore.QObject):
 			#Also remove from all_dict -> the two should be in sync
 			del self._all_items_dict[item_id]
 
-			run_list_snapshot = self._get_run_list_snapshot_copy_nolocks()
+			run_list_snapshot = self._get_all_items_dict_snapshot_copy_nolocks()
 			queue_snapshot = self._get_queue_snapshot_copy_no_locks()
 
 		self.queueChanged.emit(queue_snapshot)
@@ -817,7 +817,7 @@ class RunQueue(QtCore.QObject):
 		return list(snapshot)
 
 
-	def _get_run_list_snapshot_copy_nolocks(self) -> typing.Dict[int, RunQueueItem]:
+	def _get_all_items_dict_snapshot_copy_nolocks(self) -> typing.Dict[int, RunQueueItem]:
 		"""Get a snapshot of the all_list without locks - should only be used internally when locks are already held
 
 		Returns:
@@ -828,12 +828,12 @@ class RunQueue(QtCore.QObject):
 			ret_dict[key] = value.get_copy()
 		return ret_dict
 
-	def get_run_list_snapshot_copy(self) -> typing.Dict[int, RunQueueItem]:
+	def get_all_items_dict_snapshot_copy(self) -> typing.Dict[int, RunQueueItem]:
 		"""
 		Get a snapshot of the all_list
 		"""
 		with self._all_items_dict_mutex:
-			snapshot = self._get_run_list_snapshot_copy_nolocks()
+			snapshot = self._get_all_items_dict_snapshot_copy_nolocks()
 		return snapshot
 
 
@@ -895,10 +895,16 @@ class RunQueue(QtCore.QObject):
 			self._stopflag.set()
 			self.autoProcessingStateChanged.emit(False)
 
-	def force_stop_all_running(self):
+	def force_stop_all_running(self,
+				stop_msg : str = "Process was force stopped by user."    
+			):
 		"""
 		Force stop all running processes and set the configuration to cancelled
 		NOTE: also stops autoprocessing
+
+		Args:
+			stop_msg (str, optional): the message to set as stderr for the stopped items. Defaults to
+				"Process was force stopped by user.". 
 		"""
 		log.info("Now force stopping all running processes...")
 		self.stop_autoprocessing()
@@ -922,7 +928,7 @@ class RunQueue(QtCore.QObject):
 				self._all_items_dict[item_id].status = RunQueueItemStatus.Stopped
 				self._all_items_dict[item_id].dt_done = datetime.now()
 				self._all_items_dict[item_id].exit_code = -1
-				self._all_items_dict[item_id].stderr = "Process was force stopped by user."
+				self._all_items_dict[item_id].stderr = stop_msg
 
 
 
@@ -998,7 +1004,7 @@ class RunQueue(QtCore.QObject):
 		with self._all_items_dict_mutex, self._queue_mutex:
 			self._queue.append(new_item_id)
 			self._all_items_dict[new_item_id] = new_item
-			snapshot = self._get_run_list_snapshot_copy_nolocks()
+			snapshot = self._get_all_items_dict_snapshot_copy_nolocks()
 			queue_snapshot = self._get_queue_snapshot_copy_no_locks()
 
 		self.allItemsDictInsertion.emit([new_item_id], snapshot)

@@ -28,17 +28,12 @@ from configurun.windows.models.run_queue_console_model import \
 from configurun.windows.models.run_queue_table_model import RunQueueTableModel
 from configurun.windows.ui.main_window_ui import Ui_MainWindow
 
-# if __name__ == "__main__":
-
-
-
 
 log = logging.getLogger(__name__)
 
-# SETTINGS_PATH_MACHINE_LEARNING_WINDOW = "/Settings/MachineLearning"
-APP_NAME = "Configurun"
-WORKSPACE_LOCK_FILE_NAME = ".configurun_workspace.lock" #Is put in the workspace folder to indicate that the folder
-	#is in use
+APP_NAME = "Configurun" #The name of the app, used for the settings file
+WORKSPACE_LOCK_FILE_NAME = ".configurun_workspace.lock" #Is put in the workspace folder to indicate it is in use
+WORKSPACE_RUN_QUEUE_SAVE_NAME = "run_queue_data.rq" #The name of the file in which the run queue is saved on close
 
 class OptionsSource(Enum):
 	"""
@@ -127,7 +122,8 @@ class MainWindow():
 		with open(os.path.join(self._workspace_path, WORKSPACE_LOCK_FILE_NAME), "w", encoding="utf-8") as lock_file:
 			lock_file.write("This file is used to indicate that the workspace at this path is in use by another instance of "
 				f"the {APP_NAME}-app. Please only remove this file if the app crashed and this file remained.")
-
+		
+		self.initial_run_queue_load()
 
 		config_save_path = os.path.join(self._workspace_path, "configurations")
 		if not os.path.isdir(config_save_path):
@@ -147,7 +143,7 @@ class MainWindow():
 			settings_path = os.path.join(self._workspace_path, "settings.ini")
 			self._settings = QtCore.QSettings(
 				settings_path, QtCore.QSettings.Format.IniFormat, )
-			log.info(f"Attempted loading app-settings from {settings_path}."
+			log.info(f"Attempted loading app-settings from {settings_path}. "
 	    		f"This resulted in a settings-file loaded from {self._settings.fileName()}")
 		else: #Else save
 			log.info("Loading settings from default qt-location")
@@ -519,6 +515,37 @@ class MainWindow():
 			self.ui.runQueueOverlayWidget.set_overlay_hidden(True)
 			self.ui.ConsoleOverlayWidget.set_overlay_hidden(True)
 
+	def initial_run_queue_load(self) -> None:
+		"""
+		Should be called just after setting workspace. 
+		Tries to load the RunQueue contents from a file according to the filename that is used when the close-event is 
+		called. If the file does not exist, nothing happens.
+
+		NOTE: In the case of RunQueueClient-based run-mode, this method should probably not be called, as it tries to
+			overwrite the run-queue, which might not be desireable in the case of a running server.
+
+		TODO: also move loading settings here? 
+		"""
+		if os.path.exists(os.path.join(self._workspace_path, WORKSPACE_RUN_QUEUE_SAVE_NAME)):
+			cur_items = self._run_queue.get_all_items_dict_snapshot_copy()
+			if len(cur_items.keys()) > 0:
+				#Create a popup that asks the user to select a path, if a path is selected, we will attempt to load the
+				#Use one-liner 
+				warning_box = QtWidgets.QMessageBox.question(self.window, "Load run queue?",
+					("Trying to reload run-queue from the workspace, but the current run-queue is not empty. Do you want "
+					"to load the run-queue from the last session anyway?"),
+					QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No)
+				if warning_box == QtWidgets.QMessageBox.StandardButton.No:
+					return
+			
+			path = os.path.join(self._workspace_path, WORKSPACE_RUN_QUEUE_SAVE_NAME)
+			self.run_queue_table_model.load_from_file(path, allow_load_running_items="allow")
+			# self.ui.runQueueWidget.load_from_file_popup
+		else:
+			log.info(f"No RunQueue save file found at {os.path.join(self._workspace_path, WORKSPACE_RUN_QUEUE_SAVE_NAME)}"
+					", continuing with an empty run-queue.")
+		
+		
 
 	def set_font_point_size(self, new_font_size : int) -> None:
 		"""
@@ -799,7 +826,7 @@ class MainWindow():
 			return
 
 		save_dict = self._run_queue.get_queue_contents_dict(save_running_as_stopped=True)
-		run_queue_contents_path = os.path.join(self._workspace_path, "at_close_time.rq")
+		run_queue_contents_path = os.path.join(self._workspace_path, WORKSPACE_RUN_QUEUE_SAVE_NAME)
 		with open(run_queue_contents_path, "wb") as file:
 			dill.dump(save_dict, file)
 
@@ -829,7 +856,9 @@ class MainWindow():
 			ret = win.exec()
 
 			if ret == QtWidgets.QMessageBox.StandardButton.Yes:
-				self._run_queue.force_stop_all_running()
+				self._run_queue.force_stop_all_running(
+					stop_msg="User stopped the RunQueueue when closing the application."
+				)
 			else:
 				return False
 
