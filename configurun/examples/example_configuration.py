@@ -7,29 +7,24 @@ This script runs the example in which we can select our model/dataset type.
 import logging
 import typing
 
-from PySide6 import QtWidgets
-
-from configurun.classes.run_queue import RunQueue
 from configurun.configuration.base_options import BaseOptions
 from configurun.configuration.configuration import Configuration
-from configurun.configuration.configuration_model import ConfigurationModel
 from configurun.examples.example_options.example_options import (
     ExampleDatasetOptions, ExampleGeneralOptions, ExampleMainOptions,
     ExampleModelOptions, ExtendedExampleDatasetOptions,
     ExtendedExampleModelOptions)
 from configurun.examples.example_run_function import example_run_function
-from configurun.windows.main_window import MainWindow
 
 log = logging.getLogger(__name__)
 
-def example_deduce_new_option_class_types(
+def example_deduce_new_option_classes(
 			#NOTE: all suboptions of the configucation can be accesed via the configuration.<attr> syntax.
 			# For type hinting, we can create a union of all the suboptions classes we would like to use
 			# in this example, we only use the main options. The actual type of the configuration argument is
 			# Configuration, but we can use the ExampleMainOptions class as a type hint
 			configuration : Configuration #|ExampleMainOptions | ExampleDatasetOptions | ExampleGeneralOptions #type: ignore
 		) -> typing.Dict[str, typing.Type[BaseOptions] | typing.Type[None]]:
-	"""Deduce the new option class types from the current configuration
+	"""Deduce the new option classes from the current configuration
 
 	Based on the selection of the mainoptions, we can deduce the new option class types, in this example:
 		- main_options : Always ExampleMainOptions
@@ -77,7 +72,14 @@ def example_deduce_new_option_class_types(
 
 
 def run_example_app():
-	from configurun.create import local_app
+	"""Run an example instance of the Configurun-App using the example run function and example-option-deducer
+	"""
+	# pylint: disable=import-outside-toplevel
+	from configurun.create import \
+	    local_app
+	import os
+	from configurun.windows.main_window import APP_NAME
+	import tempfile
 	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}]  {levelname:<7s}   {message}", style='{')
 	handler = logging.StreamHandler()
 	handler.setFormatter(formatter)
@@ -86,10 +88,14 @@ def run_example_app():
 		level=logging.INFO) #Without time
 	log.debug("Now running a config-UI for the example options")
 
-	#=========================== Do the following to create a configuration UI ===========================
+	#=========================== Create the app using the example ===========================
+	tempdir = tempfile.gettempdir()
+	workspace_path = os.path.join(tempdir, APP_NAME, os.path.splitext(__name__)[0])
+	log.info(f"Saving example app workspace to {workspace_path}")
 	local_app(
 		target_function=example_run_function,
-		options_source=example_deduce_new_option_class_types,
+		options_source=example_deduce_new_option_classes,
+		workspace_path=workspace_path,
 	)
 
 

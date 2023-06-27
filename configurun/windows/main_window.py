@@ -969,7 +969,7 @@ def run_example_app():
 			log_location_make_dirs=True #Create dir if it does not exist
 	)
 	config_model = ConfigurationModel(
-		option_type_deduction_function=example_deduce_new_option_class_types
+		option_type_deduction_function=example_deduce_new_option_classes
 	)
 	MainWindow(
 		configuration_model=config_model,
@@ -983,8 +983,7 @@ def run_example_app():
 	app.exec()
 
 if __name__ == "__main__":
-	from configurun.examples.example_configuration import \
-	    example_deduce_new_option_class_types
+	from configurun.examples.example_configuration import example_deduce_new_option_classes
 	logging.getLogger('matplotlib').setLevel(logging.INFO)
 	logging.getLogger('PySide6').setLevel(logging.DEBUG)
 	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}] {levelname:<7s}   {message}", style='{')

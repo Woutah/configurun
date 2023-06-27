@@ -17,14 +17,10 @@ class Configuration(object):
 	This class is a wrapper around a dict of these sub-options classes. The __getattr__ function is used to
 	allow the user to access any of the sub-options classes using the . operator.
 
-	1. The main options, which are the options that are common to all models
-	2. The general options, which are the options that are common to all tasks
-	3. The model options, which are the options that are specific to the selected model
-	4. The dataset options, which are the options that are specific to the selected dataset
-	5. The training options, which are the options that are specific to the training goal/model/task
+	The individual option-instances are stored in the 'options' dict. The keys of this dict are the names of the
+	sub-options classes, e.g. "model_options", "dataset_options", "training_options", etc.
 
-	These sub-options-classes are combined during runtime into a class instance which is similar to a dict of arguments.
-
+	
 	NOTE: due to the way the __getattr__ function is implemented, the sub-options classes must not have overlapping 
 	attribute names.
 	"""

@@ -58,9 +58,10 @@ def local_app(
 			typing.Type[BaseOptions]
 				,
 		workspace_path : str = "",
+		create_workspace_path : bool = True, #Whether to create the workspace path if it does not exist
 		run_queue_n_processes : int = 1,
 		run_queue_kwargs : typing.Optional[typing.Dict[str, typing.Any]] = None,
-		config_model_kargs : typing.Optional[typing.Dict[str, typing.Any]] = None,
+		config_model_kwargs : typing.Optional[typing.Dict[str, typing.Any]] = None,
 
 	):
 	"""Convenience function that constructs a local instance of the app with the specified target function and option
@@ -75,13 +76,14 @@ def local_app(
 		 		|  typing.Type[None]]]
 				|, optional):
 			The source of the options in the ui. This can either be:
-				- A function returning a dict of option (dataclass) objects,
-				- A single BaseOptions object
-				- An argparse.ArgumentParser object
+				- A function returning a dict of option (dataclass) class,
+				- A single BaseOptions-type class
+				- An argparse.ArgumentParser class
 			Defaults to None.
 		workspace_path (str, optional): The path to the workspace folder. Attempts to load progress from here, also saves
 		 	progress to here. Defaults to "". If empty/default, the default workspace folder is used (~/Configurun/)
-
+		create_workspace_path (bool, optional): Whether to create the workspace path if it does not exist. 
+			Defaults to True.
 		run_queue_n_processes (int, optional): The number of processes to use in the run queue. Defaults to 1.
 		run_queue_kwargs (typing.Dict[str, typing.Any], optional): The keyword arguments passed to the
 			RunQueue constructor. Defaults to {}.
@@ -99,8 +101,8 @@ def local_app(
 	"""
 	if run_queue_kwargs is None:
 		run_queue_kwargs = {}
-	if config_model_kargs is None:
-		config_model_kargs = {}
+	if config_model_kwargs is None:
+		config_model_kwargs = {}
 
 	app = QtWidgets.QApplication(sys.argv)
 
@@ -108,6 +110,8 @@ def local_app(
 		workspace_path = os.path.join(os.path.expanduser("~"), APP_NAME)
 		log.info(f"No workspace path provided, using default: {workspace_path}")
 
+	if not create_workspace_path and not os.path.exists(workspace_path):
+		raise ValueError(f"Workspace path {workspace_path} does not exist and workspace-creation is set to False.")
 	os.makedirs(workspace_path, exist_ok=True) #Create the workspace folder if it does not exist yet
 	QtCore.QDir.setCurrent(workspace_path) #Set the current working directory to the workspace path
 
@@ -120,7 +124,10 @@ def local_app(
 	options_function = _get_option_function(options_source) #Create the options-function
 
 	#Select a config-model, pass the deduce_new_option_class_types function to the constructor
-	config_model = ConfigurationModel(option_type_deduction_function=options_function)
+	config_model = ConfigurationModel(
+		option_type_deduction_function=options_function,
+		**config_model_kwargs
+	)
 
 	#Create the Qt-main window in which the app will be placed
 	main_window = QtWidgets.QMainWindow()
@@ -129,7 +136,8 @@ def local_app(
 	MainWindow(
 		configuration_model=config_model,
 		run_queue=run_queue,
-		window=main_window
+		window=main_window,
+		workspace_path=workspace_path
 	)
 
 	main_window.show() #Show the window
@@ -270,10 +278,10 @@ if __name__ == "__main__":
 	# parser.add_argument("--local", action="store_true", help="Run as both server and client")
 
 	from configurun.examples.example_configuration import \
-	    example_deduce_new_option_class_types
+	    example_deduce_new_option_classes
 	from configurun.examples.example_run_function import example_run_function
 	local_app(
 		target_function=example_run_function,
-		options_source=example_deduce_new_option_class_types,
+		options_source=example_deduce_new_option_classes,
 		run_queue_n_processes=1,
 	)

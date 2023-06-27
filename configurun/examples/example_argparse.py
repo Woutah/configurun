@@ -19,15 +19,26 @@ parser_example.add_argument("--store_true_arg", action="store_true", help="Do so
 parser_example.add_argument("--str_choice_arg", type=str, choices=["a", "b", "c"], default="a", help="Choice 1")
 parser_example.add_argument("--int_choice_arg", type=int, choices=[1, 2, 3], default=1, help="Choice 2")
 
+def run_argparse_example():
+	"""
+	Runs a local app with the argparse options
+	"""
+	# pylint: disable=import-outside-toplevel
+	import os
+	import tempfile
 
-
-if __name__ == "__main__":
+	from configurun.configuration.argparse_to_dataclass import \
+	    argparse_to_dataclass
 	from configurun.create import local_app
-	from configurun.configuration.argparse_to_dataclass import argparse_to_dataclass
-
-	new_dataclass = argparse_to_dataclass(parser_example)
-	the_globals = globals()
+	from configurun.windows.main_window import APP_NAME
+	
+	tempdir = tempfile.gettempdir()
+	workspace_path = os.path.join(tempdir, APP_NAME, os.path.splitext(__name__)[0])
 	local_app(
 		target_function = lambda x, *_: print(x),
-		options_source = new_dataclass
+		options_source = parser_example,
+		workspace_path=workspace_path
 	)
+
+if __name__ == "__main__":
+	run_argparse_example()

@@ -205,7 +205,7 @@ class NetworkMainWindow(MainWindow):
 if __name__ == "__main__":
 	# Run Small tests using runqueue-client and example options
 	from configurun.examples.example_configuration import \
-	    example_deduce_new_option_class_types
+	    example_deduce_new_option_classes
 	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}] {levelname:<7s}   {message}", style='{')
 	log.propagate = False
 	handler = logging.StreamHandler()
@@ -220,7 +220,7 @@ if __name__ == "__main__":
 	test_window = QtWidgets.QMainWindow()
 	test_runqueue_client = RunQueueClient()
 	test_configuration_model = ConfigurationModel(
-		option_type_deduction_function=example_deduce_new_option_class_types
+		option_type_deduction_function=example_deduce_new_option_classes
 	)
 
 	test_workspace_path = os.path.join(os.path.expanduser("~"), "Configurun-Client")

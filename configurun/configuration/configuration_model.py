@@ -139,12 +139,12 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 			emit_changes (bool, optional): Whether to emit the proxyModelDictChanged signal if changes occur.
 				Defaults to True.
 		"""
-		all_classes = self._deduce_new_option_class_types_from_current()
+		all_classes = self._deduce_new_option_classes_from_current()
 		assert(len(all_classes) > 0), "No option classes were deduced from the current configuration, that means that \
 			user will never be able to change the configuration - this should not happen"
 		self.set_option_class_types(all_classes)
 
-	def _deduce_new_option_class_types_from_current(self) -> typing.Dict[str, typing.Type[BaseOptions | None]]:
+	def _deduce_new_option_classes_from_current(self) -> typing.Dict[str, typing.Type[BaseOptions | None]]:
 		"""
 		Returns a list of all option-dataclass types for each option-group deduced from the current configuration.
 
@@ -175,7 +175,7 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 		new_option_classes = self._option_type_deduction_function(self._configuration)
 		assert len(new_option_classes) > 0, ("No option classes were deduced from the current configuration, that means "
 			"user will never be able to change the configuration - this should not happen. Make sure "
-			"deduce_new_option_class_types returns at least 1 dataclass-type that inherits from BaseOptions.")
+			"deduce_new_option_classes returns at least 1 dataclass-type that inherits from BaseOptions.")
 		return new_option_classes
 
 	def set_option_class_types(self,
@@ -552,7 +552,7 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 		If not, raises a key-error.
 		"""
 		cur_class_types = self._configuration.get_option_types()
-		deduced_types = self._deduce_new_option_class_types_from_current()
+		deduced_types = self._deduce_new_option_classes_from_current()
 
 		option_group_mismatches = set.difference(set(cur_class_types.keys()), set(deduced_types.keys()))
 		error_msgs = []
