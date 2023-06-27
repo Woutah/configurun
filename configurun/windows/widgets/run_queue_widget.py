@@ -20,8 +20,8 @@ log = logging.getLogger(__name__)
 
 class RunQueueWidget(QtWidgets.QWidget):
 	"""
-	A wrapper-widget for a RunQueueTreeView with some buttons to control the queue (start, stop, move up, move down, delete,
-	cancel etc.)
+	A wrapper-widget for a RunQueueTreeView with some buttons to control the queue (start, stop, move up, move down, 
+	delete,	cancel etc.)
 	"""
 	def __init__(self, widget : QtWidgets.QWidget) -> None:
 		super().__init__()
@@ -79,8 +79,8 @@ class RunQueueWidget(QtWidgets.QWidget):
 			action.setChecked(status not in cur_filtered)
 			action.triggered.connect(
 				lambda *_, status=status: self.runQueueTreeView.set_whether_status_filtered(
-					status, not(status in cur_filtered))
-				) #pylint: disable=superfluous-parens
+					status, not(status in cur_filtered)) #pylint: disable=superfluous-parens 
+				) 
 			menu.addAction(action)
 
 		return menu
@@ -91,7 +91,7 @@ class RunQueueWidget(QtWidgets.QWidget):
 		cur_model = self._run_queue_table_model
 		assert isinstance(cur_model, RunQueueTableModel), f"Can't save Queue for non-RunQueueModel of type {type(cur_model)}"
 		cur_model.save_to_file_popup()
-		
+
 	def load_from_file_popup(self):
 		"""Shows a popup to load a queue from a file."""
 		cur_model = self._run_queue_table_model
@@ -132,7 +132,7 @@ class RunQueueWidget(QtWidgets.QWidget):
 
 		n_processes_action = menu.addAction("Set number of processes...")
 		n_processes_action.setIcon(QtGui.QIcon(":/Icons/icons/status/network-receive.png"))
-		n_processes_action.triggered.connect(self.runQueueTreeView.set_n_processes_popup)
+		n_processes_action.triggered.connect(self.set_n_processes_popup)
 
 		return menu
 
@@ -151,16 +151,16 @@ class RunQueueWidget(QtWidgets.QWidget):
 		cur_n_processes = self._run_queue_table_model.get_n_processes()
 
 
-		integer, ok = QtWidgets.QInputDialog.getInt(
+		integer, pressed_ok = QtWidgets.QInputDialog.getInt(
 			self._widget,
 			"Set number of processes",
-			f"Number of processes (current={cur_n_processes}):",
+			f"Set Number of processes: <br>current={cur_n_processes} unlimited=-1",
 			value=cur_n_processes,
-			min=-1,
-			max=30,
+			minValue=-1,
+			maxValue=30,
 			step=1
 		)
-		if ok:
+		if pressed_ok:
 			self._run_queue_table_model.set_n_processes(integer)
 
 	def popup_queue_settings_context_menu(self, global_position : QtCore.QPoint) -> None:
@@ -215,7 +215,7 @@ class RunQueueWidget(QtWidgets.QWidget):
 				confirm_dialog = QtWidgets.QMessageBox()
 				#Creat a dialog with "Wait for processes to finish" and "Force Stop" and "Cancel" buttons
 				confirm_dialog = QtWidgets.QMessageBox()
-				confirm_dialog.setText("You are about to stop the autoqueue process, do you want to cancel all "
+				confirm_dialog.setText("You are about to stop the autoprocessing process, do you want to cancel all "
 			   		"currently running processes as well?")
 				#Create a dialog with "Wait for processes to finish" and "Force Stop" and "Cancel" buttons
 				#If "Wait and Stop" is pressed, stop autoqueueing
@@ -246,8 +246,19 @@ class RunQueueWidget(QtWidgets.QWidget):
 					self._autoqueue_btn_set_state(False) #Set button state to false
 					return
 				elif confirm_dialog.clickedButton() == force_stop_btn:
-					#TODO: implement
-					raise NotImplementedError("Force-stopping queue not implemented yet")
+					#1 last check if user really wants to force stop (use one-liner messagebox here)
+					confirm_window = QtWidgets.QMessageBox()
+					confirm_window.setText("<b>Are you sure you want to force stop all currently running processes?</b>")
+					confirm_window.setInformativeText("This will forcefully stop all currently running processes. "
+						"All unsaved progress will be lost. This action cannot be undone.")
+					confirm_window.setWindowTitle("Force stop?")
+
+					confirm_window.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Yes
+						| QtWidgets.QMessageBox.StandardButton.No)
+					confirm_window.setDefaultButton(QtWidgets.QMessageBox.StandardButton.No)
+					if confirm_window.exec() == QtWidgets.QMessageBox.StandardButton.No:
+						return
+					cur_model.force_stop_all_running()
 		else:
 			cur_model.start_autoprocessing()
 

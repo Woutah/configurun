@@ -616,6 +616,12 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 			)
 			new_model.dataChanged.connect(self.update_sub_options)
 
+		#Delete all proxy models that are not in the configuration
+		# for option_name in list(self._option_proxy_model_dict.keys()):
+		# 	if option_name not in self._configuration.options:
+		# 		del self._option_proxy_model_dict[option_name]
+		# 		proxy_model_changed = True
+		# 		#TODO: unlink datachanged signal?
 
 		if proxy_model_changed: #Emit proxymodel changes
 			self.proxyModelDictChanged.emit(self._option_proxy_model_dict)

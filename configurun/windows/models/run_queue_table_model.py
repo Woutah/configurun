@@ -33,7 +33,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 
 	autoProcessingStateChanged = QtCore.Signal(bool)
 
-	itemHighlightIdChanged = QtCore.Signal(int) #Emitted when the highlighted item changes, emits the new id 
+	itemHighlightIdChanged = QtCore.Signal(int) #Emitted when the highlighted item changes, emits the new id
 
 	class CustomDataRoles(IntEnum):
 		"""
@@ -303,7 +303,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		"""Returns the number of processes to use for the queue.
 		"""
 		return self._run_queue.get_n_processes()
-	
+
 	def set_n_processes(self, n_processes : int) -> None:
 		"""Sets the number of processes to use for the queue.
 
@@ -322,7 +322,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		try:
 			try:
 				save_dict = self._run_queue.get_queue_contents_dict(save_running_as_stopped=False)
-			except RunQueueHasRunningItemsException as exception: #pylint: disable=catch
+			except RunQueueHasRunningItemsException as exception: #pylint: disable=broad-exception-caught
 				log.warning("")
 				#Ask if user wants to save anyway, in the savefile, all running items will be marked as "stopped"
 				#and the queue will be saved
@@ -443,6 +443,13 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 
 		if self._cur_item_dict_id_order != new_item_dict_id_order:
 			log.warning("Item order in model does not match item order in runQueue")
+
+	def force_stop_all_running(self):
+		"""Force stop all items in the runqueue, also stops autoprocessing
+
+		NOTE: all unsaved progress will be lost(!!!)
+		"""
+		self._run_queue.force_stop_all_running()
 
 	def _handle_run_queue_deletion(self, deleted_item_ids : list[int], new_items_dict : typing.Dict[int, RunQueueItem]):
 		"""
@@ -574,7 +581,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 				self.index(self.get_index_row_by_id(self._prev_highlighted_id), self.columnCount()),
 				[QtCore.Qt.ItemDataRole.FontRole] #Only update font as it is the only thing that changes due to highlighting
 			)
-		
+
 	def set_highligh_by_id(self, highlight_item_id : int | None) -> None:
 		"""Set the highlighted item by its item id
 		Args:

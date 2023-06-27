@@ -128,12 +128,12 @@ class RunQueueTreeView(QtWidgets.QTreeView):
 		return self._hide_status_list
 
 
-	def set_double_click_callback(self, 
+	def set_double_click_callback(self,
 				function : typing.Callable[[QtCore.QModelIndex], None]
 			) -> None:
-		"""Used to overwrite the current callback when double-clicking on an item. 
-		E.g. if we first want to try to load the clicked-item, and on fail, do nothing 
-		
+		"""Used to overwrite the current callback when double-clicking on an item.
+		E.g. if we first want to try to load the clicked-item, and on fail, do nothing
+
 		NOTE: disconnects any existing connections
 
 		Args:
@@ -197,7 +197,7 @@ class RunQueueTreeView(QtWidgets.QTreeView):
 		"""
 		index = self.currentIndex()
 		return self.confirm_stop_index(index)
-	
+
 
 
 	def custom_menu_requested(self, pos : QtCore.QPoint) -> None:

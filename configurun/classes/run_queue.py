@@ -917,7 +917,7 @@ class RunQueue(QtCore.QObject):
 
 		self.currentlyRunningIdsChanged.emit([]) #Nothing should be running anymore
 
-		with self._all_items_dict_mutex:
+		with self._all_items_dict_mutex, self._queue_mutex:
 			for item_id in stopped_ids:
 				self._all_items_dict[item_id].status = RunQueueItemStatus.Stopped
 				self._all_items_dict[item_id].dt_done = datetime.now()
@@ -926,8 +926,25 @@ class RunQueue(QtCore.QObject):
 
 
 
-		raise NotImplementedError("Force stopping the run queue is not implemented yet.")
-		#TODO: set stop flag, then force stop all running processes and set the configurations of each to cancelled
+	def save_and_stop_all(self, save_path : str):
+		"""
+		Save the queue and then try to stop all updaters/etc.
+		All running processes will be force stopped and set to a 'stopped' state. 
+
+		Args:
+			save_path (str): the path to save the queue to
+		"""
+		self.stop_autoprocessing()
+
+		with self._all_items_dict_mutex, self._queue_mutex: #Make sure we don't start anything new while stopping
+			self.force_stop_all_running()
+
+
+		contents_dict = self.get_queue_contents_dict(save_running_as_stopped=True)
+		with open(save_path, "wb") as save_file:
+			dill.dump(contents_dict, save_file)
+
+
 
 
 	def force_stop_id(self, item_id : int):

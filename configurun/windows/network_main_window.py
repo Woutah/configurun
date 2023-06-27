@@ -131,6 +131,13 @@ class NetworkMainWindow(MainWindow):
 		self.open_connection_action.triggered.connect(self.connection_window.show)
 
 
+
+	def check_if_running_ask_stop_items_before_close(self) -> bool:
+		"""Overloads the main_window function. Normally, the user shuts down the running items before closing the
+		app. For clients this is not neccesary.
+		"""
+		return True
+
 	@catch_show_exception_in_popup_decorator
 	def connect_to_server(self, server_ip : str, server_port : str, server_password : str) -> None:
 		"""

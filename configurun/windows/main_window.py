@@ -5,34 +5,40 @@ edit/manage/run machine learning settings.
 Also contains OptionsSource, which is used to determine if the current file should be saved to a file or to the queue.
 """
 import logging
-# if __name__ == "__main__":
-
 import os
 import typing
 from enum import Enum
 
+import dill
 from PySide6 import QtCore, QtGui, QtWidgets
 from pyside6_utils.models import FileExplorerModel
 from pyside6_utils.utility.catch_show_exception_in_popup_decorator import \
     catch_show_exception_in_popup_decorator
 from pyside6_utils.widgets import DataClassTreeView
-from pyside6_utils.widgets.frameless_mdi_window import FramelessMdiWindow
 from pyside6_utils.widgets.delegates import DataclassEditorsDelegate
+from pyside6_utils.widgets.frameless_mdi_window import FramelessMdiWindow
 
-from configurun.classes.run_queue import RunQueue, ConfigurationIsFirmException
+from configurun.classes.run_queue import ConfigurationIsFirmException, RunQueue
+from configurun.configuration.configuration import Configuration
 from configurun.configuration.configuration_model import (
-    ConfigurationModel, NoClassTypesError, UnkownOptionClassError, OptionTypesMismatch)
+    ConfigurationModel, NoClassTypesError, OptionTypesMismatch,
+    UnkownOptionClassError)
 from configurun.windows.models.run_queue_console_model import \
     RunQueueConsoleModel
 from configurun.windows.models.run_queue_table_model import RunQueueTableModel
-from configurun.windows.ui.main_window_ui import \
-    Ui_MainWindow
-from configurun.configuration.configuration import Configuration
+from configurun.windows.ui.main_window_ui import Ui_MainWindow
+
+# if __name__ == "__main__":
+
+
+
 
 log = logging.getLogger(__name__)
 
 # SETTINGS_PATH_MACHINE_LEARNING_WINDOW = "/Settings/MachineLearning"
 APP_NAME = "Configurun"
+WORKSPACE_LOCK_FILE_NAME = ".configurun_workspace.lock" #Is put in the workspace folder to indicate that the folder
+	#is in use
 
 class OptionsSource(Enum):
 	"""
@@ -99,6 +105,29 @@ class MainWindow():
 				os.makedirs(self._workspace_path)
 			log.info(f"Using default workspace path: {self._workspace_path}")
 
+		#Check if workspace path is in use by another instance of the app
+		if os.path.isfile(os.path.join(self._workspace_path, WORKSPACE_LOCK_FILE_NAME)):
+			msgbox = QtWidgets.QMessageBox()
+			msgbox.setText(f"<b>Workspace path {self._workspace_path} seems to be in use by another instance of "
+		  				f"the {APP_NAME}-app. Do you want to use this workspace path anyway?</b>")
+			msgbox.setInformativeText("Continuing might overwrite files from the other instance. "
+				"If any other instances are running, please close them first, or change the workspace path. "
+				"This issue could also be caused by a previous instance of the app crashing."
+				)
+			msgbox.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No)
+			msgbox.setDefaultButton(QtWidgets.QMessageBox.StandardButton.No)
+			ret = msgbox.exec()
+			if ret == QtWidgets.QMessageBox.StandardButton.No:
+				raise RuntimeError(f"Workspace path {self._workspace_path} is in use by another instance of the "
+					f"{APP_NAME}-app. Please close the other instance or change the workspace path.")
+			else:
+				log.warning("User chose to use workspace path anyway, ignoring lock-file.")
+
+		#Create a lock-file to indicate that the workspace path is in use
+		with open(os.path.join(self._workspace_path, WORKSPACE_LOCK_FILE_NAME), "w", encoding="utf-8") as lock_file:
+			lock_file.write("This file is used to indicate that the workspace at this path is in use by another instance of "
+				f"the {APP_NAME}-app. Please only remove this file if the app crashed and this file remained.")
+
 
 		config_save_path = os.path.join(self._workspace_path, "configurations")
 		if not os.path.isdir(config_save_path):
@@ -134,7 +163,7 @@ class MainWindow():
 			self.window.restoreState(new_window_state) # type: ignore
 
 
-		self._cur_file_path : None | str = self._settings.value("loaded_file_path", None)#The path to the current config. #type: ignore
+		self._cur_file_path : None | str = self._settings.value("loaded_file_path", None)#The current config. #type: ignore
 		assert isinstance(self._cur_file_path, (str, type(None))), (f"Loaded file path should be a string or None, this "
 			f"but is a {type(self._cur_file_path)}.")
 
@@ -156,6 +185,8 @@ class MainWindow():
 
 		#====================== File explorer ===================
 		self._config_file_picker_model.setNameFilters(["*.json", "*.yaml", ""])
+		self._config_file_picker_model.setNameFilterDisables(False)
+
 		self._config_file_picker_model.setReadOnly(False)
 		log.debug(f"Root path used for saving machine learning settings: {self._config_save_path}")
 		self._config_file_picker_model.setRootPath(QtCore.QDir.rootPath()) #Subscribe to changes in this path
@@ -217,7 +248,7 @@ class MainWindow():
 		self.ui.actionRedo.triggered.connect(self.redo_triggered)
 		self.ui.actionSave.triggered.connect(self.save_config_triggered)
 		self.ui.actionSave_As.triggered.connect(self.save_config_as_triggered)
-		
+
 		######### View Actions ##########
 		self.ui.actionIncreaseFontSize.triggered.connect(
 			lambda *_: self.set_font_point_size(min(96, self._font_point_size + 1)) #type: ignore
@@ -269,7 +300,7 @@ class MainWindow():
 		Saves the current configuration to the queue item with the id self._queue_source_id. If it does not exists,
 		a keyerror is raised.
 		"""
-		assert self._cur_source == OptionsSource.QUEUE, (f"Cannot save the config to an existing queue item " 
+		assert self._cur_source == OptionsSource.QUEUE, (f"Cannot save the config to an existing queue item "
 			f"since the current source is {self._cur_source}, not {OptionsSource.QUEUE}")
 
 		try:
@@ -280,13 +311,13 @@ class MainWindow():
 			QtWidgets.QMessageBox.warning(self.window, "Cannot save to Queue item", str(exception))
 			return
 		except KeyError as exception:
-			QtWidgets.QMessageBox.warning(self.window, "Cannot save to Queue item", 
+			QtWidgets.QMessageBox.warning(self.window, "Cannot save to Queue item",
 				f"{exception}. <br> This is likely because the queue item was removed from the queue. <br>"
 			)
 
 	def expand_run_queue_view_filter_options(self):
 		"""Popules the run queue view filter menu with a copy of the menu provided in the run queue widget"""
-		self._cur_run_queue_view_menu = self.ui.runQueueWidget.get_queue_settings_context_menu() #NOTE: even though
+		self._cur_run_queue_view_menu = self.ui.runQueueWidget.get_queue_settings_context_menu() #NOTE: even though #pylint: disable=attribute-defined-outside-init
 			# we don't use this after creation of the menu, we need to keep a reference for it not to be garbage collected
 
 		for action in self.ui.menuRun_Queue.actions(): #Remove all actions from the menu
@@ -371,7 +402,7 @@ class MainWindow():
 	def run_queue_widget_item_double_click(self, index : QtCore.QModelIndex) -> None:
 		"""
 		Replaces the default behaviour of the on-double click signal of the RunQueueTableView.
-		In this method, we first try to load the item, to the configuration-editor. 
+		In this method, we first try to load the item, to the configuration-editor.
 		If it fails, we just ignore the request. Otherwise mark the item as selected in the model and load
 		"""
 		cur_id = index.data(RunQueueTableModel.CustomDataRoles.IDRole)
@@ -393,7 +424,7 @@ class MainWindow():
 	def file_explorer_item_double_click(self, index : QtCore.QModelIndex | QtCore.QPersistentModelIndex) -> None:
 		"""
 		Replaces the default behaviour of the on-double click signal of the FileExplorerView.
-		In this method, we first try to load the item, to the configuration-editor. 
+		In this method, we first try to load the item, to the configuration-editor.
 		If it fails, we just ignore the request. Otherwise mark the item as selected in the model and load it.
 		"""
 		file_path = self._config_file_picker_model.filePath(index)
@@ -447,11 +478,11 @@ class MainWindow():
 		self._config_file_picker_model.reset_highlight() #Reset the hightlight
 
 		return True
-	
+
 	def set_source(self, new_source : OptionsSource) -> None:
 		"""
-		Sets the current source of the configuration (self._cur_source). 
-		If the source changed, the ui will be updated to reflect the new source 
+		Sets the current source of the configuration (self._cur_source).
+		If the source changed, the ui will be updated to reflect the new source
 		(e.g. show load-to-queue-button, clear any highlights in other source etc.)
 
 		Args:
@@ -518,6 +549,8 @@ class MainWindow():
 			self._settings.setValue(f"splitter_state_{splitter.objectName()}", splitter.saveState())
 
 
+
+
 	def open_save_location_in_explorer(self) -> None:
 		"""
 		Open the folder containing the current config file in the file explorer
@@ -575,7 +608,7 @@ class MainWindow():
 		self._config_file_picker_model.reset_highlight()
 		self._configuration_model.reset_configuration_data_to_default()
 
-	def load_from_file(self, 
+	def load_from_file(self,
 				new_path : str | None,
 				show_dialog_on_problem=True,
 				ignore_modified = False
@@ -592,7 +625,7 @@ class MainWindow():
 			bool: Whether loading a config was succesful NOTE: still returns True if the passed file was already loaded,
 			  also return True if there were problems, returns false if an unhandled exception occurs during loading
 		"""
-		if new_path is None:
+		if new_path is None or not os.path.isfile(new_path):
 			return False
 
 		if new_path == self._cur_file_path and self._cur_source == OptionsSource.FILE: #If file is already loaded
@@ -761,14 +794,46 @@ class MainWindow():
 				event.ignore()
 				return
 
-		#Check whether queue is running an item - if so, ask for confirmation
+		if not self.check_if_running_ask_stop_items_before_close(): #Check if user is okay with stopping the queue
+			event.ignore()
+			return
 
+		save_dict = self._run_queue.get_queue_contents_dict(save_running_as_stopped=True)
+		run_queue_contents_path = os.path.join(self._workspace_path, "at_close_time.rq")
+		with open(run_queue_contents_path, "wb") as file:
+			dill.dump(save_dict, file)
 
-		#If not modified -> just save settings and close
-		event.accept()
 		self._save_settings()
-		return
 
+		if os.path.isfile(os.path.join(self._workspace_path, WORKSPACE_LOCK_FILE_NAME)): #Clean up lock-file
+			os.remove(os.path.join(self._workspace_path, WORKSPACE_LOCK_FILE_NAME))
+		event.accept()
+
+	def check_if_running_ask_stop_items_before_close(self) -> bool:
+		"""Checks if the queue is running an item. If so, asks the user if they want to stop the queue and close anyway.
+		Uses a separate function because this function should not cancel the running processes in the case of a
+		client-server app.
+		"""
+		#Check whether queue is running an item - if so, ask for confirmation
+		if self._run_queue.get_running_configuration_count() > 0:
+			quit_msg = "<b>The queue is currently running an item. Do you want to stop the queue and close anyway?</b>"
+			#Create a window with a "quit", "save and quit" and "cancel" button
+			win = QtWidgets.QMessageBox()
+			win.setWindowTitle("Queue is running")
+			win.setText(quit_msg)
+			win.setInformativeText("If you choose to stop the queue, all currently running items will be marked as 'stopped'.")
+			win.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No)
+			win.setDefaultButton(QtWidgets.QMessageBox.StandardButton.Yes)
+			win.setEscapeButton(QtWidgets.QMessageBox.StandardButton.No)
+			win.setIcon(QtWidgets.QMessageBox.Icon.Warning)
+			ret = win.exec()
+
+			if ret == QtWidgets.QMessageBox.StandardButton.Yes:
+				self._run_queue.force_stop_all_running()
+			else:
+				return False
+
+		return True
 
 
 
@@ -868,7 +933,7 @@ class MainWindow():
 
 def run_example_app():
 	"""Runs the example app"""
-	from configurun.examples.example_run_function import example_run_function
+	from configurun.examples.example_run_function import example_run_function #pylint: disable=import-outside-toplevel
 	app = QtWidgets.QApplication([])
 	main_window = QtWidgets.QMainWindow()
 	workspace_path = os.path.join(os.path.expanduser("~"), APP_NAME)
