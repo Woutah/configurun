@@ -259,7 +259,6 @@ class CommandlineQueueEmitter(QtCore.QObject):
 				self.stop_flag = True
 
 
-
 class RunQueue(QtCore.QObject):
 	"""
 	A class in which we can queue configurations to run tasks. The Configurations are ran in separate processes.
@@ -376,6 +375,15 @@ class RunQueue(QtCore.QObject):
 		self.queue_emitter_thread.start()
 		self.queue_emitter.commandLineOutput.connect(self.newCommandLineOutput.emit)
 		# self.queue_emitter.commandLineOutput.connect(lambda *args: print(f"Got command line output: {args}"))
+
+	def stop_command_line_queue_emitter(self):
+		"""
+		Stop the queue-emitter thread - should be called when terminating the queue
+		TODO: create and explicit cleanup function
+		"""
+		self.queue_emitter.stop_flag = True
+		self.queue_emitter_thread.quit()
+		self.queue_emitter_thread.wait()
 
 
 	@staticmethod

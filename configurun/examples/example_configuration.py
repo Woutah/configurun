@@ -71,7 +71,7 @@ def example_deduce_new_option_classes(
 	return ret_dict
 
 
-def run_example_app():
+def run_example_app(log_level=logging.INFO):
 	"""Run an example instance of the Configurun-App using the example run function and example-option-deducer
 	"""
 	# pylint: disable=import-outside-toplevel
@@ -80,13 +80,6 @@ def run_example_app():
 	import os
 	from configurun.windows.main_window import APP_NAME
 	import tempfile
-	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}]  {levelname:<7s}   {message}", style='{')
-	handler = logging.StreamHandler()
-	handler.setFormatter(formatter)
-	logging.basicConfig(
-		handlers=[handler],
-		level=logging.INFO) #Without time
-	log.debug("Now running a config-UI for the example options")
 
 	#=========================== Create the app using the example ===========================
 	tempdir = tempfile.gettempdir()
@@ -96,9 +89,10 @@ def run_example_app():
 		target_function=example_run_function,
 		options_source=example_deduce_new_option_classes,
 		workspace_path=workspace_path,
+		log_level=log_level
 	)
 
 
 
 if __name__ == "__main__":
-	run_example_app()
+	run_example_app(logging.DEBUG)

@@ -21,6 +21,7 @@ For an example how to use this app, see [this section](#How to run?)
 - [Table of contents](#table-of-contents)
 - [Installation](#installation)
 - [How to run?](#how-to-run)
+		- [**Server-Side**](#server-side)
 - [Option-source](#option-source)
 	- [Custom Options (`@dataclass`)](#custom-options-dataclass)
 	- [Custom Options (`ArgumentParser`)](#custom-options-argumentparser)
@@ -29,6 +30,7 @@ For an example how to use this app, see [this section](#How to run?)
 - [Target function](#target-function)
 	- [Configuration](#configuration)
 - [Configuration](#configuration-1)
+- [Option metadata](#option-metadata)
 
 
 # Installation
@@ -45,8 +47,7 @@ Creating the app is done via the `configurun.create`-module. We can create 3 dif
 
 On the client-side, the `options_source` should be set.
 On the server/running-machine, the `target_function` should be set.<br>
-
-To run the example app, we can either call `run_example_app()` from `configurun.examples.run_example_app` or run the following code to construct the app ourselves:
+To run the example app, we can either call `run_example_app()` from `configurun.examples` or run the following code to construct the app ourselves:
 
 ```python
 ### This example will run the app with an example configuration
@@ -54,60 +55,63 @@ To run the example app, we can either call `run_example_app()` from `configurun.
 # Also see `configurun/examples/example_deduce_new_option_class_types.py`
 import os
 from configurun.create import local_app
-from configurun.examples import example_run_function, example_deduce_new_option_class_types
+from configurun.examples import example_run_function, example_deduce_new_option_classes
 
 if __name__ == "__main__": #Makes sure bootstrapping process is done when running app
 	local_app(
 		target_function=example_run_function, #The function that will be called with the configuration
-		options_source=deduce_new_option_class_types, #Source can be Callable/@datclass/ArgumentParser
-		workspace_path = os.path.join(os.getcwd(), "Example") #Settings and run-queue will be saved/loaded from/to here
+		options_source=example_deduce_new_option_classes, #Source can be Callable/@datclass/ArgumentParser
+		workspace_path = os.path.join( #Settings, configs adn the Run-Queue will be saved/loaded from/to here
+			os.getcwd(), 
+			"LocalExampleWorkspace"
+		) 
 	)
 ```
-In this example, [`example_run_function`](./configurun/examples/example_run_function.py) runs a dummy task for 20 seconds. We can [specify our own run-function](#run-function) to run our own scripts.
+In this example, [`example_run_function`]([./configurun/examples/example_run_function.py](https://github.com/Woutah/configurun/blob/main/configurun/examples/example_run_function.py)) runs a dummy task for 20 seconds. We can [specify our own run-function](#run-function) to run our own scripts.
 
-We can [specify our own options source](#option-source) to create our own options-class, or use an existing `ArgumentParser`-object.
-
+We can [specify our own options source](#option-source) to create our own options-class for the configuration-editor, for example by [using an existing `ArgumentParser`-object.](#custom-options-argumentparser)
 
 To run the example above on a remote machine, we can run the following code: <br>
-**SERVER** 
+### **Server-Side** 
 ```python 
 import os
 from configurun.create import local_app
 from configurun.examples import example_run_function, example_deduce_new_option_class_types
-
-
-
 ```
+
 
 
 # Option-source
 When creating an app using the `create`-module, we can define a custom source so we can edit/save and queue our own custom options.
 
 ## Custom Options (`@dataclass`)
-**NOTE:** Using fields results in more control over the final UI, for a more thorough example, please see [configurun/examples/example_configuration.py](https://github.com/Woutah/configurun/blob/main/configurun/examples/example_configuration.py)
+**NOTE:** Using fields results in more control over the final UI, for a more thorough example, please see [this section](#option-metadata) and/or the example implementations in [configurun/examples/example_options/example_options.py](https://github.com/Woutah/configurun/blob/main/configurun/examples/example_options/example_options.py).
 
-**NOTE:**  When implementing custom option-classes, don't forget to add the @dataclass, and always inherit from `BaseOptions`
+**NOTE:**  When implementing custom option-classes, don't forget to add the `@dataclass`-decorator, and always inherit from `BaseOptions`
 ```python
+import os
 from dataclasses import dataclass
+from configurun.configuration.base_options import BaseOptions
 from configurun.create import local_app
 from configurun.examples import example_run_function
 
+
 @dataclass #Don't forget to add this(!) - otherwise the app will not recognize the fields
-class MyCustomOptions(BaseOptions):
+class MyCustomOptions(BaseOptions): #Always inherit from BaseOptions (required to run config)
 	simple_int : int = 1
 	# etc...
 
 if __name__ == "__main__":
 	local_app(
 		target_function=example_run_function,
-		options_source=MyCustomOptions, #Simple source: each configuration only has 1 option-class
+		options_source=MyCustomOptions, #Simple: each configuration only has 1 option-class
 		workspace_path = os.path.join(os.getcwd(), "ExampleDataclass")
 	)
 
 ```
 
 ## Custom Options (`ArgumentParser`)
-We can use a `ArgumentParser`-object as an options source, this will internally convert the argument parser into a `@dataclass`-object, which can then be used as an options-class. Certain arguments are also parsed to control the UI (e.g. `required=True`, `help="Will be displayed on hover"`).
+We can use a `ArgumentParser`-object as an options source, this will internally convert the argument parser into a `@dataclass`-object, which is then used as an options-class. Certain arguments are also parsed to control the UI (e.g. `required=True`, `help="Will be displayed on hover"`).
 ```python
 import argparse
 from configurun.create import local_app
@@ -119,7 +123,7 @@ parser_example.add_argument("--required_arg", type=str, required=True, help="Req
 
 local_app(
 	target_function=example_run_function,
-	options_source=parser, #This parser is converted internally to a dataclass-class which is then used as the options-class
+	options_source=parser, #Parser is converted internally to a dataclass-class which is used as the options-class
 	workspace_path = os.path.join(os.getcwd(), "ExampleArgparse")
 )
 ```
@@ -130,7 +134,8 @@ As an options-source, we can create a callable which takes the current Configura
 This can be useful if we want to group options together, and only show certain groups when an attribute of another group is set to a certain value.
 
 ```python
-#In this example, we will create a callable which returns new options-classes based on the current configuration
+#In this example, we will create a callable which returns new options-classes based on the 
+# current configuration
 import os
 import typing
 from dataclasses import dataclass
@@ -155,9 +160,9 @@ class CustomOptionsUnderConditions(BaseOptions):
 	#...
 
 def deduce_new_option_classes(configuration: Configuration)\
-		-> typing.Dict[str, typing.Type[BaseOptions | None]]: #Always return a dict of option classes
-	 		# the key of the dict is the name of the option class, the value is the option class itself
-			# the name is used to create the tab/window in the UI.
+		-> typing.Dict[str, typing.Type[BaseOptions | None]]: #Always return a dict of option 
+	 		# classes the key of the dict is the name of the option class, the value is the 
+			# option class itself the name is used to create the tab/window in the UI.
 	if configuration.options is None or len(configuration.options) == 0:
 		pass #If initial configuration is being retrieved -> return default dict
 	elif configuration.base_int == 2 and configuration.simple_int != 1:
@@ -175,9 +180,8 @@ def deduce_new_option_classes(configuration: Configuration)\
 		# get stuck in a situation in which there are no options to display/edit 
 
 if __name__ == '__main__':
-	#NOTE: make sure the app is not started when still in bootstrapping phase
 	local_app(
-		target_function=example_run_function, #The function that will be called with the configuration
+		target_function=example_run_function,
 		options_source=deduce_new_option_classes,
 		workspace_path = os.path.join(os.getcwd(), "Example3")
 	)
@@ -240,3 +244,48 @@ print(config.some_other_int)
 print(config.get('some_other_int', -1)))
 ```
 
+
+
+# Option metadata
+The UI is mainly built around the `field()` functionality of dataclasses, which allows the model to make use of the default values, type hints and other information provided by the dataclass.
+For each field, we can provide additional information in the `metadata` attribute of `field()` for each setting. This provides additional information to the UI, which uses this information to determine the editor-type, constraints etc. <br>
+
+For example:
+```python
+from pyside6_utils.utility.constraints import Interval #Used to constrain the fields
+
+@dataclass
+class TestOptions(BaseOptions):
+	test_int_property : int | None = field(
+		default=None, #The default value used in the UI - if it is changed, the UI will display the new value in bold
+		metadata=dict( #Contains additional information for the UI
+			display_name="Test int/none property", #The name to display in the UI
+			help="This is a test property that can also be none", #The help-message to display when hovering over the item
+			required=True #Whether this field is required - if true - a red background will appear if the value is None
+			constraints = [Interval(type=int, left=1, right=None, closed="both"), None]
+			# etc...
+		)
+)
+```
+For more examples, please see the [example-options](https://github.com/Woutah/configurun/blob/main/configurun/examples/example_options/example_options.py). 
+
+We can add metadata to
+
+| Metadata Key | Type | Description |
+| --- | --- | --- |
+| `"display_name"` | `str` | Name to display for this attribute in the view - defaults to the variable name itself |
+| `"display_path"` | `str` | Path to display this attribute - we can group/structure items when using a treeview - defaults to no parents|
+| `"help"` | `str` | Help-message which will be shown when the user hovers over this item - empty by default|
+| `"constraints"` | `List[sklearn_param_validation constraints]` | Additional constraints on which the editor will be determined to apply to the field [^constraintnote] , if none provided, use typehint of the field|
+| `"required"` | `bool` | Whether this field is required to be filled in - if true - a red background will appear if the value is not set|
+| `"editable"` | `bool` | Whether this field is editable - if false - the editor will be disabled|
+
+[^constraintnote] Constraints are (almost fully) sourced from the `sklearn.utils._validation` module and provides a way to constrain the dataclass fields such that the user can only enter valid values. They are also packed into this package under `utility.constraints`. The following constraints are supported:
+| Constraint | Description | Editor Type
+| --- | --- | --- |
+| `type` | The type of the value should match the type of the constraint | based on type |
+| `Options` / `Container` | The value should be one of the options provided in the constraint | `QComboBox` |
+| `StrOptions` | The value should be one of the str-options provided in the constraint | `QComboBox` |
+| `Interval` | The value should be within the interval provided in the constraint | `QSpinBox` or `QDoubleSpinBox` (limited) |
+| `None` | `None` is a valid value for this field `typing.Optional` | Adds reset-button to editor |
+| `Range` | The value should be within the range provided in the constraint | `QSpinBox` (limited) |

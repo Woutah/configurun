@@ -169,6 +169,8 @@ class RunQueueServer():
 			self._socket.close()
 			self._socket = None
 
+		self._run_queue.stop_command_line_queue_emitter() #Stop the command-line queue emitter
+
 		log.info("Server terminated")
 
 
@@ -596,7 +598,7 @@ class RunQueueServer():
 			client.close() #Try to close connection (if not already closed)
 
 
-def run_example_server(password : str = "password", port : int = 469):
+def run_example_server(password : str = "password", port : int = 469, log_level : int = logging.INFO):
 	"""
 	Runs an example-instance of the server, using the example_run_function from configurun/examples/example_run_function.py
 	and the passed password as well as the default workspace path (~/Configurun-Server)
@@ -609,7 +611,6 @@ def run_example_server(password : str = "password", port : int = 469):
 	import tempfile
 	from configurun.windows.main_window import APP_NAME
 	from configurun.examples.example_run_function import example_run_function
-
 	tempdir = tempfile.gettempdir()
 	workspace_path = os.path.join(tempdir, APP_NAME, "Configurun-Server-Example")
 
@@ -617,18 +618,10 @@ def run_example_server(password : str = "password", port : int = 469):
 		target_function=example_run_function,
 		workspace_path=workspace_path,
 		password=password,
-		port=port
+		port=port,
+		log_level=log_level
 	)
 
 
 if __name__ == "__main__":
-	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}]  {levelname:<7s}   {message}", style='{')
-	handler = logging.StreamHandler()
-	handler.setFormatter(formatter)
-	logging.basicConfig(
-		handlers=[handler],
-		level=logging.DEBUG) #Without time
-	root = logging.getLogger()
-	root.setLevel(logging.DEBUG)
-
-	run_example_server()
+	run_example_server(log_level=logging.DEBUG)

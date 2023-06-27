@@ -67,6 +67,7 @@ def local_app(
 		workspace_path : str = "",
 		create_workspace_path : bool = True, #Whether to create the workspace path if it does not exist
 		run_queue_n_processes : int = 1,
+		log_level : int = logging.INFO,
 		run_queue_kwargs : typing.Optional[typing.Dict[str, typing.Any]] = None,
 		config_model_kwargs : typing.Optional[typing.Dict[str, typing.Any]] = None,
 
@@ -92,6 +93,7 @@ def local_app(
 		create_workspace_path (bool, optional): Whether to create the workspace path if it does not exist.
 			Defaults to True.
 		run_queue_n_processes (int, optional): The number of processes to use in the run queue. Defaults to 1.
+		log_level (int, optional): The log level to use. Defaults to logging.INFO
 		run_queue_kwargs (typing.Dict[str, typing.Any], optional): The keyword arguments passed to the
 			RunQueue constructor. Defaults to {}.
 			E.g.:
@@ -106,6 +108,17 @@ def local_app(
 			- use_undo_stack (bool): Whether to use the undo stack or not. Defaults to True
 
 	"""
+	#=========== Initialize logger ===========
+	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}]  {levelname:<7s}   {message}", style='{')
+	handler = logging.StreamHandler()
+	handler.setFormatter(formatter)
+	logging.basicConfig(
+		handlers=[handler],
+		level=log_level) #Without time
+	root_logger = logging.getLogger()
+	root_logger.setLevel(log_level)
+
+	
 	if run_queue_kwargs is None:
 		run_queue_kwargs = {}
 	if config_model_kwargs is None:
@@ -113,7 +126,7 @@ def local_app(
 
 	app = QtWidgets.QApplication(sys.argv)
 
-	if workspace_path == "" or workspace_path is None:
+	if workspace_path == "" or workspace_path is None: #Set to default workspace path if not set
 		workspace_path = os.path.join(os.path.expanduser("~"), APP_NAME)
 		log.info(f"No workspace path provided, using default: {workspace_path}")
 
@@ -171,6 +184,7 @@ def server(
 			password : str = "",
 			hostname : str = "localhost",
 			port : int = 469,
+			log_level : int = logging.INFO,
 			run_queue_kwargs : typing.Optional[typing.Dict[str, typing.Any]] = None
 		):
 	"""Convenience function that constructs a local instance of the runqueue-server with the specified target function.
@@ -192,6 +206,18 @@ def server(
 				log_location (str) : The path where the log file should be outputted (should be a folder)
 					if blank, use default location using TEMP folder
 	"""
+	#=========== Initialize logger ===========
+	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}]  {levelname:<7s}   {message}", style='{')
+	handler = logging.StreamHandler()
+	handler.setFormatter(formatter)
+	logging.basicConfig(
+		handlers=[handler],
+		level=log_level) #Without time
+	root_logger = logging.getLogger()
+	root_logger.setLevel(log_level)
+
+
+
 	if run_queue_kwargs is None:
 		run_queue_kwargs = {}
 
@@ -223,6 +249,7 @@ def server(
 	app = QtCore.QCoreApplication(sys.argv) #Run the main event-loop (used for signals)
 	#Create a runqueue client to run the runqueue in
 	run_queue_server.run()
+	log.info("Server started, listening for client connections...")
 
 	timer = QtCore.QTimer()
 	timer.start(500)
@@ -238,7 +265,8 @@ def client(
 				typing.Callable[[Configuration], typing.Dict[str, typing.Type[BaseOptions] | typing.Type[None]]] | \
 				argparse.ArgumentParser,
 			workspace_path : str = "",
-			config_model_kwargs : typing.Optional[typing.Dict[str, typing.Any]] = None
+			log_level : int = logging.INFO,
+			config_model_kwargs : typing.Optional[typing.Dict[str, typing.Any]] = None,
 		):
 
 	"""
@@ -258,7 +286,20 @@ def client(
 			option-group settings are remembered when switching back/forth (for example between 2 model-options).
 			Defaults to True. If true undo_stack is also used
 		- use_undo_stack (bool): Whether to use the undo stack or not. Defaults to True
+	
+	log_level (int, optional): The log level to use. Defaults to logging.INFO
 	"""
+	#=========== Initialize logger ===========
+	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}]  {levelname:<7s}   {message}", style='{')
+	handler = logging.StreamHandler()
+	handler.setFormatter(formatter)
+	logging.basicConfig(
+		handlers=[handler],
+		level=log_level) #Without time
+	root_logger = logging.getLogger()
+	root_logger.setLevel(log_level)
+
+
 	if config_model_kwargs is None:
 		config_model_kwargs = {}
 

@@ -823,6 +823,7 @@ class MainWindow():
 			dill.dump(save_dict, file)
 
 		self._save_settings()
+		self._run_queue.stop_command_line_queue_emitter() #Stop the command-line queue emitter
 		self._run_queue.release_workspace_lock(self._workspace_path) #Release the lock on the workspace
 		event.accept()
 
@@ -950,7 +951,7 @@ class MainWindow():
 			#TODO: set selection to current file
 
 
-def run_example_local_app():
+def run_example_local_app(log_level : int=logging.INFO):
 	"""Runs the example app"""
 	#pylint: disable=import-outside-toplevel
 	from configurun.examples.example_run_function import example_run_function
@@ -964,17 +965,8 @@ def run_example_local_app():
 		target_function=example_run_function,
 		options_source=example_deduce_new_option_classes,
 		workspace_path=workspace_path,
+		log_level=log_level
 	)
 
 if __name__ == "__main__":
-	logging.getLogger('PySide6').setLevel(logging.DEBUG)
-	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}] {levelname:<7s}   {message}", style='{')
-	handler = logging.StreamHandler()
-	handler.setFormatter(formatter)
-	logging.basicConfig(
-		handlers=[handler],
-		level=logging.DEBUG
-	) #Without time
-	root = logging.getLogger()
-	root.handlers = [handler]
-	run_example_local_app()
+	run_example_local_app(log_level=logging.DEBUG)

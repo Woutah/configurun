@@ -200,7 +200,7 @@ class NetworkMainWindow(MainWindow):
 		return reconnect_btn, overlay_widget
 
 
-def run_example_network_app():
+def run_example_network_app(log_level : int = logging.INFO) -> None:
 	"""
 	Runs an example-client that can connect to a running server. Uses the example_deduce_new_option_classes to
 	generate example options for the client
@@ -218,18 +218,10 @@ def run_example_network_app():
 
 	client(
 		options_source=example_deduce_new_option_classes,
-		workspace_path=workspace_path
+		workspace_path=workspace_path,
+		log_level=log_level
 	)
 
 
 if __name__ == "__main__":
-	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}]  {levelname:<7s}   {message}", style='{')
-	handler = logging.StreamHandler()
-	handler.setFormatter(formatter)
-	logging.basicConfig(
-		handlers=[handler],
-		level=logging.DEBUG) #Without time
-	root = logging.getLogger()
-	root.setLevel(logging.DEBUG)
-
-	run_example_network_app()
+	run_example_network_app(log_level=logging.DEBUG)

@@ -4,8 +4,7 @@ Implements several option-dataclasses to show how to use this framework.
 import typing
 from dataclasses import dataclass, field
 
-from pyside6_utils.utility.constraints import (Interval,
-                                                             StrOptions)
+from pyside6_utils.utility.constraints import (Interval, StrOptions)
 
 from configurun.configuration.base_options import BaseOptions
 
@@ -69,13 +68,7 @@ class ExampleDatasetOptions(BaseOptions):
 		default=None,
 		metadata=dict(
 			display_name="Cross Validation Folds",
-			help=("If specified (>1), will perform cross-validation with the specified number of folds. "
-					"Note that this setting is not compatible with using a: val_pattern, test_pattern or test_ratio > 0"
-					"The dataset loaded from <pattern> will be split into non-overlapping folds using the val_ratio. "
-					"The task should always be <train_only> since the whole dataset will be split in <n> splits, and "
-					"for each split, a subsplit will be made into train/validation (and test) set on which the tasks "
-					"will be performed. This is useful for hyperparameter tuning, especially when the dataset is small."
-			),
+			help=("If specified (>1), will perform cross-validation with the specified number of folds."),
 			constraints = [Interval(type=int, left=1, right=None, closed="both"), None]
 		)
 	)
