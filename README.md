@@ -8,7 +8,7 @@ The configurun-app is especially useful for scripts/experiments that require a l
 
 
 <p align="center">
-	<img src="https://github.com/Woutah/pyside6-utils/blob/main/configurun/examples/images/main_window_example?raw=True" width="1200" />
+	<img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/main_window_example.png" width="1200" />
 </p>
 
 
