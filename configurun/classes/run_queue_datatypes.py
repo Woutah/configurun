@@ -12,9 +12,11 @@ Examples:
 
 import enum
 import socket
+import threading
 from abc import abstractmethod
 from ctypes import c_uint32
 from dataclasses import dataclass
+import select
 
 import dill
 from Crypto.Cipher import AES
@@ -262,17 +264,35 @@ class Transmission():
 
 
 	@staticmethod
-	def receive(recv_socket : socket.socket, aes_cipher_key : bytes | None  = None) -> 'Transmission': #TODO: timeout
+	def receive(
+				recv_socket : socket.socket,
+	    		aes_cipher_key : bytes | None  = None,
+				timeout_seconds : float | None = None
+			) -> 'Transmission': #TODO: timeout
 		"""Receives the data of the transmission from the given socket
 		Args:
 			socket (socket.socket): The socket to receive the transmission from
 			aes_cipher_key (bytes): The aes-cipher-key used to decrypt the data - if not provided - the data is assumed
 			 to be unencrypted (e.g. when receiving a public key)
+			timeout_seconds (float): The timeout in seconds to wait for data to be available on the socket
+				if < 0 we wait forever. Raises a TimeoutError if no data is available after the given timeout.
 		Returns:
 			TransmissionType: The type of the transmission
 			bytes: The raw data of the transmission
+		
+		Raises:
+			TimeoutError: If no data is available on the socket after the given timeout
 		"""
-		#Receive the transmission data
+		if timeout_seconds is not None and timeout_seconds >= 0:
+			#Use select to wait for data to be available on the socket
+			#NOTE: this is not really necessary as the socket.recv() function will block until data is available
+			#		however, this allows us to specify a timeout
+			data_available = select.select([recv_socket], [], [], timeout_seconds)
+			if not data_available[0]:
+				raise TimeoutError("No data available on socket")
+
+
+		#Receive the transmission data	
 		transmission_size = recv_socket.recv(4)
 		transmission_size = c_uint32.from_buffer_copy(transmission_size).value #Read in uint32, convert to python type
 
@@ -361,3 +381,5 @@ class ClientData():
 	client_socket : socket.socket
 	client_public_key : RSA.RsaKey #TODO: not really necessary after authentication as of now
 	client_session_aes_key : bytes #The session key used to encrypt data between the client and the server
+	client_listening_thread : threading.Thread
+	client_listening_thread_flag : threading.Event #Flag used to stop the client listening thread
