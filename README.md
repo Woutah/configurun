@@ -366,7 +366,7 @@ The following metadata-keys are supported:
 | `"required"` | `bool` | Whether this field is required to be filled in - if true - a red background will appear if the value is not set|
 | `"editable"` | `bool` | Whether this field is editable - if false - the editor will be disabled|
 
-[^constraintnote] Constraints are (almost fully) sourced from the `sklearn.utils._validation` module and provides a way to constrain the dataclass fields such that the user can only enter valid values. They are also packed into the [pyside6-utils](https://github.com/Woutah/pyside6-utils) package under [`utility.constraints`](https://github.com/Woutah/pyside6-utils/blob/main/pyside6_utils/utility/constraints.py). The following constraints are supported:
+[^constraintnote] Constraints are sourced from the `sklearn.utils._validation` module and provides a way to constrain the dataclass fields such that the user can only enter valid values. They are also packed into the [pyside6-utils](https://github.com/Woutah/pyside6-utils) package under [`utility.constraints`](https://github.com/Woutah/pyside6-utils/blob/main/pyside6_utils/utility/constraints.py). The following constraints are supported:
 | Constraint | Description | Editor Type
 | --- | --- | --- |
 | `type` | The type of the value should match the type of the constraint | based on type |
