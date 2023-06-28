@@ -156,7 +156,6 @@ class NetworkMainWindow(MainWindow):
 		Args:
 			connected (bool): The new connection state (true=Authenticated connection)
 		"""
-		print(f"Connection state changed to {connected}, now updating UI...")
 		log.info(f"Connection state changed to {connected}, now updating UI...")
 		#=========== hide blocking overlays when connected ==========
 		self.console_overlay_widget.set_overlay_hidden(connected)

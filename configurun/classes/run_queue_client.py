@@ -221,7 +221,11 @@ class RunQueueClient(RunQueue,
 		self._connected_or_connecting = False
 		if self._listen_thread is not None:
 			#Wait for the listening thread to finish last iteration - then join it
-			self._listen_thread.join()
+			try:
+				if self._listen_thread.is_alive():
+					self._listen_thread.join()
+			except Exception as exception: # pylint: disable=broad-exception-caught
+				log.error(f"Error while joining listening thread when shutting down server: {exception}")
 			self._listen_thread = None
 
 		#TODO: stop threads

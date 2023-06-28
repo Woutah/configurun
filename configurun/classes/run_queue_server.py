@@ -7,7 +7,6 @@ It contains a RunQueue object to/from which all data is transmitted/received usi
 import hashlib
 import logging
 import os
-import select
 import socket
 import threading
 import time
@@ -118,7 +117,7 @@ class RunQueueServer():
 
 		self._connection_listener_thread = None
 		self._is_terminating = False #To check whether the server is terminating (don't start doing new stuff)
-		self._stop_flag = threading.Event() #To stop the server from running (does not always indicate full termination)
+		self._server_stop_flag = threading.Event() #To stop the server from running (does not always indicate full termination)
 
 
 		#============= Manage signal-triggered events =============
@@ -150,10 +149,11 @@ class RunQueueServer():
 
 		dill.dump(queue_dict, open(os.path.join(self._workspace_path, WORKSPACE_RUN_QUEUE_SAVE_NAME), "wb"))
 		log.info("Terminating server...")
+		self._run_queue.stop_autoprocessing() #Indicate to server that it should stop processing new items
 
 
 		self._is_terminating = True #Make sure we don't start any new threads
-		self._stop_flag.set() #Stop the connection-listener thread
+		self._server_stop_flag.set() #Stop the connection-listener thread
 		try:
 			self.disconnect_all_clients()
 		except TimeoutError:
@@ -170,7 +170,7 @@ class RunQueueServer():
 			self._socket = None
 
 		self._run_queue.stop_command_line_queue_emitter() #Stop the command-line queue emitter
-
+		self._run_queue.release_workspace_lock(self._workspace_path)
 		log.info("Server terminated")
 
 
@@ -212,7 +212,7 @@ class RunQueueServer():
 		NOTE: we can still call run() after calling stop() - this will restart the server
 		"""
 		self.disconnect_all_clients()
-		self._stop_flag.set()
+		self._server_stop_flag.set()
 
 
 	def run(self):
@@ -224,7 +224,7 @@ class RunQueueServer():
 			raise RuntimeError("Server is already running")
 		self._connection_listener_thread = threading.Thread(target=self._listen_for_connections)
 		self._connection_listener_thread.start()
-		self._stop_flag.clear()
+		self._server_stop_flag.clear()
 		# self._listen_for_connections()
 
 	def emit_signal(self, signal_name: str, *args):
@@ -281,18 +281,22 @@ class RunQueueServer():
 
 		#TODO: stopflag/create separate listener class with a qt signal
 		"""
-		while not self._stop_flag.is_set():
-			received = select.select([self._socket], [], [], DATA_RECEIVE_TIMEOUT) #Wait for a connection
-			if received[0] and self._socket: #If there is a connection
-
+		while not self._server_stop_flag.is_set():
+			if not self._socket:
+				log.warning("Server socket is null - cannot listen for connections - stopping...")
+				return
+			self._socket.settimeout(DATA_RECEIVE_TIMEOUT) #Set a timeout so we can check if we should stop
+			try:
 				self._socket.listen(5) #TODO: maybe increase the backlog?
-				#Check if there are any new connections
 				client, address = self._socket.accept() #TODO: as soon as a client connects, start a new thread to handle
-					#  it as to not block other clients from connecting
-				log.info(f"Initial (unauthenticated) connection from {address} has been established - now delegating to \
-							a new thread to handle the connection")
-				authenticator_thread = threading.Thread(target=self._connection_setup, args=(client, address))
-				authenticator_thread.start()
+			except (socket.timeout, TimeoutError):
+				continue
+
+				#  the new socket as to not block other clients from connecting
+			log.info(f"Initial (unauthenticated) connection from {address} has been established - now delegating to \
+						a new thread to handle the connection")
+			authenticator_thread = threading.Thread(target=self._connection_setup, args=(client, address))
+			authenticator_thread.start()
 
 
 

@@ -312,8 +312,8 @@ class RunQueue(QtCore.QObject):
 
 
 		self._target_function = target_function
-		self._stopflag = multiprocess.Event()
-		self._stopflag.clear()
+		self._stop_autoprocessing_flag = multiprocess.Event()
+		self._stop_autoprocessing_flag.clear()
 
 		self._log_location = log_location
 		if self._log_location is None or self._log_location == "": #If no
@@ -930,7 +930,7 @@ class RunQueue(QtCore.QObject):
 		"""
 		if self._autoprocessing_enabled:
 			self._autoprocessing_enabled = False
-			self._stopflag.set()
+			self._stop_autoprocessing_flag.set()
 			self.autoProcessingStateChanged.emit(False)
 
 	def force_stop_all_running(self,
@@ -1054,7 +1054,7 @@ class RunQueue(QtCore.QObject):
 		(at which point the consumer will pick them up, and editing will no longer be possible)
 		"""
 		# self._stopflag = multiprocessing.Event()
-		self._stopflag.clear()
+		self._stop_autoprocessing_flag.clear()
 
 		if self._queue_processor_thread is None or not self._queue_processor_thread.is_alive():
 			self._queue_processor_thread = threading.Thread(target=self._run_queue_item_processor)
@@ -1070,7 +1070,7 @@ class RunQueue(QtCore.QObject):
 
 	def _run_queue_item_updater(self):
 		#While we are not stopping, or there are still processes running, keep updating
-		while not self._stopflag.is_set() or len(self._running_processes) > 0:
+		while not self._stop_autoprocessing_flag.is_set() or len(self._running_processes) > 0:
 			# self.runListChanged.emit(self.get_run_list_snapshot_copy()) #For now, just update the whole list every x s.
 			for item_id in copy(list(self._running_processes.keys())): #TODO: not very neat... but updates items that are running
 					# since they are running in another thread, we probably want to create a queue with item-updates
@@ -1245,7 +1245,7 @@ class RunQueue(QtCore.QObject):
 		2. Continuously checks the processes for completion and updates the queue accordingly
 		"""
 		log.debug("Now running queue item processor")
-		while not self._stopflag.is_set():
+		while not self._stop_autoprocessing_flag.is_set():
 			try:
 				if len(self._queue) > 0\
 						and (len(self._running_processes) < self._n_processes \

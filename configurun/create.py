@@ -175,6 +175,7 @@ def _cleanup_server(app : QtCore.QCoreApplication, run_queue_server : RunQueueSe
 	log.info("Received shutdown signal, now attempting to cleaning up server and close app")
 	run_queue_server.terminate() #Disconnect all, stop running and save progress
 	app.quit()
+	
 	log.info("Server cleanup complete, exiting")
 
 def server(
@@ -187,7 +188,11 @@ def server(
 			log_level : int = logging.INFO,
 			run_queue_kwargs : typing.Optional[typing.Dict[str, typing.Any]] = None
 		):
-	"""Convenience function that constructs a local instance of the runqueue-server with the specified target function.
+	"""
+	WARNING: RUNNING A SERVER ALLOWS OTHER MACHINES ON THIS NETWORK TO EXECUTE ARBITRARY CODE IF THEY KNOW THE PASSWORD
+	PLEASE RUN THIS IN A TRUSTED NETWORK ENVIRONEMENT. Run at your own risk.
+
+	Convenience function that constructs a local instance of the runqueue-server with the specified target function.
 	It then runs the server in a QtCore app.
 
 	Args:
@@ -224,7 +229,7 @@ def server(
 	assert len(password) > 0, "Password for server cannot be empty"
 
 	if workspace_path == "" or workspace_path is None:
-		workspace_path = os.path.join(os.path.expanduser("~"), APP_NAME+"-server")
+		workspace_path = os.path.join(os.path.expanduser("~"), APP_NAME+"-Server")
 		log.info(f"No workspace path provided, using default: {workspace_path}")
 
 	os.makedirs(workspace_path, exist_ok=True) #Create the workspace folder if it does not exist yet
@@ -255,16 +260,16 @@ def server(
 	timer.start(500)
 	timer.timeout.connect(lambda: None)  # Let the interpreter run each 500 ms to catch signals
 	signal.signal(signal.SIGINT, lambda *_: _cleanup_server(app, run_queue_server)) #Cleanup on Ctrl+C
-
-
 	app.exec()
 
 
 def client(
 			options_source : \
 				typing.Callable[[Configuration], typing.Dict[str, typing.Type[BaseOptions] | typing.Type[None]]] | \
-				argparse.ArgumentParser,
+				argparse.ArgumentParser | \
+				typing.Type[BaseOptions],
 			workspace_path : str = "",
+			create_workspace_path : bool = True, #Whether to create the workspace path if it does not exist
 			log_level : int = logging.INFO,
 			config_model_kwargs : typing.Optional[typing.Dict[str, typing.Any]] = None,
 		):
@@ -278,8 +283,15 @@ def client(
 			- A single BaseOptions object
 			- An argparse.ArgumentParser object
 		Defaults to None.
+	
+	workspace_path (str, optional): The path to the workspace folder. Attempts to load progress from here, also saves
+		configs/logs/settings to here. Defaults to "". If empty/default, the default workspace folder is used
+		(~/Configurun-Client/)
 
-	config_model_kargs (typing.Dict[str, typing.Any], optional): The keyword arguments passed to the
+	create_workspace_path (bool, optional): Whether to create the workspace path if it does not exist.
+		Defaults to True.
+
+	config_model_kwargs (typing.Dict[str, typing.Any], optional): The keyword arguments passed to the
 		ConfigurationModel constructor. Defaults to {}.
 		E.g.:
 		- use_cache (bool): Whether to use the cache or not to temporarily save configurations. This makes it so
@@ -303,16 +315,14 @@ def client(
 	if config_model_kwargs is None:
 		config_model_kwargs = {}
 
-	#Check if qt app is already running
-	# if QtWidgets.QApplication.instance() is not None: #TODO: check if this works
-	# 	app = QtWidgets.QApplication.instance()
-	# else:
 	app = QtWidgets.QApplication(sys.argv)
 
-	if workspace_path == "" or workspace_path is None:
-		workspace_path = os.path.join(os.path.expanduser("~"), APP_NAME+"-client")
+	if workspace_path == "" or workspace_path is None: #Set to default workspace path if not set
+		workspace_path = os.path.join(os.path.expanduser("~"), APP_NAME+'-Client')
 		log.info(f"No workspace path provided, using default: {workspace_path}")
 
+	if not create_workspace_path and not os.path.exists(workspace_path):
+		raise ValueError(f"Workspace path {workspace_path} does not exist and workspace-creation is set to False.")
 	os.makedirs(workspace_path, exist_ok=True) #Create the workspace folder if it does not exist yet
 	QtCore.QDir.setCurrent(workspace_path) #Set the current working directory to the workspace path
 
@@ -324,25 +334,22 @@ def client(
 	#Create the Qt-main window in which the app will be placed
 	main_window = QtWidgets.QMainWindow()
 
-	run_queue_client = RunQueueClient()
+	run_queue_client = RunQueueClient(	
+	)
 
 
 	#Create the actual app
 	NetworkMainWindow(
 		configuration_model=config_model,
 		run_queue_client=run_queue_client,
-		window=main_window
+		window=main_window,
+		workspace_path=workspace_path,
 	)
 
 	main_window.show() #Show the window
 	app.exec()
 
 if __name__ == "__main__":
-	# parser = argparse.ArgumentParser()
-	# parser.add_argument("--server", action="store_true", help="Run as server")
-	# parser.add_argument("--client", action="store_true", help="Run as client")
-	# parser.add_argument("--local", action="store_true", help="Run as both server and client")
-
 	from configurun.examples.example_configuration import \
 	    example_deduce_new_option_classes
 	from configurun.examples.example_run_function import example_run_function
@@ -350,4 +357,5 @@ if __name__ == "__main__":
 		target_function=example_run_function,
 		options_source=example_deduce_new_option_classes,
 		run_queue_n_processes=1,
+		log_level=logging.DEBUG
 	)

@@ -27,13 +27,11 @@ def run_argparse_example():
 	import os
 	import tempfile
 
-	from configurun.configuration.argparse_to_dataclass import \
-	    argparse_to_dataclass
 	from configurun.create import local_app
 	from configurun.windows.main_window import APP_NAME
 	
 	tempdir = tempfile.gettempdir()
-	workspace_path = os.path.join(tempdir, APP_NAME, os.path.splitext(__name__)[0])
+	workspace_path = os.path.join(tempdir, APP_NAME, "Configurun-Argparse-Example")
 	local_app(
 		target_function = lambda x, *_: print(x),
 		options_source = parser_example,

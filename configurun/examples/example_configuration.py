@@ -83,7 +83,7 @@ def run_example_app(log_level=logging.INFO):
 
 	#=========================== Create the app using the example ===========================
 	tempdir = tempfile.gettempdir()
-	workspace_path = os.path.join(tempdir, APP_NAME, os.path.splitext(__name__)[0])
+	workspace_path = os.path.join(tempdir, APP_NAME, "Configurun-Local-Example")
 	log.info(f"Saving example app workspace to {workspace_path}")
 	local_app(
 		target_function=example_run_function,
