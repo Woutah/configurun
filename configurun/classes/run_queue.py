@@ -611,7 +611,7 @@ class RunQueue(QtCore.QObject):
 						   ]:
 
 				self._all_items_dict[item_id].config = new_config
-				self.itemDataChanged.emit(item_id, self._all_items_dict[item_id].get_copy())
+				self.itemDataChanged.emit(item_id, self._all_items_dict[item_id].get_copy()) #NOTE: for network, we have to un-proxy the object
 			else:
 				raise ConfigurationIsFirmException(
 					f"Could not set configuration for item with id {item_id}. \n\nCannot change the item "
@@ -747,7 +747,7 @@ class RunQueue(QtCore.QObject):
 			self._all_items_dict[item_id].status = RunQueueItemStatus.Cancelled
 			self._queue.remove(item_id)
 			queue_snapshot = self._get_queue_snapshot_copy_no_locks()
-			item_copy = deepcopy(self._all_items_dict[item_id])
+			item_copy = self._all_items_dict[item_id].get_copy()
 
 		self.queueChanged.emit(queue_snapshot)
 		self.itemDataChanged.emit(item_id, item_copy)
@@ -1017,7 +1017,7 @@ class RunQueue(QtCore.QObject):
 			self._all_items_dict[item_id].exit_code = -1
 			self._all_items_dict[item_id].stderr = "Process was force stopped by user."
 			queue_snapshot = self._get_queue_snapshot_copy_no_locks()
-			item_copy = deepcopy(self._all_items_dict[item_id])
+			item_copy = self._all_items_dict[item_id].get_copy()
 
 		self.queueChanged.emit(queue_snapshot) #TODO: move inside lock?
 		self.itemDataChanged.emit(item_id, item_copy)
@@ -1078,7 +1078,7 @@ class RunQueue(QtCore.QObject):
 					# this way, we don't update unneccesarily
 				item = self._all_items_dict.get(item_id, None)
 				if item: #Makes sure that item is not deleted just when we are updating it
-					self.itemDataChanged.emit(item_id, item)
+					self.itemDataChanged.emit(item_id, item.get_copy())
 			# for item_id in self.get_run_list_snapshot_copy().keys():
 				# self.itemDataChanged.emit(item_id, self._all_items_dict[item_id])
 
@@ -1185,7 +1185,7 @@ class RunQueue(QtCore.QObject):
 
 			queue_item_name = self._all_items_dict[item_id].name
 			self._all_items_dict[item_id].status = RunQueueItemStatus.Running #Should no longer be editable
-			item_copy = deepcopy(self._all_items_dict[item_id])
+			item_copy = self._all_items_dict[item_id].get_copy()
 		self.itemDataChanged.emit(item_id, item_copy)
 
 		log.debug(f"Attempting to start process-function for item with id {item_id}")
