@@ -21,11 +21,12 @@ For an example how to use this app, see [this section](#How to run?)
 - [Features](#features)
 	- [Configuration Editor](#configuration-editor)
 	- [Run Queue](#run-queue)
+	- [Remote-processing](#remote-processing)
 - [Installation](#installation)
 - [How to run?](#how-to-run)
 	- [Local App](#local-app)
-	- [Server-side](#server-side)
-	- [Client-Side](#client-side)
+	- [Client App](#client-app)
+	- [Server-instance](#server-instance)
 - [Option-source](#option-source)
 	- [Custom Options (`@dataclass`)](#custom-options-dataclass)
 	- [Custom Options (`ArgumentParser`)](#custom-options-argumentparser)
@@ -65,10 +66,16 @@ Configurations are passed to the user-provided [run-function](#run-function) in 
 	<img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/command_line_output_example.png" width="400" />
 </p>
 
+## Remote-processing
+Instead of using the [local-app](#local-app) to manage and run the configurations on your own machine, we can use the [client-app](#client-side) to connect to a [server-instance](#server-side) on a remote machine. The client-app works analogous to the local-app and allows us to create and manage new configuration, but the Run-Queue runs on a remote machine which we can remotely manage after logging in, e.g.:
+<p align="center">
+	<!-- <img src="./configurun/examples/images/network_login_example.png" width="300" /> -->
+	<img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/network_login_example.png" width="300" />
+</p>
 
 
 # Installation
-This package can be installed manually by downloading from [this repository](https://github.com/Woutah/configurun), or directly from PyPi by using pip:
+This package can downloaded from [this repository](https://github.com/Woutah/configurun), or can be installed directly from PyPi by using pip:
 ```bash
 pip install configurun
 ```
@@ -83,7 +90,7 @@ On the client-side, the `options_source` should be set.
 On the server/running-machine, the `target_function` should be set.<br>
 
 ## Local App
-A local app is an all-in-one app that can be used to run configurations locally on your machine.
+A local app is an all-in-one app that can be used to create and run configurations locally on your machine.
 To run the example app, we can either call `run_example_app()` from `configurun.examples` or run the following code to construct the app ourselves:
 ```python
 ### This example will run the app with an example configuration
@@ -106,10 +113,27 @@ if __name__ == "__main__": #Makes sure bootstrapping process is done when runnin
 In this example, [`example_run_function`]([./configurun/examples/example_run_function.py](https://github.com/Woutah/configurun/blob/main/configurun/examples/example_run_function.py)) runs a dummy task that logs to a file for 20 seconds. We can [specify our own run-function](#run-function) to run our own scripts.
 
 We can [specify our own options source](#option-source) to create our own options-class for the configuration-editor, for example by [using an existing `ArgumentParser`-object.](#custom-options-argumentparser)
+## Client App
+We can create a client-app and use it to login to running [server](#server-instance)-instances. We can then use the client-app analogous to the [local-app](#local-app) to create new confiugrations and add/run/manage configurations on the remote machine.<br>
 
-## Server-side
-After creating the server, we can connect to it using a [client-app](#client-side).<br>
-**NOTE:** *after* authentication, `pickle`/`dill` is used to transmit data, which indirectly enables arbitrary code execution on the server-side if the password is known. Please run the server trusted network environments only. Run at your own risk!
+```python
+# Opens a client-side app that we can use to connect to and control
+# the server-instance
+import os
+from configurun.create import client
+from configurun.examples import example_deduce_new_option_classes
+
+if __name__ == "__main__":
+	client(
+		options_source=example_deduce_new_option_classes,
+		workspace_path=os.path.join(os.getcwd(), "ClientExampleWorkspace"),
+	)
+```
+
+
+## Server-instance
+The server-instance is a command-line app that listens to connections from [`client`](#client-app)-instance(s) to receive new configurations and commands to manage its RunQueue. The actual run-functions are ran on this machine. <br>
+**NOTE:** *after* authentication, `pickle`/`dill` is used to transmit data, which indirectly enables arbitrary code execution on the server-side if the password is known. Please run the server on trusted network environments only. Run at your own risk!
 ```python 
 # Opens a server-instance which tries to connect with clients and allows
 # them to add configurations to the queue to be run on this machine
@@ -130,26 +154,6 @@ if __name__ == "__main__":
 		port=469 #Port to connect to the server, defaults to 469
 	)
 ```
-## Client-Side
-After creating the [server](#server-side), we can create a client-app and use it to login to the server. We can then use the client-app as if it's a local-app to add/run/manage configurations on the remote machine.<br>
-
-```python
-# Opens a client-side app that we can use to connect to and control
-# the server-instance
-import os
-from configurun.create import client
-from configurun.examples import example_deduce_new_option_classes
-
-if __name__ == "__main__":
-	client(
-		options_source=example_deduce_new_option_classes,
-		workspace_path=os.path.join(os.getcwd(), "ClientExampleWorkspace"),
-	)
-```
-
-
-
-
 
 
 # Option-source
@@ -176,7 +180,7 @@ if __name__ == "__main__":
 	local_app(
 		target_function=example_run_function,
 		options_source=MyCustomOptions, #Simple: each configuration consists of a single options-class
-		workspace_path = os.path.join(os.getcwd(), "ExampleDataclass")
+		workspace_path = os.path.join(os.getcwd(), "ExampleDataclassOptions")
 	)
 
 ```
@@ -195,7 +199,7 @@ parser_example.add_argument("--required_arg", type=str, required=True, help="Req
 local_app(
 	target_function=example_run_function,
 	options_source=parser, #Parser is converted internally to a dataclass-class which is used as the options-class
-	workspace_path = os.path.join(os.getcwd(), "ExampleArgparse")
+	workspace_path = os.path.join(os.getcwd(), "ExampleArgparseOptions")
 )
 ```
 ## Custom Options (`Callable`)
@@ -254,7 +258,7 @@ if __name__ == '__main__':
 	local_app(
 		target_function=example_run_function,
 		options_source=deduce_new_option_classes,
-		workspace_path = os.path.join(os.getcwd(), "Example3")
+		workspace_path = os.path.join(os.getcwd(), "ExampleCallableOptions")
 	)
 
 ```
@@ -274,11 +278,13 @@ The `datclass`-objects can either be loaded using a `@dataclass`-object, by pass
 
 
 # Configuration
-Configurun works with `configuration`-objects. A configuration is a collection of option-instances, which are grouped toghether in a `Configuration`-wrapper, which enables us to access the attributes of all enclosed options-instances using the `configuration[attribute]`/`configuration.<attribute>`/`option_class.get(attribute, default)`.
+Configurun works with `configuration`-objects. A configuration is a collection of option-instances (=`@dataclass`-instances that inherit from `BaseOptions`), which are grouped toghether in a `Configuration`-wrapper.
+We can think of the option-instances as the different groups of options we want to edit and use in our run (e.g. `GeneralOptions()`, `LogOptions()`, `ModelOptions()`, etc.).
+In the simplest case, we have 1 single option-instance which contains all the options. 
 
-We can think of these `@dataclass`-objects as the different groups of options we want to edit and use in our run (e.g. "GeneralOptions", "LogOptions", "ModelOptions", etc.)
+The `Configuration`-wrapper enables us to access the attributes of all enclosed options-instances using `configuration[attribute]`/`configuration.<attribute>`/`option_class.get(attribute, default)`.
 
-E.g.:
+An example of how to use a `Configuration`-instance:
 
 ``` python
 from dataclasses import dataclass
@@ -310,24 +316,25 @@ print(config['some_other_int'])
 print(config.some_other_int)
 print(config.get('some_other_int', -1)))
 
-# Note that we can use the Configuration-instance to our adventage when
-# creating our run-functions. e.g. defining the run-function as:
-# `def run_function(configuration: GeneralOptionsClass)`
+# Note that we can use the config.<attr>-notation to our advantage
+# when we want to use autocomplete in our editor. For example:
+# def run_function(configuration: GeneralOptionsClass)
 # Would result in our editor of choice recognizing/autocompleting
-# the `configuration.simple_hint` variable. 
+# the `configuration.simple_hint` way of accessing `simple_hint`
 ```
 
 
 
 # Option metadata
 The UI is mainly built around the [`field()`](https://docs.python.org/3/library/dataclasses.html#dataclasses.field) functionality of python-`dataclass`, which allows the display-model to make use of the default values, type hints and other information. 
-For each attribute, we can provide additional information in the `metadata` attribute of `field()`. This provides additional information to the UI, which uses this to determine the editor-type, constraints etc. <br>
+For each attribute in our `option`-definition, we can provide additional information in the `metadata` attribute of `field()`. This provides additional information to the UI, which is used to determine the editor-type, constraints etc. <br>
 
 For example:
 ```python
 from configurun.configuration import base_options
 from dataclasses import field, dataclass
-from pyside6_utils.utility.constraints import Interval #Used to constrain the fields
+#Used to constrain the editors: (can also be imported from sklearn)
+from pyside6_utils.utility.constraints import Interval 
 
 @dataclass
 class TestOptions(BaseOptions):
@@ -355,7 +362,7 @@ The following metadata-keys are supported:
 | `"display_name"` | `str` | Name to display for this attribute in the view - defaults to the variable name itself |
 | `"display_path"` | `str` | Path to display this attribute - we can group/structure items. If parent does not exist, creates folders. Format as "|
 | `"help"` | `str` | Help-message which will be shown when the user hovers over this item - empty by default|
-| `"constraints"` | `List[sklearn_param_validation constraints]` | Additional constraints on which the editor will be determined to apply to the field [^constraintnote] , if none provided, use typehint of the field|
+| `"constraints"` | `List[constraint]` | Additional constraints on which the editor will be determined to apply to the field [^constraintnote] , if none provided, use typehint of the field|
 | `"required"` | `bool` | Whether this field is required to be filled in - if true - a red background will appear if the value is not set|
 | `"editable"` | `bool` | Whether this field is editable - if false - the editor will be disabled|
 
