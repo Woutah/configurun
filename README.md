@@ -40,35 +40,35 @@ For an example how to use this app, see [this section](#How to run?)
 ## Configuration Editor
 The configuration editor allows the user to specify a configuration-template using either (groups of) [`@dataclass`-class](#custom-options-dataclass) or an [`ArgumentParser`-instance](#custom-options-dataclass). The editor will then automatically create a UI based on the provided template. Editors are specifically created for each option-property based on provided template-types (and [extra constraints](#option-metadata)). Help-messages are displayed on hover, required arguments are highlighted when not filled in, etc.
 <p align="center">
-	<img src="./configurun/examples/images/configuration_editor_example.png" width="600" />
-	<!-- <img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/configuration_editor_example.png" width="600" /> -->
+	<!-- <img src="./configurun/examples/images/configuration_editor_example.png" width="600" /> -->
+	<img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/configuration_editor_example.png" width="600" />
 </p>
 
-We can define our own [option-source-method](#custom-options-callable) to dynamically create new option-groups based on the current configuration. This can be useful if we want to group options together, and only show certain groups when an attribute of another group is set to a certain value. E.g: only show `ExtendedExampleModel`-options if property `model_type` in `MainOptions` is set to `"ExtendedExampleModel"`. <br>
+We can also define our own [option-source-method](#custom-options-callable) to dynamically create new option-groups based on the current configuration. This can be useful if we want to group options together, and only show certain groups when an attribute of another group is set to a certain value. E.g: only show `ExtendedExampleModel`-options if property `model_type` in `MainOptions` is set to `"ExtendedExampleModel"`. <br>
 
 Configurations can be saved and loaded, a file-explorer view for the current workspace is made available.:
 <p align="center">
-	<img src="./configurun/examples/images/file_explorer_example.png" width="400" />
-	<!-- <img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/file_explorer_example.png" width="400" /> -->
+	<!-- <img src="./configurun/examples/images/file_explorer_example.png" width="400" /> -->
+	<img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/file_explorer_example.png" width="400" />
 </p>
 
 ## Run Queue
 The run-queue window manages the currently running items. This could either be [locally](#local-app), or remote, when using a [client-app](#client-side) and a [server-instance](#server-side) on which the actual Run-Queue is running. The Run-Queue allows us to add/remove items, pause/resume items, change the queue-order of items, and start autoprocessing, which will automatically start the next item in the queue when the current item is finished. We can set the number of processors as well, to run multiple items in parallel.
 <p align="center">
-	<img src="./configurun/examples/images/run_queue_example.png" width="1100" />
-	<!-- <img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/run_queue_example.png" width="400" /> -->
+	<!-- <img src="./configurun/examples/images/run_queue_example.png" width="1100" /> -->
+	<img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/run_queue_example.png" width="400" />
 </p>
 
 Configurations are passed to the user-provided [run-function](#run-function) in separate processes. The stdout/stderr of each of the items is captured and displayed as a selectable console-output-view in the command-line-output window:
 <p align="center">
-	<img src="./configurun/examples/images/command_line_output_example.png" width="1100" />
-	<!-- <img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/command_line_output_example.png" width="400" /> -->
+	<!-- <img src="./configurun/examples/images/command_line_output_example.png" width="1100" /> -->
+	<img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/command_line_output_example.png" width="400" />
 </p>
 
 
 
 # Installation
-This package can be installed manually by downloading from this repository, or directly from PyPi by using pip:
+This package can be installed manually by downloading from [this repository](https://github.com/Woutah/configurun), or directly from PyPi by using pip:
 ```bash
 pip install configurun
 ```
