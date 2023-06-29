@@ -379,16 +379,17 @@ The following metadata-keys are supported:
 | `"display_name"` | `str` | Name to display for this attribute in the view - defaults to the variable name itself |
 | `"display_path"` | `str` | Path to display this attribute - we can group/structure items. If parent does not exist, creates folders. Format as "|
 | `"help"` | `str` | Help-message which will be shown when the user hovers over this item - empty by default|
-| `"constraints"` | `List[constraint]` | Additional constraints on which the editor will be determined to apply to the field [^constraintnote] , if none provided, use typehint of the field|
+| `"constraints"` | `List[constraint]` | Additional constraints on which the editor will be determined to apply to the field**, if none provided, use typehint of the field|
 | `"required"` | `bool` | Whether this field is required to be filled in - if true - a red background will appear if the value is not set|
 | `"editable"` | `bool` | Whether this field is editable - if false - the editor will be disabled|
 
-[^constraintnote] Constraints are sourced from the `sklearn.utils._validation` module and provides a way to constrain the dataclass fields such that the user can only enter valid values. They are also packed into the [pyside6-utils](https://github.com/Woutah/pyside6-utils) package under [`utility.constraints`](https://github.com/Woutah/pyside6-utils/blob/main/pyside6_utils/utility/constraints.py). The following constraints are supported:
+**: Constraints are sourced from the `sklearn.utils._validation` module and provides a way to constrain the dataclass fields such that the user can only enter valid values. They are also packed into the [pyside6-utils](https://github.com/Woutah/pyside6-utils) package under [`utility.constraints`](https://github.com/Woutah/pyside6-utils/blob/main/pyside6_utils/utility/constraints.py). The following constraints are supported:
 | Constraint | Description | Editor Type
 | --- | --- | --- |
 | `type` | The type of the value should match the type of the constraint | based on type |
 | `Options` / `Container` | The value should be one of the options provided in the constraint | `QComboBox` |
 | `StrOptions` | The value should be one of the str-options provided in the constraint | `QComboBox` |
 | `Interval` | The value should be within the interval provided in the constraint | `QSpinBox` or `QDoubleSpinBox` (limited) |
-| `None` | `None` is a valid value for this field `typing.Optional` | Adds reset-button to editor |
+| `None` | `None` is a valid value for this field (same as `typing.Optional`) | Adds reset-button to editor |
 | `Range` | The value should be within the range provided in the constraint | `QSpinBox` (limited) |
+
