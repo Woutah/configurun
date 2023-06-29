@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
 	name = "configurun",
-	version= "0.0.0",
+	version= "0.0.1",
 	packages=find_packages('.'),
     description="PySide6 based user-interface tools to create and manage machine learning training/testing-configurations and run them automatically and/or remotely..",
     long_description=open('README.md').read(),
