@@ -968,6 +968,9 @@ class RunQueue(QtCore.QObject):
 				self._all_items_dict[item_id].exit_code = -1
 				self._all_items_dict[item_id].stderr = stop_msg
 
+		for item_id in stopped_ids: #Update GUI for all stopped items
+			self.itemDataChanged.emit(item_id, self._all_items_dict[item_id].get_copy())
+
 
 
 	def save_and_stop_all(self, save_path : str):
