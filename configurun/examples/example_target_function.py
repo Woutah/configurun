@@ -7,7 +7,7 @@ from configurun.configuration.configuration import Configuration
 
 log = logging.getLogger(__name__)
 
-def example_run_function(config : Configuration, *args, **kwargs): #pylint: disable=unused-argument
+def example_target_function(config : Configuration, *args, **kwargs): #pylint: disable=unused-argument
 	"""Example run function. The run-function always takes a configuration as the first argument.
 
 	The arguments after that are the arguments passed to the ```RunQueue._process_queue_item()```-method.
@@ -20,7 +20,7 @@ def example_run_function(config : Configuration, *args, **kwargs): #pylint: disa
 	returns:
 		(None): Nothing is returned
 	"""
-	log.info("The example run function was called with the following configuration:")
+	log.info("The example run function was called with the following configuration.options classes:")
 	for key, value in config.options.items():
 		log.info(f"{key} : {type(value).__name__}")
 
@@ -31,3 +31,4 @@ def example_run_function(config : Configuration, *args, **kwargs): #pylint: disa
 		time.sleep(1)
 
 	log.info("Done with the example run function... Now exiting...")
+

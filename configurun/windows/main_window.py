@@ -954,7 +954,7 @@ class MainWindow():
 def run_example_local_app(log_level : int=logging.INFO):
 	"""Runs the example app"""
 	#pylint: disable=import-outside-toplevel
-	from configurun.examples.example_run_function import example_run_function
+	from configurun.examples.example_target_function import example_target_function
 	from configurun.examples.example_configuration import example_deduce_new_option_classes
 	import tempfile
 	from configurun.create import local_app
@@ -962,7 +962,7 @@ def run_example_local_app(log_level : int=logging.INFO):
 	tempdir = tempfile.gettempdir()
 	workspace_path = os.path.join(tempdir, APP_NAME, "Configurun-Local-Example")
 	local_app(
-		target_function=example_run_function,
+		target_function=example_target_function,
 		options_source=example_deduce_new_option_classes,
 		workspace_path=workspace_path,
 		log_level=log_level

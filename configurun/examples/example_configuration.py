@@ -13,7 +13,7 @@ from configurun.examples.example_options.example_options import (
     ExampleDatasetOptions, ExampleGeneralOptions, ExampleMainOptions,
     ExampleModelOptions, ExtendedExampleDatasetOptions,
     ExtendedExampleModelOptions)
-from configurun.examples.example_run_function import example_run_function
+from configurun.examples.example_target_function import example_target_function
 
 log = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ def run_example_app(log_level=logging.INFO):
 	workspace_path = os.path.join(tempdir, APP_NAME, "Configurun-Local-Example")
 	log.info(f"Saving example app workspace to {workspace_path}")
 	local_app(
-		target_function=example_run_function,
+		target_function=example_target_function,
 		options_source=example_deduce_new_option_classes,
 		workspace_path=workspace_path,
 		log_level=log_level

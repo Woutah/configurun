@@ -49,21 +49,28 @@ def deduce_new_option_class_types(
 	return ret_dict
 
 
+def run_sklearn_example(log_level : int = logging.INFO):
+	"""
+	Starts the example-app using a dynimically created sklearn-model-options class
+	"""
+	# pylint: disable=import-outside-toplevel
+	import os
+	import tempfile
+	from configurun.create import local_app
+	from configurun.examples.example_target_function import example_target_function
+	from configurun.windows.main_window import APP_NAME
+	log.info("Starting the example implementation, including Sklearn models")
+	tempdir = tempfile.gettempdir()
+	workspace_path = os.path.join(tempdir, APP_NAME, "Configurun-Sklearn-Example")
+	local_app(
+		target_function = example_target_function,
+		options_source = SklearnMainOptions,
+		workspace_path=workspace_path,
+		log_level=log_level
+
+	)
 
 
 
 if __name__ == "__main__":
-	from configurun.create import local_app
-	from configurun.examples.example_run_function import example_run_function
-	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}]  {levelname:<7s}   {message}", style='{')
-	handler = logging.StreamHandler()
-	handler.setFormatter(formatter)
-	logging.basicConfig(
-		handlers=[handler],
-		level=logging.INFO) #Without time
-	log.info("Starting the example implementation, including Sklearn models")
-
-	local_app(
-		target_function = example_run_function,
-		options_source = SklearnMainOptions
-	)
+	run_sklearn_example(log_level=logging.DEBUG)

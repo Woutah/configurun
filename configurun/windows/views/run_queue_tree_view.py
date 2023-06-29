@@ -272,7 +272,7 @@ def run_example_app():
 	#pylint: disable=import-outside-toplevel
 	import sys
 
-	from configurun.examples.example_run_function import example_run_function
+	from configurun.examples.example_target_function import example_target_function
 	app = QtWidgets.QApplication([])
 	window = QtWidgets.QMainWindow()
 	window.resize(800, 600)
@@ -283,7 +283,7 @@ def run_example_app():
 
 	queue_view = RunQueueTreeView()
 	run_queue = RunQueue(
-		target_function=example_run_function
+		target_function=example_target_function
 	)
 	queue_model = RunQueueTableModel(run_queue=run_queue)
 

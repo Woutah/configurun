@@ -331,7 +331,7 @@ class RunQueueWidget(QtWidgets.QWidget):
 def run_example_app():
 	""" Run an example of the run_queue widget with some nonsense data and the example run function"""
 	#pylint: disable=import-outside-toplevel
-	from configurun.examples.example_run_function import example_run_function
+	from configurun.examples.example_target_function import example_target_function
 	from configurun.classes.run_queue import RunQueue
 
 	app = QtWidgets.QApplication([])
@@ -341,7 +341,7 @@ def run_example_app():
 
 	queue_widget = RunQueueWidget(central_widget)
 	run_queue = RunQueue(
-		target_function=example_run_function
+		target_function=example_target_function
 	)
 	queue_model = RunQueueTableModel(run_queue=run_queue)
 

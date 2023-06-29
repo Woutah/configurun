@@ -352,9 +352,9 @@ def client(
 if __name__ == "__main__":
 	from configurun.examples.example_configuration import \
 	    example_deduce_new_option_classes
-	from configurun.examples.example_run_function import example_run_function
+	from configurun.examples.example_target_function import example_target_function
 	local_app(
-		target_function=example_run_function,
+		target_function=example_target_function,
 		options_source=example_deduce_new_option_classes,
 		run_queue_n_processes=1,
 		log_level=logging.DEBUG

@@ -604,7 +604,7 @@ class RunQueueServer():
 
 def run_example_server(password : str = "password", port : int = 469, log_level : int = logging.INFO):
 	"""
-	Runs an example-instance of the server, using the example_run_function from configurun/examples/example_run_function.py
+	Runs an example-instance of the server, using the example_target_function from configurun/examples/example_target_function.py
 	and the passed password as well as the default workspace path (~/Configurun-Server)
 
 	Args:
@@ -614,12 +614,12 @@ def run_example_server(password : str = "password", port : int = 469, log_level 
 	from configurun.create import server
 	import tempfile
 	from configurun.windows.main_window import APP_NAME
-	from configurun.examples.example_run_function import example_run_function
+	from configurun.examples.example_target_function import example_target_function
 	tempdir = tempfile.gettempdir()
 	workspace_path = os.path.join(tempdir, APP_NAME, "Configurun-Server-Example")
 
 	server(
-		target_function=example_run_function,
+		target_function=example_target_function,
 		workspace_path=workspace_path,
 		password=password,
 		port=port,

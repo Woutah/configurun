@@ -6,7 +6,7 @@ import inspect
 import logging
 import sys
 import typing
-from dataclasses import field, make_dataclass
+from dataclasses import dataclass, field, make_dataclass
 
 # import dill
 from numpydoc.docscrape import NumpyDocString
@@ -133,7 +133,7 @@ for key, val in _NAME_ALGORITHM_DICT.items():
 	globals()[class_def.__name__] = class_def #Add class to global scope to enable pickling
 
 
-
+@dataclass
 class SklearnMainOptions(BaseOptions):
 	"""
 	Similar to example options, but with the choice of selecting a sklearn model

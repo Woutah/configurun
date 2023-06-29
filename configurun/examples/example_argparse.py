@@ -21,7 +21,7 @@ parser_example.add_argument("--int_choice_arg", type=int, choices=[1, 2, 3], def
 
 def run_argparse_example():
 	"""
-	Runs a local app with the argparse options
+	Runs an example local app with the example argparse options
 	"""
 	# pylint: disable=import-outside-toplevel
 	import os

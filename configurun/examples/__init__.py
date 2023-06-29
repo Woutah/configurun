@@ -1,4 +1,4 @@
-from .example_configuration import example_run_function
+from .example_configuration import example_target_function
 from .example_configuration import run_example_app
 from .example_argparse import run_argparse_example
 from .example_configuration import example_deduce_new_option_classes
