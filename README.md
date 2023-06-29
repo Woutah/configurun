@@ -189,18 +189,20 @@ if __name__ == "__main__":
 We can use a `ArgumentParser`-object as an options source, this will internally convert the argument parser into a `@dataclass`-object, which is then used as an options-class. Certain arguments are also parsed to control the UI (e.g. `required=True`, `help="Will be displayed on hover"`).
 ```python
 import argparse
+import os
 from configurun.create import local_app
 from configurun.examples import example_target_function
 
 parser = argparse.ArgumentParser()
-parser_example.add_argument("--required_arg", type=str, required=True, help="Required argument help")
+parser.add_argument("--required_arg", type=str, required=True, help="Required argument help")
 #... add more arguments here
 
-local_app(
-	target_function=example_target_function,
-	options_source=parser, #Parser is converted internally to a dataclass-class which is used as the options-class
-	workspace_path = os.path.join(os.getcwd(), "ExampleArgparseOptions")
-)
+if __name__ == "__main__":
+	local_app(
+		target_function=example_target_function,
+		options_source=parser, #Parser is converted internally to a dataclass-class which is used as the options-class
+		workspace_path = os.path.join(os.getcwd(), "ExampleArgparseOptions")
+	)
 ```
 ## Custom Options (`Callable`)
 A configuration is a collection of option-instances, which are grouped toghether in a `Configuration`-wrapper, which enables us to access the attributes of all enclosed options-instances using the `configuration[attribute]`/`configuration.<attribute>`/`option_class.get(attribute, default)`. For more information, see [this section](#configuration).
