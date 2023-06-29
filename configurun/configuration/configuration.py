@@ -85,6 +85,9 @@ class Configuration(object):
 				return getattr(options_instance, key)
 
 		raise AttributeError(f"Attribute {key} not found in any of the options classes")
+	
+	def __getitem__(self, key):
+		return self.__getattr__(key)
 
 	def get(self, key : str, default : typing.Any):
 		"""
