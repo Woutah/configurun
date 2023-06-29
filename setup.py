@@ -24,5 +24,6 @@ setup(
 		'multiprocess>=0.70.00', #Works for 0.70.14
 		'numpydoc>=1.4.0', #Works for 1.5.0
 		'pycryptodome>=3.10.0', #Works for 3.18.0
+        'pyside6-utils==1.1.0'
 	]
 )
