@@ -129,6 +129,7 @@ if __name__ == "__main__":
 
 ## Server-instance
 The server-instance is a command-line app that listens to connections from [`client`](#client-app)-instance(s) to receive new configurations and commands to manage its RunQueue. The actual run-functions are ran on this machine. <br>
+
 **NOTE:** *after* authentication, `pickle`/`dill` is used to transmit data, which indirectly enables arbitrary code execution on the server-side if the password is known. Please run the server on trusted network environments only. Run at your own risk!
 ```python 
 # Opens a server-instance which tries to connect with clients and allows
@@ -157,7 +158,7 @@ When creating an app using the `create`-module, we can define a custom source, u
 We can use the following types as an options-source:
 - [`@dataclass`-object](#custom-options-dataclass)
 - [`ArgumentParser`-object](#custom-options-argumentparser)
-- [`Callable`]
+- [`Callable`](#custom-options-callable)
 
 ## Custom Options (`@dataclass`)
 **NOTE:** Using fields results in more control over the final UI, for a more thorough example, please see [this section](#option-metadata) and/or the example implementations in [configurun/examples/example_options/example_options.py](https://github.com/Woutah/configurun/blob/main/configurun/examples/example_options/example_options.py).
