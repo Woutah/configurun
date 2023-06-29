@@ -50,20 +50,20 @@ Configurations can be saved and loaded, a file-explorer view for the current wor
 </p>
 
 ## Run Queue
-The run-queue window manages the currently running items. This could either be locally when using a [local-app](#local-app), or remotely, when using a [client-app](#client-side) and a [server-instance](#server-side) on which the actual Run-Queue is running. The Run-Queue allows us to add/remove items, pause/resume items, change the queue-order of items, and start autoprocessing, which will automatically start the next item in the queue when the current item is finished. We can set the number of processors as well, to run multiple items in parallel.
+The run-queue window manages the currently running items. This could either be locally when using a [local-app](#local-app), or remotely, when using a [client-app](#client-app) and a [server-instance](#server-instance) on which the actual Run-Queue is running. The Run-Queue allows us to add/remove items, pause/resume items, change the queue-order of items, and start autoprocessing, which will automatically start the next item in the queue when the current item is finished. We can set the number of processors as well, to run multiple items in parallel.
 <p align="center">
 	<!-- <img src="./configurun/examples/images/run_queue_example.png" width="1100" /> -->
 	<img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/run_queue_example.png" width="1100" />
 </p>
 
-Configurations are passed to the user-provided [run-function](#run-function) in separate processes. The stdout/stderr of each of the items is captured and displayed as a selectable console-output-view in the command-line-output window:
+Configurations are passed to the user-provided [target-function](#target-function) in separate processes. The stdout/stderr of each of the items is captured and displayed as a selectable console-output-view in the command-line-output window:
 <p align="center">
 	<!-- <img src="./configurun/examples/images/command_line_output_example.png" width="1100" /> -->
 	<img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/command_line_output_example.png" width="1100" />
 </p>
 
 ## Remote-processing
-Instead of using the [local-app](#local-app) to manage and run the configurations on your own machine, we can use the [client-app](#client-side) to connect to a [server-instance](#server-side) on a remote machine. The client-app works analogous to the local-app and allows us to create and manage new configuration, but the Run-Queue runs on the connected remote Configurun-server:
+Instead of using the [local-app](#local-app) to manage and run the configurations on your own machine, we can use the [client-app](#client-app) to connect to a [server-instance](#server-instance) on a remote machine. The client-app works analogous to the local-app and allows us to create and manage new configuration, but the Run-Queue runs on the connected remote Configurun-server:
 <p align="center">
 	<!-- <img src="./configurun/examples/images/network_login_example.png" width="300" /> -->
 	<img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/network_login_example.png" width="300" />
@@ -128,7 +128,7 @@ if __name__ == "__main__":
 
 
 ## Server-instance
-The server-instance is a command-line app that listens to connections from [`client`](#client-app)-instance(s) to receive new configurations and commands to manage its RunQueue. The actual run-functions are ran on this machine. <br>
+The server-instance is a command-line app that listens to connections from [`client`](#client-app)-instance(s) to receive new configurations and commands to manage its RunQueue. The actual target-functions are ran on this machine. <br>
 
 **NOTE:** *after* authentication, `pickle`/`dill` is used to transmit data, which indirectly enables arbitrary code execution on the server-side if the password is known. Please run the server on trusted network environments only. Run at your own risk!
 ```python 
