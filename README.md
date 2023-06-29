@@ -1,19 +1,16 @@
 # Configurun
-Configurun is a PySide6-based packge that implements several tools for managing, creating and running python configurations. 
-It was designed mainly with machine-learning tasks in mind, but can be used for any python script that takes arguments as an input. We can automatically build the configuration-editor's UI using either an `argparse.Argumentparser` or a python-`@dataclass`.
+Configurun is a cross-platform PySide6-based package that implements an application for managing, creating and (remotely) running python configurations. 
+It was designed mainly with machine-learning tasks in mind, but can be used for any python script that takes arguments as an input. The editor-UI is created automatically using either an `argparse.Argumentparser` or python-`@dataclass`(es).
 
 
-The Configurun-app is especially useful for scripts/experiments that require a lot of arguments to be tweaked across many experiment-runs. This package was created in tandem with [pyside6-utils](https://github.com/Woutah/pyside6-utils/).
+The Configurun-app is especially useful for scripts/experiments that require a lot of arguments to be tweaked across many experiment-runs. It also makes the process of running experiments remotely much easier by enabling the user to edit, add and schedule tasks on any running Configurun server-instance if the user has the correct password.
+
+This package was created in tandem with [pyside6-utils](https://github.com/Woutah/pyside6-utils/).
 
 
 <p align="center">
 	<img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/main_window_example.png" width="1200" />
 </p>
-
-
-The app's configuration-input is built around python `@dataclass` objects, and their `field()` properties. We can either provide a custom `@dataclass` with all attributes we would like to edit, or directly pass an existing `argparse.Argumentparser` object to the app-creator.
-
-For an example how to use this app, see [this section](#How to run?)
 
 # Table of contents
 - [Configurun](#configurun)
@@ -31,9 +28,8 @@ For an example how to use this app, see [this section](#How to run?)
 	- [Custom Options (`@dataclass`)](#custom-options-dataclass)
 	- [Custom Options (`ArgumentParser`)](#custom-options-argumentparser)
 	- [Custom Options (`Callable`)](#custom-options-callable)
-- [Run Function](#run-function)
-	- [Configuration](#configuration)
-- [Configuration](#configuration-1)
+- [Target Function](#target-function)
+- [Configuration](#configuration)
 - [Option metadata](#option-metadata)
 
 
@@ -54,7 +50,7 @@ Configurations can be saved and loaded, a file-explorer view for the current wor
 </p>
 
 ## Run Queue
-The run-queue window manages the currently running items. This could either be [locally](#local-app), or remote, when using a [client-app](#client-side) and a [server-instance](#server-side) on which the actual Run-Queue is running. The Run-Queue allows us to add/remove items, pause/resume items, change the queue-order of items, and start autoprocessing, which will automatically start the next item in the queue when the current item is finished. We can set the number of processors as well, to run multiple items in parallel.
+The run-queue window manages the currently running items. This could either be locally when using a [local-app](#local-app), or remotely, when using a [client-app](#client-side) and a [server-instance](#server-side) on which the actual Run-Queue is running. The Run-Queue allows us to add/remove items, pause/resume items, change the queue-order of items, and start autoprocessing, which will automatically start the next item in the queue when the current item is finished. We can set the number of processors as well, to run multiple items in parallel.
 <p align="center">
 	<!-- <img src="./configurun/examples/images/run_queue_example.png" width="1100" /> -->
 	<img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/run_queue_example.png" width="400" />
@@ -67,7 +63,7 @@ Configurations are passed to the user-provided [run-function](#run-function) in 
 </p>
 
 ## Remote-processing
-Instead of using the [local-app](#local-app) to manage and run the configurations on your own machine, we can use the [client-app](#client-side) to connect to a [server-instance](#server-side) on a remote machine. The client-app works analogous to the local-app and allows us to create and manage new configuration, but the Run-Queue runs on a remote machine which we can remotely manage after logging in, e.g.:
+Instead of using the [local-app](#local-app) to manage and run the configurations on your own machine, we can use the [client-app](#client-side) to connect to a [server-instance](#server-side) on a remote machine. The client-app works analogous to the local-app and allows us to create and manage new configuration, but the Run-Queue runs on the connected remote Configurun-server:
 <p align="center">
 	<!-- <img src="./configurun/examples/images/network_login_example.png" width="300" /> -->
 	<img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/network_login_example.png" width="300" />
@@ -83,26 +79,26 @@ pip install configurun
 # How to run?
 Creating the app is done via the `configurun.create`-module. We can create 3 different types of apps:
 - [**Local app**](#local-app) - For running everything locally on your machine
-- [**Client-app**](#client-side) - For running the configurations on a remote machine, connects to a `server`-instance
-- [**Server-instance**](#server-side) - Command-line instance that listens to connections from a `client`-instance to receive new configurations and commands to manage the RunQueue
+- [**Client app**](#client-side) - For running the configurations on a remote machine, connects to a `server`-instance
+- [**Server instance**](#server-side) - Command-line instance that listens to connections from `client`-apps. If login is succesful, accepts control of the `RunQueue` from the `client`-app.
 
-On the client-side, the `options_source` should be set.
-On the server/running-machine, the `target_function` should be set.<br>
+On the client-side, the `options_source` should be set - the template of the settings used to create the [configuration-editor](#configuration-editor).<br>
+On the server/running-machine, the `target_function` should be set - the function that actually runs the task/experiment ([example](#run-function)).<br>
 
 ## Local App
 A local app is an all-in-one app that can be used to create and run configurations locally on your machine.
 To run the example app, we can either call `run_example_app()` from `configurun.examples` or run the following code to construct the app ourselves:
 ```python
 ### This example will run the app with an example configuration
-# Also see `configurun/examples/example_run_function.py`
+# Also see `configurun/examples/example_target_function.py`
 # Also see `configurun/examples/example_deduce_new_option_class_types.py`
 import os
 from configurun.create import local_app
-from configurun.examples import example_run_function, example_deduce_new_option_classes
+from configurun.examples import example_target_function, example_deduce_new_option_classes
 
 if __name__ == "__main__": #Makes sure bootstrapping process is done when running app
 	local_app( #Create and runs a local configurun app-instance
-		target_function=example_run_function, #The function that will be called with the configuration
+		target_function=example_target_function, #The function that will be called with the configuration
 		options_source=example_deduce_new_option_classes, #Template for UI-optiosn: Callable/@datclass/ArgumentParser
 		workspace_path = os.path.join( #Settings, configs and the Run-Queue will be saved/loaded from/to here
 			os.getcwd(), 
@@ -110,7 +106,7 @@ if __name__ == "__main__": #Makes sure bootstrapping process is done when runnin
 		) 
 	)
 ```
-In this example, [`example_run_function`]([./configurun/examples/example_run_function.py](https://github.com/Woutah/configurun/blob/main/configurun/examples/example_run_function.py)) runs a dummy task that logs to a file for 20 seconds. We can [specify our own run-function](#run-function) to run our own scripts.
+In this example, [`example_target_function`]([./configurun/examples/example_target_function.py](https://github.com/Woutah/configurun/blob/main/configurun/examples/example_target_function.py)) runs a dummy task that logs to a file for 20 seconds. We can [specify our own run-function](#run-function) to run our own scripts.
 
 We can [specify our own options source](#option-source) to create our own options-class for the configuration-editor, for example by [using an existing `ArgumentParser`-object.](#custom-options-argumentparser)
 ## Client App
@@ -139,7 +135,7 @@ The server-instance is a command-line app that listens to connections from [`cli
 # them to add configurations to the queue to be run on this machine
 import os
 from configurun.create import server
-from configurun.examples.example_run_function import example_run_function
+from configurun.examples.example_target_function import example_target_function
 
 if __name__ == "__main__":
 	# WARNING:
@@ -148,7 +144,7 @@ if __name__ == "__main__":
 	# PASSWORD. PLEASE RUN IN A TRUSTED NETWORK ENVIRONMENT ONLY
 	# RUN AT YOUR OWN RISK!
 	server(
-		target_function=example_run_function,
+		target_function=example_target_function,
 		workspace_path=os.path.join(os.getcwd(), "ServerExampleWorkspace"),
 		password="password", #Password to connect to the server, make sure to change this!
 		port=469 #Port to connect to the server, defaults to 469
@@ -157,7 +153,11 @@ if __name__ == "__main__":
 
 
 # Option-source
-When creating an app using the `create`-module, we can define a custom source so we can edit/save and queue our own custom options.
+When creating an app using the `create`-module, we can define a custom source, using the `options_source=...`, so we can construct the UI using our own options. 
+We can use the following types as an options-source:
+- [`@dataclass`-object](#custom-options-dataclass)
+- [`ArgumentParser`-object](#custom-options-argumentparser)
+- [`Callable`]
 
 ## Custom Options (`@dataclass`)
 **NOTE:** Using fields results in more control over the final UI, for a more thorough example, please see [this section](#option-metadata) and/or the example implementations in [configurun/examples/example_options/example_options.py](https://github.com/Woutah/configurun/blob/main/configurun/examples/example_options/example_options.py).
@@ -168,7 +168,7 @@ import os
 from dataclasses import dataclass
 from configurun.configuration.base_options import BaseOptions
 from configurun.create import local_app
-from configurun.examples import example_run_function
+from configurun.examples import example_target_function
 
 
 @dataclass #Don't forget to add this(!) - otherwise the app will not recognize the fields
@@ -178,7 +178,7 @@ class MyCustomOptions(BaseOptions): #Always inherit from BaseOptions (required t
 
 if __name__ == "__main__":
 	local_app(
-		target_function=example_run_function,
+		target_function=example_target_function,
 		options_source=MyCustomOptions, #Simple: each configuration consists of a single options-class
 		workspace_path = os.path.join(os.getcwd(), "ExampleDataclassOptions")
 	)
@@ -190,14 +190,14 @@ We can use a `ArgumentParser`-object as an options source, this will internally 
 ```python
 import argparse
 from configurun.create import local_app
-from configurun.examples import example_run_function
+from configurun.examples import example_target_function
 
 parser = argparse.ArgumentParser()
 parser_example.add_argument("--required_arg", type=str, required=True, help="Required argument help")
 #... add more arguments here
 
 local_app(
-	target_function=example_run_function,
+	target_function=example_target_function,
 	options_source=parser, #Parser is converted internally to a dataclass-class which is used as the options-class
 	workspace_path = os.path.join(os.getcwd(), "ExampleArgparseOptions")
 )
@@ -205,9 +205,10 @@ local_app(
 ## Custom Options (`Callable`)
 A configuration is a collection of option-instances, which are grouped toghether in a `Configuration`-wrapper, which enables us to access the attributes of all enclosed options-instances using the `configuration[attribute]`/`configuration.<attribute>`/`option_class.get(attribute, default)`. For more information, see [this section](#configuration).
 
-As an options-source, we can create a callable which takes the current Configuration-instance as an argument and returns the new options-classes (***not** instances*).
-This can be useful if we want to group options together, and only show certain groups when an attribute of another group is set to a certain value.
+We define an `option`-class as a class that has the `@decorator` and inherits from the `BaseOptions`-class.
 
+As an options-source, we can create a callable which takes the current Configuration-instance as an argument and returns 1 or more new options-classes (***not** instances*) which is called every time a setting is changed. If the types-change, the UI will be updated to reflect the new templates. 
+This can be useful if we want to group options together, and only show certain groups when an attribute of another group is set to a certain value. For example:
 ```python
 #In this example, we will create a callable which returns new options-classes based on the 
 # current configuration
@@ -215,7 +216,7 @@ import os
 import typing
 from dataclasses import dataclass
 from configurun.create import local_app
-from configurun.examples import example_run_function
+from configurun.examples import example_target_function
 from configurun.configuration import BaseOptions, Configuration
 
 @dataclass #NOTE: Always use @dataclass for options
@@ -236,27 +237,26 @@ class CustomOptionsUnderConditions(BaseOptions):
 
 def deduce_new_option_classes(configuration: Configuration)\
 		-> typing.Dict[str, typing.Type[BaseOptions | None]]: #Always return a dict of option 
-	 		# classes the key of the dict is the name of the option class, the value is the 
-			# option class itself the name is used to create the tab/window in the UI.
+	 		# classes the key of the dict is the name/group of the option-class
+			# the value is the option-class (@dataclass & BaseOptions) itself 
 	if configuration.options is None or len(configuration.options) == 0:
 		pass #If initial configuration is being retrieved -> return default dict
 	elif configuration.base_int == 2 and configuration.simple_int != 1:
-		#Only return the UnderConditions-options when base_int == 2 & simple_int != 1
+		#Only return the CustomOptionsUnderConditions-class when base_int == 2 & simple_int != 1
 		#NOTE: if we're not sure if attributes exist, we can use the `.get(key, default)` method
-		return { #Each category will get its own tab in the UI, ordered according to this dict
+		return { #UI will be built using the following option-classes, each key gets a tab/window:
 			'always_the_same' : AlwaysTheSame,
 			'custom_options' : CustomOptionsUnderConditions
 		}
 	
-	return { #config.options will contain dataclass/options-instances of these types:
+	return { #UI will be built using the following option-classes, each key gets a tab/window:
 		'always_the_same' : AlwaysTheSame,
 		'custom_options' : CustomOptionsDefault
-	} #NOTE: we must ALWAYS return a dictionary with at least 1 option class, otherwise we will 
-		# get stuck in a situation in which there are no options to display/edit 
+	} #NOTE: we must ALWAYS return a dictionary with at least 1 option class
 
 if __name__ == '__main__':
 	local_app(
-		target_function=example_run_function,
+		target_function=example_target_function,
 		options_source=deduce_new_option_classes,
 		workspace_path = os.path.join(os.getcwd(), "ExampleCallableOptions")
 	)
@@ -265,22 +265,37 @@ if __name__ == '__main__':
 
 
 
-# Run Function
-To implement a run-function, the only thing that we have to do, is make a function which takes a [`Configuration`-instance](#configuration) as an argument.
-The configuration contains all the options that we have defined in our [`options_source`](#option-source).
+# Target Function
+The target function is the function that does all the work. This is the function that is being called when an item starts "running" in the Run-Queue.
+It takes a single argument: a [`Configuration`-instance](#configuration) - instance.
+The configuration-object contains all settings as set by the user when "add to queue" was pressed.
 
-## Configuration
+This example uses the example-configuration from [the Configurtion section](#configuration), we simply print the values of the configuration to the console:
+```python
+def target_function(configuration: Configuration):
+	#Do something with the configuration
+	print(configuration.simple_int)
+	print(configuration.some_other_int)
+	#etc.
+```
 
-**How to create:**
-This configuration-object can then be loaded into the configuration editor. 
+If you have replaced an `argparse.Argumentparser` in the previous example, this is the place where you insert the user-provided settings to the script that uses the `ArgumentParser`-object. For example:
+```python
+# parsed_args = parser.parse_args() #will be done by user in UI
+# your_framework_that_used_parsed_args(parsed_args) #Will be called in target_function
 
-The `datclass`-objects can either be loaded using a `@dataclass`-object, by passing an `argparse.ArgumentParser`-object.
+def target_function(configurtion : Configuration):
+	# Since we can use the Configuration-instance as a dict 
+	# and as configuration.<attribute> we can just
+	# pass it to the framework compatible with the ArgumentParser:
+	your_framework_that_used_parsed_args(configuration)
 
+```
 
 # Configuration
 Configurun works with `configuration`-objects. A configuration is a collection of option-instances (=`@dataclass`-instances that inherit from `BaseOptions`), which are grouped toghether in a `Configuration`-wrapper.
 We can think of the option-instances as the different groups of options we want to edit and use in our run (e.g. `GeneralOptions()`, `LogOptions()`, `ModelOptions()`, etc.).
-In the simplest case, we have 1 single option-instance which contains all the options. 
+In the simplest case, we have 1 single option-instance which contains all the options, `AllOptions()`. 
 
 The `Configuration`-wrapper enables us to access the attributes of all enclosed options-instances using `configuration[attribute]`/`configuration.<attribute>`/`option_class.get(attribute, default)`.
 
@@ -318,7 +333,7 @@ print(config.get('some_other_int', -1)))
 
 # Note that we can use the config.<attr>-notation to our advantage
 # when we want to use autocomplete in our editor. For example:
-# def run_function(configuration: GeneralOptionsClass)
+# def target_function(configuration: GeneralOptionsClass)
 # Would result in our editor of choice recognizing/autocompleting
 # the `configuration.simple_hint` way of accessing `simple_hint`
 ```
