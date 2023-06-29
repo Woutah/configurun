@@ -173,6 +173,7 @@ class NetworkMainWindow(MainWindow):
 
 		else:
 			self.network_connection_widget.client_disconnected()
+			self.connection_window.activateWindow()
 			self.connection_window.show()
 			self.window.statusBar().showMessage("Not Connected", timeout=0) #Show message until next msg
 
