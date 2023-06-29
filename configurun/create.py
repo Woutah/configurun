@@ -184,7 +184,7 @@ def server(
 			run_queue_n_processes : int = 1,
 			password : str = "",
 			hostname : str = "localhost",
-			port : int = 469,
+			port : int = 5454,
 			log_level : int = logging.INFO,
 			run_queue_kwargs : typing.Optional[typing.Dict[str, typing.Any]] = None
 		):

@@ -147,7 +147,7 @@ if __name__ == "__main__":
 		target_function=example_target_function,
 		workspace_path=os.path.join(os.getcwd(), "ServerExampleWorkspace"),
 		password="password", #Password to connect to the server, make sure to change this!
-		port=469 #Port to connect to the server, defaults to 469
+		port=4069 #Port to connect to the server, defaults to 5454
 	)
 ```
 

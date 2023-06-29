@@ -48,7 +48,7 @@ class RunQueueServer():
 			run_queue: RunQueue,
 			password : str,
 			hostname : str = "",
-			port : int = 469,
+			port : int = 5454,
 			workspace_path : str = ""
 		) -> None:
 		"""
@@ -56,7 +56,7 @@ class RunQueueServer():
 			run_queue (RunQueue): The runqueue to use
 			password (str): The password to use for authentication
 			hostname (str, optional): The hostname to bind to. Defaults to "".
-			port (int, optional): The port to bind to. Defaults to 469.
+			port (int, optional): The port to bind to. Defaults to 5454.
 			workspace_path (str, optional): The path to the workspace.
 				Defaults to "". If none/empty, the workspace will be saved/loaded from/to '~/Configurun-Server/'
 		"""
@@ -602,7 +602,7 @@ class RunQueueServer():
 			client.close() #Try to close connection (if not already closed)
 
 
-def run_example_server(password : str = "password", port : int = 469, log_level : int = logging.INFO):
+def run_example_server(password : str = "password", port : int = 5454, log_level : int = logging.INFO):
 	"""
 	Runs an example-instance of the server, using the example_target_function from configurun/examples/example_target_function.py
 	and the passed password as well as the default workspace path (~/Configurun-Server)
