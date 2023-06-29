@@ -117,7 +117,7 @@ class RunQueueServer():
 
 		self._connection_listener_thread = None
 		self._is_terminating = False #To check whether the server is terminating (don't start doing new stuff)
-		self._server_stop_flag = threading.Event() #To stop the server from running (does not always indicate full termination)
+		self._server_stop_flag = threading.Event() #To stop the server from running (does not always indicate termination)
 
 
 		#============= Manage signal-triggered events =============
@@ -604,8 +604,9 @@ class RunQueueServer():
 
 def run_example_server(password : str = "password", port : int = 5454, log_level : int = logging.INFO):
 	"""
-	Runs an example-instance of the server, using the example_target_function from configurun/examples/example_target_function.py
-	and the passed password as well as the default workspace path (~/Configurun-Server)
+	Runs an example-instance of the server, using the example_target_function from 
+	configurun/examples/example_target_function.py and the passed password as well as the default
+	workspace path (~/Configurun-Server)
 
 	Args:
 		password (str, optional): The password to connect to the server. Defaults to "password".

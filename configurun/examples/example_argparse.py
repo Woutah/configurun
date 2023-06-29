@@ -29,7 +29,7 @@ def run_argparse_example():
 
 	from configurun.create import local_app
 	from configurun.windows.main_window import APP_NAME
-	
+
 	tempdir = tempfile.gettempdir()
 	workspace_path = os.path.join(tempdir, APP_NAME, "Configurun-Argparse-Example")
 	local_app(

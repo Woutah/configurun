@@ -20,8 +20,8 @@ class Configuration(object):
 	The individual option-instances are stored in the 'options' dict. The keys of this dict are the names of the
 	sub-options classes, e.g. "model_options", "dataset_options", "training_options", etc.
 
-	
-	NOTE: due to the way the __getattr__ function is implemented, the sub-options classes must not have overlapping 
+
+	NOTE: due to the way the __getattr__ function is implemented, the sub-options classes must not have overlapping
 	attribute names.
 	"""
 	#Use factory to create empty dict
@@ -85,14 +85,14 @@ class Configuration(object):
 				return getattr(options_instance, key)
 
 		raise AttributeError(f"Attribute {key} not found in any of the options classes")
-	
+
 	def __getitem__(self, key):
 		return self.__getattr__(key)
 
 	def get(self, key : str, default : typing.Any):
 		"""
 		A safe alternative to the __getattr__ function. This function will return the default value if the given
-		key is not found.  
+		key is not found.
 
 		Args:
 			key (str): The attribute to look for

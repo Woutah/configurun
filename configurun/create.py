@@ -118,7 +118,7 @@ def local_app(
 	root_logger = logging.getLogger()
 	root_logger.setLevel(log_level)
 
-	
+
 	if run_queue_kwargs is None:
 		run_queue_kwargs = {}
 	if config_model_kwargs is None:
@@ -175,7 +175,7 @@ def _cleanup_server(app : QtCore.QCoreApplication, run_queue_server : RunQueueSe
 	log.info("Received shutdown signal, now attempting to cleaning up server and close app")
 	run_queue_server.terminate() #Disconnect all, stop running and save progress
 	app.quit()
-	
+
 	log.info("Server cleanup complete, exiting")
 
 def server(
@@ -283,7 +283,7 @@ def client(
 			- A single BaseOptions object
 			- An argparse.ArgumentParser object
 		Defaults to None.
-	
+
 	workspace_path (str, optional): The path to the workspace folder. Attempts to load progress from here, also saves
 		configs/logs/settings to here. Defaults to "". If empty/default, the default workspace folder is used
 		(~/Configurun-Client/)
@@ -298,7 +298,7 @@ def client(
 			option-group settings are remembered when switching back/forth (for example between 2 model-options).
 			Defaults to True. If true undo_stack is also used
 		- use_undo_stack (bool): Whether to use the undo stack or not. Defaults to True
-	
+
 	log_level (int, optional): The log level to use. Defaults to logging.INFO
 	"""
 	#=========== Initialize logger ===========
@@ -334,7 +334,7 @@ def client(
 	#Create the Qt-main window in which the app will be placed
 	main_window = QtWidgets.QMainWindow()
 
-	run_queue_client = RunQueueClient(	
+	run_queue_client = RunQueueClient(
 	)
 
 

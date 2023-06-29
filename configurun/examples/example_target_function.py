@@ -31,4 +31,3 @@ def example_target_function(config : Configuration, *args, **kwargs): #pylint: d
 		time.sleep(1)
 
 	log.info("Done with the example run function... Now exiting...")
-

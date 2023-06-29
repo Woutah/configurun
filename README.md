@@ -79,11 +79,11 @@ pip install configurun
 # How to run?
 Creating the app is done via the `configurun.create`-module. We can create 3 different types of apps:
 - [**Local app**](#local-app) - For running everything locally on your machine
-- [**Client app**](#client-side) - For running the configurations on a remote machine, connects to a `server`-instance
-- [**Server instance**](#server-side) - Command-line instance that listens to connections from `client`-apps. If login is succesful, accepts control of the `RunQueue` from the `client`-app.
+- [**Client app**](#client-app) - For running the configurations on a remote machine, connects to a `server`-instance
+- [**Server instance**](#server-instance) - Command-line instance that listens to connections from `client`-apps. If login is succesful, accepts control of the `RunQueue` from the `client`-app.
 
 On the client-side, the `options_source` should be set - the template of the settings used to create the [configuration-editor](#configuration-editor).<br>
-On the server/running-machine, the `target_function` should be set - the function that actually runs the task/experiment ([example](#run-function)).<br>
+On the server/running-machine, the `target_function` should be set - the function that actually runs the task/experiment ([example](#target-function)).<br>
 
 ## Local App
 A local app is an all-in-one app that can be used to create and run configurations locally on your machine.
@@ -106,7 +106,7 @@ if __name__ == "__main__": #Makes sure bootstrapping process is done when runnin
 		) 
 	)
 ```
-In this example, [`example_target_function`]([./configurun/examples/example_target_function.py](https://github.com/Woutah/configurun/blob/main/configurun/examples/example_target_function.py)) runs a dummy task that logs to a file for 20 seconds. We can [specify our own run-function](#run-function) to run our own scripts.
+In this example, [`example_target_function`](https://github.com/Woutah/configurun/blob/main/configurun/examples/example_target_function.py) runs a dummy task that logs to a file for 20 seconds. We can [specify our own target-function](#target-function) to run our own scripts.
 
 We can [specify our own options source](#option-source) to create our own options-class for the configuration-editor, for example by [using an existing `ArgumentParser`-object.](#custom-options-argumentparser)
 ## Client App
