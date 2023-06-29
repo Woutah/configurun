@@ -3,7 +3,7 @@ Configurun is a cross-platform PySide6-based package that implements an applicat
 It was designed mainly with machine-learning tasks in mind, but can be used for any python script that takes arguments as an input. The editor-UI is created automatically using either an `argparse.Argumentparser` or python-`@dataclass`(es).
 
 
-The Configurun-app is especially useful for scripts/experiments that require a lot of arguments to be tweaked across many experiment-runs. It also makes the process of running experiments remotely much easier by enabling the user to edit, add and schedule tasks on any running Configurun server-instance if the user has the correct password.
+The Configurun-app is especially useful for scripts/experiments that require a lot of arguments to be tweaked across many experiment-runs. It also makes the process of running experiments remotely much easier by enabling the user to edit, add and schedule tasks on any running Configurun server-instance reachable via a network connection.
 
 This package was created in tandem with [pyside6-utils](https://github.com/Woutah/pyside6-utils/).
 
@@ -53,13 +53,13 @@ Configurations can be saved and loaded, a file-explorer view for the current wor
 The run-queue window manages the currently running items. This could either be locally when using a [local-app](#local-app), or remotely, when using a [client-app](#client-side) and a [server-instance](#server-side) on which the actual Run-Queue is running. The Run-Queue allows us to add/remove items, pause/resume items, change the queue-order of items, and start autoprocessing, which will automatically start the next item in the queue when the current item is finished. We can set the number of processors as well, to run multiple items in parallel.
 <p align="center">
 	<!-- <img src="./configurun/examples/images/run_queue_example.png" width="1100" /> -->
-	<img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/run_queue_example.png" width="400" />
+	<img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/run_queue_example.png" width="1100" />
 </p>
 
 Configurations are passed to the user-provided [run-function](#run-function) in separate processes. The stdout/stderr of each of the items is captured and displayed as a selectable console-output-view in the command-line-output window:
 <p align="center">
 	<!-- <img src="./configurun/examples/images/command_line_output_example.png" width="1100" /> -->
-	<img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/command_line_output_example.png" width="400" />
+	<img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/command_line_output_example.png" width="1100" />
 </p>
 
 ## Remote-processing
