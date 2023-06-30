@@ -49,6 +49,12 @@ class Configuration(object):
 		"""
 		return {key: type(value) for key, value in self.options.items()}
 
+	def hasinstance(self, instance_type: type) -> bool:
+		"""
+		Check if Configuration.options has an instance of the given type
+		E.g.
+		"""		
+		return any(isinstance(value, instance_type) for value in self.options.values())
 
 	def hasattr(self, key):
 		"""
