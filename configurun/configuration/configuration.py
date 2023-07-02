@@ -82,7 +82,6 @@ class Configuration(object):
 		This is why validateSubOptions should be called when chaning suboptions
 		TODO: check for overlapping attribute names in the __init__ function?
 		"""
-
 		if key.startswith("__"): #Return special/internal attributes, otherwise things like copy will go wrong
 			raise AttributeError(f"Attribute {key} not found in any of the options classes")
 
@@ -104,6 +103,8 @@ class Configuration(object):
 			key (str): The attribute to look for
 			default (typing.Any): The default value to return if the attribute is not found
 		"""
+		if key is None:
+			return default
 		try:
 			return getattr(self, key)
 		except AttributeError:
@@ -118,6 +119,27 @@ class Configuration(object):
 		for key, value in self.options.items(): #Convert all sub-options instances to dicts
 			new_dict[key] = value.__dict__
 		return new_dict
+
+	@staticmethod
+	def get_configuration_from_passed_options(*args) -> 'Configuration':
+		"""
+		Create a new Configuration instance from the passed options. 
+
+		Args:
+			*args (typing.List[BaseOptions]): A list of options to add to the new configuration. ALL instances must 
+				inherit from BaseOptions and must have the @dataclass-decorator to be fully compatible with 
+				the Configuration-ui app. If directly used for the attribute-lookup function of this class,
+				this is not neccesry. 
+
+				NOTE: all options must have unique attribute names, otherwise the attribute-lookup function will
+				return the first attribute it finds with the given name.
+
+				#TODO: enforce this in the __init__ function of this class?
+		"""
+		new_config = Configuration()
+		for options in args:
+			new_config.add_options(options)
+		return new_config
 
 
 if __name__ == "__main__":
