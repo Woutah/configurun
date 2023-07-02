@@ -267,9 +267,6 @@ class MainWindow():
 		###### Run Queue Actions ########
 		# self.ui.menuRun_Queue.mousePressEvent().triggered.connect(self.ui.runQueueWidget.show)
 		self.ui.menuRun_Queue.aboutToShow.connect(self.expand_run_queue_view_filter_options)
-		# self.ui.actionViewRunQueueFilter.triggered.connect(lambda *_: self.expand_run_queue_view_filter_options())
-		# self.ui.actionViewRunQueueFilter.triggered.connect(lambda *_: print("kaas"))
-		# self.ui.actionBackupRunQueue.triggered.connect(self.runQu
 		self.ui.actionBackupRunQueue.triggered.connect(lambda *_: self.ui.runQueueWidget.save_to_file_popup())
 		self.ui.actionLoadRunQueue.triggered.connect(lambda *_: self.ui.runQueueWidget.load_from_file_popup())
 
@@ -751,8 +748,6 @@ class MainWindow():
 					msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
 					msg.setText(f"The loaded configuration from <tt>{new_path}</tt> is not stable.")
 					replaced_exception = str(exception).replace("\n", "<br>")
-					print("kaas", replaced_exception)
-					print("frikandel", exception)
 					msg.setInformativeText((f"<b>{type(exception).__name__}:</b> {replaced_exception}<br><br>"
 			     			"This could be the result of a change in the settings format, the type-deducer, "
 							"the option-names, or due to file corruption. <br>"
