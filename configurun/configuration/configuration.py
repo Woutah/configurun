@@ -106,7 +106,7 @@ class Configuration(object):
 		if key is None:
 			return default
 		try:
-			return getattr(self, key)
+			return self.__getattr__(key)
 		except AttributeError:
 			return default
 
