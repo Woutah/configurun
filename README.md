@@ -179,7 +179,8 @@ We can use the following types as an options-source:
 
 **NOTE:**  When implementing custom option-classes, don't forget to add the `@dataclass`-decorator, and always inherit from `BaseOptions`
 
-UI-supported type-hints include `str`, `int`, `float`, `datatime` (and more) and combinations using `typing.List`, `typing.Union` / `|`. For example: 
+UI-supported type-hints include `str`, `int`, `float`, `datatime`, `typing.Literal`  (and more) and combinations using `typing.List`, `typing.Union` / `|`. For example:
+
 ```python
 import os
 import typing
@@ -320,6 +321,7 @@ def target_function(configurtion : Configuration):
 ```
 
 Of course you can also directly pass the `your_framework_that_used_parsed_args(...)`-function as the target function when creating the app:
+
 ```python
 if __name__ == '__main__':
 	local_app(
@@ -328,6 +330,7 @@ if __name__ == '__main__':
 		workspace_path = os.path.join(os.getcwd(), "ExampleCallableOptions")
 	)
 ```
+
 This example uses the `deduce_new_option_classes`-function from [callable option source example](#custom-options-callable) .
 
 # Configuration
@@ -434,7 +437,7 @@ The following metadata-keys are supported:
 | `Range` | The value should be within the range provided in the constraint | `QSpinBox` (limited) |
 | `ConstrainedList` | [*(Custom - not part of Sklearn)](#constrainedlist) Indicates a list of of values of a constrained type | Based on type of list |
 
-<a name="constrainedlist">*=</a>For example, `ConstrainedList([Interval(float, 0.0, 1.0), StrOptions(["string1", "string2"])])` indicates a list of values that should either be a float between 0.0 and 1.0, or the string "string1" or "string2". The editor for this field would be constructed as a [`WidgetList`](#widgetlist) with a [`WidgetSwitcher`](#widgetswitcher) as the factory-widget. The `WidgetSwitcher` would then have two widgets, one with a `QSpinBox` and one with a `QComboBox` as the editor. **NOTE:** the same editor would be parsed from a `Typing.List[typing.Union[float, str]]` typehint, minus the bounded-interval constraint on the float:
+<a name="constrainedlist">*=</a>For example, `ConstrainedList([Interval(float, 0.0, 1.0), StrOptions(["string1", "string2"])])` indicates a list of values that should either be a float between 0.0 and 1.0, or the string "string1" or "string2". The editor for this field would be constructed as a `WidgetList` to which the user can add `WidgetSwitcher`. The `WidgetSwitcher` would then have two widgets, one with a `QSpinBox` and one with a `QComboBox` as the editor. **NOTE:** the same editor would be parsed from a `Typing.List[typing.Union[float, Typing.Literal["string1", "string2"]]]` typehint, minus the bounded-interval constraint on the float:
 <p align="center">
 	<img src="https://github.com/Woutah/pyside6-utils/blob/main/pyside6_utils/examples/images/string_float_list_example.png?raw=True" width="300" />
 	<!-- <img src="./pyside6_utils/examples/images/string_float_list_example.png" width=300/> -->
