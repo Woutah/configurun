@@ -53,7 +53,7 @@ class Configuration(object):
 		"""
 		Check if Configuration.options has an instance of the given type
 		E.g.
-		"""		
+		"""
 		return any(isinstance(value, instance_type) for value in self.options.values())
 
 	def hasattr(self, key):
@@ -112,9 +112,12 @@ class Configuration(object):
 
 	def get_dict(self):
 		"""
-		Return the sub-options instances as a dictionary
+		Return the full configuration as a dict. 
 		"""
-		return self.options
+		new_dict = {}
+		for key, value in self.options.items(): #Convert all sub-options instances to dicts
+			new_dict[key] = value.__dict__
+		return new_dict
 
 
 if __name__ == "__main__":
