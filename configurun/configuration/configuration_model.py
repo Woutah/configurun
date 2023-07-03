@@ -214,7 +214,11 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 				proxy_models_changed = True
 			elif option_class is None or isinstance(option_class, type(None)): #If None or Nonetype -> empty
 				pass
-			elif type(self._configuration.options[option_name]) != option_class: #If the option class changed #pylint: disable=unidiomatic-typecheck
+			# elif type(self._configuration.options[option_name]) != option_class: #If the option class changed #pylint: disable=unidiomatic-typecheck
+			elif type(self._configuration.options[option_name]).__name__ != option_class.__name__: #If the option class changed #pylint: disable=unidiomatic-typecheck
+				#NOTE: this only checks the type NAME not the actual type. This makes us more flexible when saving/loading
+				# dill pickles, but might result in issues if the user uses class names interchangeably. 
+				# Note that on-load, we check for any attributes that are missing, so this might not be an issue.
 				pass
 			else:  #If everything is the same, skip
 				continue
@@ -563,12 +567,24 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 				f"Current option-names:\n{class_group_names}\n"
 				f"Deduced option-names:\n{deduced_group_names}\n"
 				)
-		option_type_mismatches = set.symmetric_difference(set(cur_class_types.values()), set(deduced_types.values()))
+		#NOTE: only check name-equivalence, not strong type-equivalence
+
+		class_type_names = [i.__name__ for i in cur_class_types.values()]
+		deduced_type_names = [i.__name__ for i in deduced_types.values()]
+		option_type_mismatches = set.symmetric_difference(set(class_type_names), set(deduced_type_names))
+
+		
+		# option_type_mismatches = set.symmetric_difference(set(cur_class_types.values()), set(deduced_types.values()))
+		#NOTE: dill pickles by value if defined in the __main__ module -> if errors are reported here when loading
+		# this could be the issue... Probably best to first try to construct the class by deducing the types and 
+		# copying attributes over. We currently only check the type-names. This makes us more flexible but might 
+		# result in issues (though we're checking attributes when loading/saving the items so it might not be an issue)
+
 
 		if len(option_type_mismatches) > 0:
 			current_type_names = ", ".join([i.__name__ for i in cur_class_types.values()])
 			deduced_type_names = ", ".join([i.__name__ for i in deduced_types.values()])
-			option_type_mismatch_names = ", ".join([i.__name__ for i in option_type_mismatches])
+			option_type_mismatch_names = ", ".join([i for i in option_type_mismatches])
 			error_msgs.append(f"The configuration has types that differ "
 				f"differ from the expected (deduced) types.\n\n"
 				f"Current Types:\n{current_type_names}\n\n"
