@@ -5,7 +5,7 @@ Implements the base-options from which all user-defined options should inherit
 
 import logging
 from dataclasses import dataclass
-from pyside6_utils.utility.serializable import Serializable #Absolute import to avoid import PySide6
+from pyside6_utils.classes import Serializable #Absolute import to avoid import PySide6
 log = logging.getLogger(__name__)
 
 

@@ -79,7 +79,7 @@ def server(
 		log.info(f"No workspace path provided, using default: {workspace_path}")
 
 	os.makedirs(workspace_path, exist_ok=True) #Create the workspace folder if it does not exist yet
-	
+
 	runqueue = RunQueue(
 		target_function=target_function,
 		n_processes=run_queue_n_processes,

@@ -4,7 +4,7 @@ Implements several option-dataclasses to show how to use this framework.
 import typing
 from dataclasses import dataclass, field
 
-from pyside6_utils.utility.constraints import (Interval, StrOptions)
+from pyside6_utils.classes.constraints import (Interval, StrOptions)
 
 from configurun.configuration.base_options import BaseOptions
 

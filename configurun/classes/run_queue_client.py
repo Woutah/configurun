@@ -15,8 +15,8 @@ import PySignal
 
 from configurun.classes.method_call_interceptor import (
     MethodCallInterceptedMeta, get_class_implemented_methods)
-from configurun.run_queue.run_queue import RunQueue
-from configurun.run_queue.run_queue_datatypes import (
+from configurun.classes.run_queue import RunQueue
+from configurun.classes.run_queue_datatypes import (
     RSA_KEY_SIZE_BITS, AESSessionKeyTransmissionData, AuthenticationException,
     LoginTransmissionData, PickledDataType, PickleTransmissionData,
     PubKeyTransmissionData, StateMsgType, StateTransmissionData, Transmission,

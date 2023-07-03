@@ -10,7 +10,7 @@ from dataclasses import dataclass, field, make_dataclass
 
 # import dill
 from numpydoc.docscrape import NumpyDocString
-from pyside6_utils.utility.constraints import StrOptions
+from pyside6_utils.classes.constraints import StrOptions
 from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
 from sklearn.gaussian_process import GaussianProcessClassifier
 # from sklearn.gaussian_process.kernels import RBF

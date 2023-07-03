@@ -5,7 +5,6 @@ Implements the Runqueue class - a class that manages a list of configurations to
 import logging
 import os
 import queue
-import PySignal
 import sys
 import tempfile
 import threading
@@ -20,9 +19,12 @@ import dill
 import multiprocess  # NOTE: we use multiprocess instead of multiprocessing because it allows more flexibility in pickling
 import multiprocess.managers as managers  # Same here, use multiprocess
 import multiprocess.queues
+import PySignal
+
+from configurun.configuration.configuration import Configuration
+
 # from PySide6 import QtCore
 
-from configurun.configuration.configuration_model import Configuration
 
 
 class RunQueueHasRunningItemsException(Exception):

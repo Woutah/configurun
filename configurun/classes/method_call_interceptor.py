@@ -7,7 +7,6 @@ can be forwarded to a server on which the "actual" instance of the class is runn
 from abc import abstractmethod
 from types import FunctionType
 import inspect
-import PySide6.QtCore as QtCore
 
 
 def get_class_implemented_methods(obj : type, exclude_parent_methods : bool = True) -> list[str]:
@@ -47,7 +46,7 @@ class MethodCallInterceptorClass():
 		raise NotImplementedError()
 
 
-class MethodCallInterceptedMeta(type(QtCore.QObject)):
+class MethodCallInterceptedMeta(type):
 	"""
 	Metaclass that intercepts all calls to the method-list provided by the user and sends them to
 	the function: _interceptor instead. This allows the user to create a proxy-instance of a

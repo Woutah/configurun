@@ -393,7 +393,7 @@ For example:
 from configurun.configuration import base_options
 from dataclasses import field, dataclass
 #Used to constrain the editors: (can also be imported from sklearn)
-from pyside6_utils.utility.constraints import Interval
+from pyside6_utils.classes.constraints import Interval
 
 @dataclass
 class TestOptions(BaseOptions):
@@ -426,7 +426,7 @@ The following metadata-keys are supported:
 | `"required"` | `bool` | Whether this field is required to be filled in - if true - a red background will appear if the value is not set|
 | `"editable"` | `bool` | Whether this field is editable - if false - the editor will be disabled|
 
-<a name="constraintnote">*=</a>Constraints are (almost entirely) sourced from the `sklearn.utils._validation` module and provides a way to constrain the dataclass fields such that the user can only enter valid values. They are also packed into this package under `utility.constraints`. The following constraints are supported:
+<a name="constraintnote">*=</a>Constraints are (almost entirely) sourced from the `sklearn.utils._validation` module and provides a way to constrain the dataclass fields such that the user can only enter valid values. They are also packed into this package under `classes.constraints`. The following constraints are supported:
 | Constraint | Description | Editor Type
 | --- | --- | --- |
 | `type` | The type of the value should match the type of the constraint | based on type |

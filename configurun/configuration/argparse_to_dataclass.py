@@ -7,7 +7,7 @@ import logging
 import sys
 from dataclasses import field, make_dataclass
 
-from pyside6_utils.utility.constraints import (Interval, Options)
+from pyside6_utils.classes.constraints import (Interval, Options)
 
 from configurun.configuration.base_options import BaseOptions
 
