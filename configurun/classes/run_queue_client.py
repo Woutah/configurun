@@ -11,12 +11,12 @@ import traceback
 import PySignal
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
-from PySide6 import QtCore
+import PySignal
 
 from configurun.classes.method_call_interceptor import (
     MethodCallInterceptedMeta, get_class_implemented_methods)
-from configurun.classes.run_queue import RunQueue
-from configurun.classes.run_queue_datatypes import (
+from configurun.run_queue.run_queue import RunQueue
+from configurun.run_queue.run_queue_datatypes import (
     RSA_KEY_SIZE_BITS, AESSessionKeyTransmissionData, AuthenticationException,
     LoginTransmissionData, PickledDataType, PickleTransmissionData,
     PubKeyTransmissionData, StateMsgType, StateTransmissionData, Transmission,
@@ -24,17 +24,6 @@ from configurun.classes.run_queue_datatypes import (
 
 log = logging.getLogger(__name__)
 
-# NOTE: old version using pyside6-signals
-# def get_pyqt_signal_names(the_object : type) -> list[QtCore.SignalInstance]:
-# 	"""
-# 	Get all PySide6.QtCore.signals of an arbitrary object (by name)
-# 	"""
-# 	signals = []
-
-# 	for signal_name in the_object.__dict__:
-# 		if isinstance(the_object.__dict__[signal_name], QtCore.Signal):
-# 			signals.append(signal_name)
-# 	return signals
 
 def get_pysignal_names(the_object : type) -> list[PySignal.ClassSignal]:
 	"""
@@ -57,7 +46,6 @@ class NoAuthenticatedConnectionException(Exception):
 
 class RunQueueClient(
 		RunQueue,
-		QtCore.QObject, #Native pyside6-signal support
 		metaclass=MethodCallInterceptedMeta,
 		intercept_list=get_class_implemented_methods(RunQueue),
 		skip_intercept_list=get_pysignal_names(RunQueue)
@@ -75,7 +63,7 @@ class RunQueueClient(
 	Also, the reset-signal is emitted from the queue, indicating that all models should be reset.
 	"""
 
-	authenConnectionStateChanged = QtCore.Signal(bool) #Emitted when the authenticated connection state changes -
+	authenConnectionStateChanged = PySignal.ClassSignal() #Bool emitted when the authenticated connection state changes -
 		# True if connected and authenticated, False if either disconnected or not yet authenticated
 
 
