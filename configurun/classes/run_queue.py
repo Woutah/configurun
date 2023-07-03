@@ -5,6 +5,7 @@ Implements the Runqueue class - a class that manages a list of configurations to
 import logging
 import os
 import queue
+import PySignal
 import sys
 import tempfile
 import threading
@@ -19,9 +20,7 @@ import dill
 import multiprocess  # NOTE: we use multiprocess instead of multiprocessing because it allows more flexibility in pickling
 import multiprocess.managers as managers  # Same here, use multiprocess
 import multiprocess.queues
-
 from PySide6 import QtCore
-
 
 from configurun.configuration.configuration_model import Configuration
 
@@ -231,12 +230,13 @@ CustomManager.register(RunQueueItem.__name__, RunQueueItem, CustomProxy)
 	# replaced (https://docs.python.org/3/library/multiprocessing.html#multiprocessing-proxy-objects)
 
 
-class CommandlineQueueEmitter(QtCore.QObject):
+class CommandlineQueueEmitter():
 	"""
 	A class that keeps track of a command-line-queue and emits a signal each time an item is added to the queue.
 	Enables the use of multiple threads, while still logging to the UI without polling files.
 	"""
-	commandLineOutput = QtCore.Signal(int, str, str, datetime, int, str) #id, name, output_path, dt, filepos, new_msg
+	# commandLineOutput = QtCore.Signal(int, str, str, datetime, int, str) #id, name, output_path, dt, filepos, new_msg
+	commandLineOutput = PySignal.ClassSignal() #int, str, str, datetime, int, str
 
 	def __init__(self, monitored_queue : typing.Union[queue.Queue, multiprocess.queues.Queue]) -> None:
 		super().__init__()
@@ -368,13 +368,26 @@ class RunQueue(QtCore.QObject):
 
 
 
+		#OLD version with pyside6 dependency
+		# self.queue_emitter = CommandlineQueueEmitter(self._command_line_output_queue)
+		# self.queue_emitter_thread = QtCore.QThread()
+		# self.queue_emitter.moveToThread(self.queue_emitter_thread)
+		# self.queue_emitter_thread.started.connect(self.queue_emitter.run)
+		# self.queue_emitter_thread.start()
+		# self.queue_emitter.commandLineOutput.connect(self.newCommandLineOutput)
+
+
+		#New version without pyside6 dependency
 		self.queue_emitter = CommandlineQueueEmitter(self._command_line_output_queue)
-		self.queue_emitter_thread = QtCore.QThread()
-		self.queue_emitter.moveToThread(self.queue_emitter_thread)
-		self.queue_emitter_thread.started.connect(self.queue_emitter.run)
+		self.queue_emitter_thread = threading.Thread(target=self.queue_emitter.run)
+		self.queue_emitter.commandLineOutput.connect(lambda *args: self.newCommandLineOutput.emit(*args))
+		# self.queue_emitter.commandLineOutput.connect(
+		# 	lambda *args: print(f"Command line changed{', '.join([str(i) for i in args])}"))
 		self.queue_emitter_thread.start()
-		self.queue_emitter.commandLineOutput.connect(self.newCommandLineOutput.emit)
-		# self.queue_emitter.commandLineOutput.connect(lambda *args: print(f"Got command line output: {args}"))
+
+
+	def handle_command_line_output(self, item_id : int, name , output_path, dt , filepos, new_msg):
+		self.newCommandLineOutput.emit(item_id, name, output_path, dt, filepos, new_msg)
 
 	def stop_command_line_queue_emitter(self):
 		"""
@@ -382,8 +395,12 @@ class RunQueue(QtCore.QObject):
 		TODO: create and explicit cleanup function
 		"""
 		self.queue_emitter.stop_flag = True
-		self.queue_emitter_thread.quit()
-		self.queue_emitter_thread.wait()
+		#Pyside6-version
+		# self.queue_emitter_thread.quit()
+		# self.queue_emitter_thread.wait()
+
+		#Non-pyside6-version
+		self.queue_emitter_thread.join()
 
 
 	@staticmethod
