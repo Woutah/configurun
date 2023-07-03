@@ -101,11 +101,11 @@ To run the example app, we can either call `run_example_app()` from `configurun.
 # Also see `configurun/examples/example_target_function.py`
 # Also see `configurun/examples/example_deduce_new_option_class_types.py`
 import os
-from configurun.create import local_app
+from configurun.app import run_local
 from configurun.examples import example_target_function, example_deduce_new_option_classes
 
 if __name__ == "__main__": #Makes sure bootstrapping process is done when running app
-	local_app( #Create and runs a local configurun app-instance
+	run_local( #Create and runs a local configurun app-instance
 		target_function=example_target_function, #The function that will be called with the configuration
 		options_source=example_deduce_new_option_classes, #Template for UI-optiosn: Callable/@datclass/ArgumentParser
 		workspace_path = os.path.join( #Settings, configs and the Run-Queue will be saved/loaded from/to here
@@ -127,11 +127,11 @@ We can create a client-app and use it to login to running [server](#server-insta
 # Opens a client-side app that we can use to connect to and control
 # the server-instance
 import os
-from configurun.create import client_app
+from configurun.app import run_client
 from configurun.examples import example_deduce_new_option_classes
 
 if __name__ == "__main__":
-	client_app(
+	run_client(
 		options_source=example_deduce_new_option_classes,
 		workspace_path=os.path.join(os.getcwd(), "ClientExampleWorkspace"),
 	)
@@ -147,7 +147,7 @@ The server-instance is a command-line app that listens to connections from [`cli
 # Opens a server-instance which tries to connect with clients and allows
 # them to add configurations to the queue to be run on this machine
 import os
-from configurun.create import server
+from configurun.server import run_server
 from configurun.examples.example_target_function import example_target_function
 
 if __name__ == "__main__":

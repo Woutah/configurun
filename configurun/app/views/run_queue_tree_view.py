@@ -9,7 +9,7 @@ from pyside6_utils.models import ExtendedSortFilterProxyModel
 
 from configurun.classes.run_queue import (RunQueue, RunQueueItemActions,
                                           RunQueueItemStatus)
-from configurun.windows.models.run_queue_table_model import RunQueueTableModel
+from configurun.app.models.run_queue_table_model import RunQueueTableModel
 
 log = logging.getLogger(__name__)
 

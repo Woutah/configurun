@@ -5,7 +5,7 @@ Implements a widget for logging in to a server
 
 from PySide6 import QtCore, QtWidgets
 
-from configurun.windows.ui.network_login_widget_ui import Ui_NetworkLoginWidget
+from configurun.app.ui.network_login_widget_ui import Ui_NetworkLoginWidget
 
 
 

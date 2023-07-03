@@ -24,10 +24,10 @@ from configurun.configuration.configuration import Configuration
 from configurun.configuration.configuration_model import (
     ConfigurationModel, NoClassTypesError, OptionTypesMismatch,
     UnkownOptionClassError)
-from configurun.windows.models.run_queue_console_model import \
+from configurun.app.models.run_queue_console_model import \
     RunQueueConsoleModel
-from configurun.windows.models.run_queue_table_model import RunQueueTableModel
-from configurun.windows.ui.main_window_ui import Ui_MainWindow
+from configurun.app.models.run_queue_table_model import RunQueueTableModel
+from configurun.app.ui.main_window_ui import Ui_MainWindow
 
 
 log = logging.getLogger(__name__)
@@ -953,11 +953,11 @@ def run_example_local_app(log_level : int=logging.INFO):
 	from configurun.examples.example_target_function import example_target_function
 	from configurun.examples.example_configuration import example_deduce_new_option_classes
 	import tempfile
-	from configurun.create.app import local_app
+	from configurun.app.create_run import run_local
 
 	tempdir = tempfile.gettempdir()
 	workspace_path = os.path.join(tempdir, APP_NAME, "Configurun-Local-Example")
-	local_app(
+	run_local(
 		target_function=example_target_function,
 		options_source=example_deduce_new_option_classes,
 		workspace_path=workspace_path,

@@ -97,10 +97,10 @@ def argparse_to_dataclass(
 
 
 if __name__ == "__main__":
-	from configurun.create.app import local_app
+	from configurun.app.create_run import run_local
 	from configurun.examples.example_argparse import parser_example
 	test_dataclass = argparse_to_dataclass(parser_example)
-	local_app(
+	run_local(
 		target_function = lambda x, *_: print(x),
 		options_source = test_dataclass
 	)

@@ -75,17 +75,17 @@ def run_example_app(log_level=logging.INFO):
 	"""Run an example instance of the Configurun-App using the example run function and example-option-deducer
 	"""
 	# pylint: disable=import-outside-toplevel
-	from configurun.create.app import \
-	    local_app
+	from configurun.app.create_run import \
+	    run_local
 	import os
-	from configurun.windows.main_window import APP_NAME
+	from configurun.app.main_window import APP_NAME
 	import tempfile
 
 	#=========================== Create the app using the example ===========================
 	tempdir = tempfile.gettempdir()
 	workspace_path = os.path.join(tempdir, APP_NAME, "Configurun-Local-Example")
 	log.info(f"Saving example app workspace to {workspace_path}")
-	local_app(
+	run_local(
 		target_function=example_target_function,
 		options_source=example_deduce_new_option_classes,
 		workspace_path=workspace_path,

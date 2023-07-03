@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (QApplication, QDockWidget, QGridLayout, QHBoxLayo
     QPushButton, QSizePolicy, QStatusBar, QToolButton,
     QUndoView, QVBoxLayout, QWidget)
 
-from configurun.windows.widgets.run_queue_widget import RunQueueWidget
+from configurun.app.widgets.run_queue_widget import RunQueueWidget
 from pyside6_utils.widgets.console_widget import ConsoleWidget
 from pyside6_utils.widgets.extended_mdi_area import ExtendedMdiArea
 from pyside6_utils.widgets.file_explorer_view import FileExplorerView

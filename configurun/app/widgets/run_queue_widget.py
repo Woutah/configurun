@@ -10,8 +10,8 @@ from pyside6_utils.utility.catch_show_exception_in_popup_decorator import \
     catch_show_exception_in_popup_decorator
 
 from configurun.classes.run_queue import RunQueueItemActions
-from configurun.windows.models.run_queue_table_model import RunQueueTableModel
-from configurun.windows.ui.run_queue_widget_ui import Ui_RunQueueWidget
+from configurun.app.models.run_queue_table_model import RunQueueTableModel
+from configurun.app.ui.run_queue_widget_ui import Ui_RunQueueWidget
 from configurun.classes.run_queue import RunQueueItemStatus
 
 log = logging.getLogger(__name__)

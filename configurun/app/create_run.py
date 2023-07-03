@@ -16,8 +16,8 @@ from configurun.classes.run_queue_client import RunQueueClient
 from configurun.configuration.base_options import BaseOptions
 from configurun.configuration.configuration import Configuration
 from configurun.configuration.configuration_model import ConfigurationModel
-from configurun.windows.main_window import APP_NAME, MainWindow
-from configurun.windows.network_main_window import NetworkMainWindow
+from configurun.app.main_window import APP_NAME, MainWindow
+from configurun.app.network_main_window import NetworkMainWindow
 from configurun.configuration.argparse_to_dataclass import argparse_to_dataclass
 
 log = logging.getLogger(__name__)
@@ -55,7 +55,7 @@ def _get_option_function(option_source:\
 
 
 
-def local_app(
+def run_local(
 		target_function : typing.Callable,
 		options_source : \
 			typing.Callable[[Configuration], typing.Dict[str, typing.Type[BaseOptions] | typing.Type[None]]] | \
@@ -161,7 +161,7 @@ def local_app(
 	main_window.show() #Show the window
 	app.exec()
 
-def client_app(
+def run_client(
 			options_source : \
 				typing.Callable[[Configuration], typing.Dict[str, typing.Type[BaseOptions] | typing.Type[None]]] | \
 				argparse.ArgumentParser | \
@@ -258,7 +258,7 @@ if __name__ == "__main__":
 	from configurun.examples.example_configuration import \
 	    example_deduce_new_option_classes
 	from configurun.examples.example_target_function import example_target_function
-	local_app(
+	run_local(
 		target_function=example_target_function,
 		options_source=example_deduce_new_option_classes,
 		run_queue_n_processes=1,

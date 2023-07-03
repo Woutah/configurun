@@ -13,8 +13,8 @@ from pyside6_utils.utility.catch_show_exception_in_popup_decorator import \
 
 from configurun.classes.run_queue_client import RunQueueClient
 from configurun.configuration.configuration_model import ConfigurationModel
-from configurun.windows.main_window import MainWindow
-from configurun.windows.widgets.network_login_widget import NetworkLoginWidget
+from configurun.app.main_window import MainWindow
+from configurun.app.widgets.network_login_widget import NetworkLoginWidget
 
 log = logging.getLogger(__name__)
 
@@ -210,14 +210,14 @@ def run_example_network_app(log_level : int = logging.INFO) -> None:
 	#pylint: disable=import-outside-toplevel
 	import os
 	import tempfile
-	from configurun.create.app import client_app
+	from configurun.app.create_run import run_client
 	from configurun.examples import example_deduce_new_option_classes
-	from configurun.windows.main_window import APP_NAME
+	from configurun.app.main_window import APP_NAME
 
 	tempdir = tempfile.gettempdir()
 	workspace_path = os.path.join(tempdir, APP_NAME, "Configurun-Client-App-Example")
 
-	client_app(
+	run_client(
 		options_source=example_deduce_new_option_classes,
 		workspace_path=workspace_path,
 		log_level=log_level

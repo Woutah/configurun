@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (QApplication, QHBoxLayout, QHeaderView, QPushButt
     QSizePolicy, QSpacerItem, QToolButton, QVBoxLayout,
     QWidget)
 
-from configurun.windows.views.run_queue_tree_view import RunQueueTreeView
+from configurun.app.views.run_queue_tree_view import RunQueueTreeView
 from pyside6_utils.widgets.square_frame import SquareFrame
 import configurun.res.app_resources_rc
 
