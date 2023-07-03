@@ -27,7 +27,7 @@ def run_argparse_example():
 	import os
 	import tempfile
 
-	from configurun.create import local_app
+	from configurun.create.app import local_app
 	from configurun.windows.main_window import APP_NAME
 
 	tempdir = tempfile.gettempdir()

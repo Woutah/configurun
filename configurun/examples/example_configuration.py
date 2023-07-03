@@ -75,7 +75,7 @@ def run_example_app(log_level=logging.INFO):
 	"""Run an example instance of the Configurun-App using the example run function and example-option-deducer
 	"""
 	# pylint: disable=import-outside-toplevel
-	from configurun.create import \
+	from configurun.create.app import \
 	    local_app
 	import os
 	from configurun.windows.main_window import APP_NAME

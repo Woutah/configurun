@@ -612,7 +612,7 @@ def run_example_server(password : str = "password", port : int = 5454, log_level
 		password (str, optional): The password to connect to the server. Defaults to "password".
 	"""
 	#pylint: disable=import-outside-toplevel
-	from configurun.create import server
+	from configurun.create.server import server
 	import tempfile
 	from configurun.windows.main_window import APP_NAME
 	from configurun.examples.example_target_function import example_target_function

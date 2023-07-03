@@ -1,12 +1,11 @@
 
 """
-Convenience function to quickly create a local or networked app-instance (server/client/both) with the specified
+Convenience functions to quickly create & run local or networked app-instances (client/local_app) with the specified
 target function and option source.
 """
 import argparse
 import logging
 import os
-import signal
 import sys
 import typing
 
@@ -14,7 +13,6 @@ from PySide6 import QtCore, QtWidgets
 
 from configurun.classes.run_queue import RunQueue
 from configurun.classes.run_queue_client import RunQueueClient
-from configurun.classes.run_queue_server import RunQueueServer
 from configurun.configuration.base_options import BaseOptions
 from configurun.configuration.configuration import Configuration
 from configurun.configuration.configuration_model import ConfigurationModel
@@ -72,8 +70,8 @@ def local_app(
 		config_model_kwargs : typing.Optional[typing.Dict[str, typing.Any]] = None,
 
 	):
-	"""Convenience function that constructs a local instance of the app with the specified target function and option
-	source. Workspace path is option, if none is provided, uses '~/Configurun/'.
+	"""Convenience function that creates and runs a local instance of the app with the specified target function and 
+	option source. Workspace path is option, if none is provided, uses '~/Configurun/'.
 
 	Args:
 		target_function (typing.Callable): The target function on which tasks will be run, this function should take
@@ -163,107 +161,7 @@ def local_app(
 	main_window.show() #Show the window
 	app.exec()
 
-
-def _cleanup_server(app : QtCore.QCoreApplication, run_queue_server : RunQueueServer):
-	"""
-	Callback function to, on process end (Ctrl+C), cleanup the server and close the app
-
-	Args:
-		app (QtCore.QCoreApplication): The app in which the server is running
-		run_queue_server (RunQueueServer): The runqueue-server instance
-	"""
-	log.info("Received shutdown signal, now attempting to cleaning up server and close app")
-	run_queue_server.terminate() #Disconnect all, stop running and save progress
-	app.quit()
-
-	log.info("Server cleanup complete, exiting")
-
-def server(
-			target_function : typing.Callable,
-			workspace_path : str = "",
-			run_queue_n_processes : int = 1,
-			password : str = "",
-			hostname : str = "localhost",
-			port : int = 5454,
-			log_level : int = logging.INFO,
-			run_queue_kwargs : typing.Optional[typing.Dict[str, typing.Any]] = None
-		):
-	"""
-	WARNING: RUNNING A SERVER ALLOWS OTHER MACHINES ON THIS NETWORK TO EXECUTE ARBITRARY CODE IF THEY KNOW THE PASSWORD
-	PLEASE RUN THIS IN A TRUSTED NETWORK ENVIRONEMENT. Run at your own risk.
-
-	Convenience function that constructs a local instance of the runqueue-server with the specified target function.
-	It then runs the server in a QtCore app.
-
-	Args:
-		target_function (typing.Callable): The target function on which tasks will be run, this function should take
-			a configuration as the first argument, and the rest of the arguments should be the arguments passed to the
-			```RunQueue._process_queue_item()```-method.
-
-		workspace_path (str, optional): The path to the workspace folder. Attempts to load progress from here, also saves
-			progress to here. Defaults to "". If empty/default, the default workspace folder is used (~/Configurun-server/)
-
-		run_queue_n_processes (int, optional): The number of processes to use in the run queue. Defaults to 1.
-
-		run_queue_kwargs (typing.Dict[str, typing.Any], optional): The keyword arguments passed to the
-			RunQueue constructor. Defaults to {}.
-			Possible kwargs:
-				log_location (str) : The path where the log file should be outputted (should be a folder)
-					if blank, use default location using TEMP folder
-	"""
-	#=========== Initialize logger ===========
-	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}]  {levelname:<7s}   {message}", style='{')
-	handler = logging.StreamHandler()
-	handler.setFormatter(formatter)
-	logging.basicConfig(
-		handlers=[handler],
-		level=log_level) #Without time
-	root_logger = logging.getLogger()
-	root_logger.setLevel(log_level)
-
-
-
-	if run_queue_kwargs is None:
-		run_queue_kwargs = {}
-
-	assert len(password) > 0, "Password for server cannot be empty"
-
-	if workspace_path == "" or workspace_path is None:
-		workspace_path = os.path.join(os.path.expanduser("~"), APP_NAME+"-Server")
-		log.info(f"No workspace path provided, using default: {workspace_path}")
-
-	os.makedirs(workspace_path, exist_ok=True) #Create the workspace folder if it does not exist yet
-	QtCore.QDir.setCurrent(workspace_path) #Set the current working directory to the workspace path
-
-
-	runqueue = RunQueue(
-		target_function=target_function,
-		n_processes=run_queue_n_processes,
-		log_location=os.path.join(workspace_path, "logs"),
-		**run_queue_kwargs
-	)
-
-	run_queue_server = RunQueueServer(
-			run_queue=runqueue,
-			password=password,
-			hostname=hostname,
-			port=port,
-			workspace_path=workspace_path
-	)
-
-	app = QtCore.QCoreApplication(sys.argv) #Run the main event-loop (used for signals)
-	#Create a runqueue client to run the runqueue in
-	run_queue_server.run()
-	log.info("Server started, listening for client connections...")
-
-	timer = QtCore.QTimer()
-	timer.start(500)
-	timer.timeout.connect(lambda: None)  # Let the interpreter run each 500 ms to catch signals
-	signal.signal(signal.SIGINT, lambda *_: _cleanup_server(app, run_queue_server)) #Cleanup on Ctrl+C
-	app.exec()
-
-
-def client(
+def client_app(
 			options_source : \
 				typing.Callable[[Configuration], typing.Dict[str, typing.Type[BaseOptions] | typing.Type[None]]] | \
 				argparse.ArgumentParser | \
@@ -275,31 +173,36 @@ def client(
 		):
 
 	"""
-	options_source (typing.Callable[[Configuration], typing.Dict[str, typing.Type[BaseOptions]
-			|  typing.Type[None]]]
-			|, optional):
-		The source of the options in the ui. This can either be:
-			- A function returning a dict of option (dataclass) objects,
-			- A single BaseOptions object
-			- An argparse.ArgumentParser object
-		Defaults to None.
+	Convenience function that creates and runs a client instance of the app with the specified option source. 
+	Differs from local_app in that no target_function is provided as this should be provided on the server-side.
+	Workspace path is optional, if none is provided, uses '~/Configurun/'.
 
-	workspace_path (str, optional): The path to the workspace folder. Attempts to load progress from here, also saves
-		configs/logs/settings to here. Defaults to "". If empty/default, the default workspace folder is used
-		(~/Configurun-Client/)
+	Args:
+		options_source (typing.Callable[[Configuration], typing.Dict[str, typing.Type[BaseOptions]
+				|  typing.Type[None]]]
+				|, optional):
+			The source of the options in the ui. This can either be:
+				- A function returning a dict of option (dataclass) objects,
+				- A single BaseOptions object
+				- An argparse.ArgumentParser object
+			Defaults to None.
 
-	create_workspace_path (bool, optional): Whether to create the workspace path if it does not exist.
-		Defaults to True.
+		workspace_path (str, optional): The path to the workspace folder. Attempts to load progress from here, also saves
+			configs/logs/settings to here. Defaults to "". If empty/default, the default workspace folder is used
+			(~/Configurun-Client/)
 
-	config_model_kwargs (typing.Dict[str, typing.Any], optional): The keyword arguments passed to the
-		ConfigurationModel constructor. Defaults to {}.
-		E.g.:
-		- use_cache (bool): Whether to use the cache or not to temporarily save configurations. This makes it so
-			option-group settings are remembered when switching back/forth (for example between 2 model-options).
-			Defaults to True. If true undo_stack is also used
-		- use_undo_stack (bool): Whether to use the undo stack or not. Defaults to True
+		create_workspace_path (bool, optional): Whether to create the workspace path if it does not exist.
+			Defaults to True.
 
-	log_level (int, optional): The log level to use. Defaults to logging.INFO
+		config_model_kwargs (typing.Dict[str, typing.Any], optional): The keyword arguments passed to the
+			ConfigurationModel constructor. Defaults to {}.
+			E.g.:
+			- use_cache (bool): Whether to use the cache or not to temporarily save configurations. This makes it so
+				option-group settings are remembered when switching back/forth (for example between 2 model-options).
+				Defaults to True. If true undo_stack is also used
+			- use_undo_stack (bool): Whether to use the undo stack or not. Defaults to True
+
+		log_level (int, optional): The log level to use. Defaults to logging.INFO
 	"""
 	#=========== Initialize logger ===========
 	formatter = logging.Formatter("[{pathname:>90s}:{lineno:<4}]  {levelname:<7s}   {message}", style='{')
@@ -348,6 +251,8 @@ def client(
 
 	main_window.show() #Show the window
 	app.exec()
+
+
 
 if __name__ == "__main__":
 	from configurun.examples.example_configuration import \

@@ -953,7 +953,7 @@ def run_example_local_app(log_level : int=logging.INFO):
 	from configurun.examples.example_target_function import example_target_function
 	from configurun.examples.example_configuration import example_deduce_new_option_classes
 	import tempfile
-	from configurun.create import local_app
+	from configurun.create.app import local_app
 
 	tempdir = tempfile.gettempdir()
 	workspace_path = os.path.join(tempdir, APP_NAME, "Configurun-Local-Example")

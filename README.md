@@ -127,11 +127,11 @@ We can create a client-app and use it to login to running [server](#server-insta
 # Opens a client-side app that we can use to connect to and control
 # the server-instance
 import os
-from configurun.create import client
+from configurun.create import client_app
 from configurun.examples import example_deduce_new_option_classes
 
 if __name__ == "__main__":
-	client(
+	client_app(
 		options_source=example_deduce_new_option_classes,
 		workspace_path=os.path.join(os.getcwd(), "ClientExampleWorkspace"),
 	)

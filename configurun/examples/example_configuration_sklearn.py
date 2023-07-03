@@ -56,7 +56,7 @@ def run_sklearn_example(log_level : int = logging.INFO):
 	# pylint: disable=import-outside-toplevel
 	import os
 	import tempfile
-	from configurun.create import local_app
+	from configurun.create.app import local_app
 	from configurun.examples.example_target_function import example_target_function
 	from configurun.windows.main_window import APP_NAME
 	log.info("Starting the example implementation, including Sklearn models")
