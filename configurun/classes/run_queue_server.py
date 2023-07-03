@@ -614,10 +614,9 @@ def run_example_server(password : str = "password", port : int = 5454, log_level
 	#pylint: disable=import-outside-toplevel
 	from configurun.create.server import server
 	import tempfile
-	from configurun.windows.main_window import APP_NAME
 	from configurun.examples.example_target_function import example_target_function
 	tempdir = tempfile.gettempdir()
-	workspace_path = os.path.join(tempdir, APP_NAME, "Configurun-Server-Example")
+	workspace_path = os.path.join(tempdir, "Configurun", "Configurun-Server-Example")
 
 	server(
 		target_function=example_target_function,
