@@ -616,8 +616,9 @@ class MainWindow():
 			if not self._ask_overwrite_unsaved_changes():
 				return
 
-			self._config_file_picker_model.set_highlight_using_path(self._cur_file_path) #Hightlight path -> original
-			return
+			# self._config_file_picker_model.set_highlight_using_path(self._cur_file_path) #Hightlight path -> original
+			self.set_source(OptionsSource.FILE)
+			self._cur_file_path = None
 
 		self.window.setWindowModified(False)
 		self._cur_file_path = None
