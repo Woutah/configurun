@@ -156,7 +156,7 @@ if __name__ == "__main__":
 	# TO EXECUTE ARBITRARY CODE ON THIS MACHINE IF THEY KNOW THE
 	# PASSWORD. PLEASE RUN IN A TRUSTED NETWORK ENVIRONMENT ONLY
 	# RUN AT YOUR OWN RISK!
-	server(
+	run_server(
 		target_function=example_target_function,
 		workspace_path=os.path.join(os.getcwd(), "ServerExampleWorkspace"),
 		password="password", #Password to connect to the server, make sure to change this!

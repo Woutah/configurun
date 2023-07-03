@@ -24,7 +24,7 @@ def _cleanup_server(run_queue_server : RunQueueServer):
 
 	log.info("Server cleanup complete, exiting")
 
-def server(
+def run_server(
 			target_function : typing.Callable,
 			workspace_path : str = "",
 			run_queue_n_processes : int = 1,

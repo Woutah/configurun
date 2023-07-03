@@ -612,13 +612,13 @@ def run_example_server(password : str = "password", port : int = 5454, log_level
 		password (str, optional): The password to connect to the server. Defaults to "password".
 	"""
 	#pylint: disable=import-outside-toplevel
-	from configurun.create.server import server
+	from configurun.server.create_server import run_server
 	import tempfile
 	from configurun.examples.example_target_function import example_target_function
 	tempdir = tempfile.gettempdir()
 	workspace_path = os.path.join(tempdir, "Configurun", "Configurun-Server-Example")
 
-	server(
+	run_server(
 		target_function=example_target_function,
 		workspace_path=workspace_path,
 		password=password,
