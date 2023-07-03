@@ -16,7 +16,7 @@ import dill
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
-from PySide6 import QtCore
+import PySignal
 
 from configurun.classes.run_queue import (WORKSPACE_RUN_QUEUE_SAVE_NAME,
                                           RunQueue, WorkspaceInUseException)
@@ -121,9 +121,9 @@ class RunQueueServer():
 
 
 		#============= Manage signal-triggered events =============
-		#Go over all signal (QtCore.Signal) and link them to emit_signal
 		for signal_name in self._run_queue.__class__.__dict__:
-			if isinstance(self._run_queue.__class__.__dict__[signal_name], QtCore.Signal):
+			# if isinstance(self._run_queue.__class__.__dict__[signal_name], QtCore.Signal): #Previous version used qt
+			if isinstance(self._run_queue.__class__.__dict__[signal_name], PySignal.ClassSignal): #Use pysignal for server-side
 				target_signal = getattr(self._run_queue, signal_name)
 				target_signal.connect(lambda *args, signal_name=signal_name: self.emit_signal(signal_name, *args))
 

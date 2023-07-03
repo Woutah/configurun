@@ -20,7 +20,7 @@ import dill
 import multiprocess  # NOTE: we use multiprocess instead of multiprocessing because it allows more flexibility in pickling
 import multiprocess.managers as managers  # Same here, use multiprocess
 import multiprocess.queues
-from PySide6 import QtCore
+# from PySide6 import QtCore
 
 from configurun.configuration.configuration_model import Configuration
 
@@ -259,7 +259,7 @@ class CommandlineQueueEmitter():
 				self.stop_flag = True
 
 
-class RunQueue(QtCore.QObject):
+class RunQueue():
 	"""
 	A class in which we can queue configurations to run tasks. The Configurations are ran in separate processes.
 	We can turn on automatic processing, which will automatically start processing items in the queue if the number
@@ -267,25 +267,49 @@ class RunQueue(QtCore.QObject):
 
 	TODO: We should also be able to manually start processing items in the queue.
 	"""
-	queueChanged = QtCore.Signal(object) #Emits a snapshot of the current queue when the queue changes (list of ints)
-	# runListChanged = QtCore.Signal(object) #Emits a snapshot of the all_list when the all_list changes
+
+
+	######################### OLD PYSIDE 6 VERSION #########################
+	# queueChanged = QtCore.Signal(object) #Emits a snapshot of the current queue when the queue changes (list of ints)
+	# # runListChanged = QtCore.Signal(object) #Emits a snapshot of the all_list when the all_list changes
+	# # 		# type is (typing.Dict[int, RunQueueItem])
+	# allItemsDictInsertion = QtCore.Signal(list, object) #Emits a list of id(s) and the new item-dict when new item(s) are
+	# 	# inserted we can utilize this in qt-models to update (Tree/Table) models by just inserting rows instead of resetting
+	# allItemsDictRemoval = QtCore.Signal(list, object) #Emits a list of id(s) and the new all_dict when item(s) is/are
+	# 	# removed we can utilize this in qt-models to update (Tree/Table) models by just removing rows instead of resetting
+
+	# itemDataChanged = QtCore.Signal(int, object) #Emits an id with the new RunQueueItem when a single item in the
+	# 		# all_dict has been changed
+
+	# queueRunStateChanged = QtCore.Signal(bool) #True if the queue is running, False if it is no longer running
+	# autoProcessingStateChanged = QtCore.Signal(bool) #Emits True if autoprocessing is enabled, False if it is disabled
+
+	# #TODO: implement a thread that keeps watch of a separate thread in which a queue with log-updates is processed
+	# newCommandLineOutput = QtCore.Signal(int, str, str, datetime, int, str) #id, name, output_path, dt, filepos, new_msg
+	# currentlyRunningIdsChanged = QtCore.Signal(object) #Emits a list of ids that are currently running
+	# resetTriggered = QtCore.Signal() #Emitted when the queue is reset (indicates that all models should be reset)
+	####################################################################################
+	
+
+	############################New version without pyside6 dependency#######################
+	queueChanged = PySignal.ClassSignal() #Emits a snapshot of the current queue when the queue changes (list of ints)
+	# runListChanged = PySignal.ClassSignal(object) #Emits a snapshot of the all_list when the all_list changes
 	# 		# type is (typing.Dict[int, RunQueueItem])
-	allItemsDictInsertion = QtCore.Signal(list, object) #Emits a list of id(s) and the new item-dict when new item(s) are
+	allItemsDictInsertion = PySignal.ClassSignal() #Emits a list of id(s) and the new item-dict when new item(s) are
 		# inserted we can utilize this in qt-models to update (Tree/Table) models by just inserting rows instead of resetting
-	allItemsDictRemoval = QtCore.Signal(list, object) #Emits a list of id(s) and the new all_dict when item(s) is/are
+	allItemsDictRemoval = PySignal.ClassSignal() #Emits a list of id(s) and the new all_dict when item(s) is/are
 		# removed we can utilize this in qt-models to update (Tree/Table) models by just removing rows instead of resetting
 
-	itemDataChanged = QtCore.Signal(int, object) #Emits an id with the new RunQueueItem when a single item in the
+	itemDataChanged = PySignal.ClassSignal() #Emits an id with the new RunQueueItem when a single item in the
 			# all_dict has been changed
 
-	queueRunStateChanged = QtCore.Signal(bool) #True if the queue is running, False if it is no longer running
-	autoProcessingStateChanged = QtCore.Signal(bool) #Emits True if autoprocessing is enabled, False if it is disabled
+	queueRunStateChanged = PySignal.ClassSignal() #True if the queue is running, False if it is no longer running
+	autoProcessingStateChanged = PySignal.ClassSignal() #Emits True if autoprocessing is enabled, False if it is disabled
 
 	#TODO: implement a thread that keeps watch of a separate thread in which a queue with log-updates is processed
-	newCommandLineOutput = QtCore.Signal(int, str, str, datetime, int, str) #id, name, output_path, dt, filepos, new_msg
-	currentlyRunningIdsChanged = QtCore.Signal(object) #Emits a list of ids that are currently running
-
-	resetTriggered = QtCore.Signal() #Emitted when the queue is reset (indicates that all models should be reset)
+	newCommandLineOutput = PySignal.ClassSignal() #int, str, str, datetime, int, str = id, name, output_path, dt, filepos, new_msg
+	currentlyRunningIdsChanged = PySignal.ClassSignal() #Emits a list of ids that are currently running
+	resetTriggered = PySignal.ClassSignal() #Emitted when the queue is reset (indicates that all models should be reset)
 
 	def __init__(self,
 	      		target_function : typing.Callable[[Configuration], typing.Any],

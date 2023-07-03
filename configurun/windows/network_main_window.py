@@ -64,6 +64,7 @@ class NetworkMainWindow(MainWindow):
 
 		# assert(type(self._run_queue) == RunQueueClient) #Make sure we're using the right type of queue
 		self._run_queue : RunQueueClient = self._run_queue #For Type hinting
+		assert(isinstance(self._run_queue, RunQueueClient)) #Make sure we're using the right type of queue
 
 		#=================== Network UI ======================
 		self.reconnect_button_1, self._task_queue_overlay_msg = self.get_connection_overlay_ui()

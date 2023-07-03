@@ -8,6 +8,7 @@ import socket
 import threading
 import traceback
 
+import PySignal
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 from PySide6 import QtCore
@@ -23,19 +24,29 @@ from configurun.classes.run_queue_datatypes import (
 
 log = logging.getLogger(__name__)
 
+# NOTE: old version using pyside6-signals
+# def get_pyqt_signal_names(the_object : type) -> list[QtCore.SignalInstance]:
+# 	"""
+# 	Get all PySide6.QtCore.signals of an arbitrary object (by name)
+# 	"""
+# 	signals = []
 
-def get_pyqt_signal_names(the_object : type) -> list[QtCore.SignalInstance]:
+# 	for signal_name in the_object.__dict__:
+# 		if isinstance(the_object.__dict__[signal_name], QtCore.Signal):
+# 			signals.append(signal_name)
+# 	return signals
+
+def get_pysignal_names(the_object : type) -> list[PySignal.ClassSignal]:
 	"""
-	Get all PySide6.QtCore.signals of an arbitrary object (by name)
+	Get all PySignal.ClassSignal instances of an arbitrary object (by name)	
 	"""
 	signals = []
-
 	for signal_name in the_object.__dict__:
-		if isinstance(the_object.__dict__[signal_name], QtCore.Signal):
+		if isinstance(the_object.__dict__[signal_name], PySignal.ClassSignal):
 			signals.append(signal_name)
-
-
 	return signals
+
+
 
 def no_function(*args, **kwargs): #pylint: disable=unused-argument
 	"""Dummy function that does nothing"""
@@ -44,10 +55,13 @@ def no_function(*args, **kwargs): #pylint: disable=unused-argument
 class NoAuthenticatedConnectionException(Exception):
 	"""Exception raised when a function is called on a RunQueueClient that is not connected to a server"""
 
-class RunQueueClient(RunQueue,
-		    metaclass=MethodCallInterceptedMeta,
-			intercept_list=get_class_implemented_methods(RunQueue),
-			skip_intercept_list=get_pyqt_signal_names(RunQueue)):
+class RunQueueClient(
+		RunQueue,
+		QtCore.QObject, #Native pyside6-signal support
+		metaclass=MethodCallInterceptedMeta,
+		intercept_list=get_class_implemented_methods(RunQueue),
+		skip_intercept_list=get_pysignal_names(RunQueue)
+	):
 	"""
 	Each clients acts as if it is a runQueue - connecting to a server on which the actual runQueue is running.
 	Each function of the runQueue is intercepted by this class and sent to the server (except the signals).
@@ -179,7 +193,9 @@ class RunQueueClient(RunQueue,
 		return_queue = self._method_response_dict[function_response_id]
 		try:
 			ret = return_queue.get(block=True, timeout=timeout)
-			log.info(f"Received response from server for method call with id {function_response_id}, response: {ret}")
+			log.info(f"Received response from server for method call with id {function_response_id}, response: {ret} "
+	    		f"of type {type(ret)}"
+			)
 		except (TimeoutError, queue.Empty) as exception: #If the queue is empty, then the server did not respond in time
 			raise TimeoutError(f"Timeout while waiting ({timeout}s) for response of method call with \
 		    	id {function_response_id}") from exception
@@ -378,12 +394,12 @@ class RunQueueClient(RunQueue,
 							signal_name, args = unpickled_data[1]
 
 							#Get signal by name
-							signal : QtCore.SignalInstance = getattr(self, signal_name)
+							signal : PySignal.Signal = getattr(self, signal_name) #NOT QT SIGNAL (actually classignal)
 							log.debug(
 								f"Received signal {signal_name} from server - resulting in a re-transmit of signal"
 									f"{signal} of type {type(signal)}"
 							)
-							assert isinstance(signal, QtCore.SignalInstance)
+							assert isinstance(signal, PySignal.Signal)
 							#Emit the signal
 							signal.emit(*args) #type: ignore
 						else:
