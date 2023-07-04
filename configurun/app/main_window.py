@@ -732,8 +732,8 @@ class MainWindow():
 							txt += f"<li><b>{type(exception).__name__}</b>: {exception}</li>"
 						txt += "</ul><br>"
 
-					txt += ("The settings have been loaded anyway, but running them as-is might result in"
-						"unexpected behaviour. This could be the result of a change in the settings format, or due to"
+					txt += ("The settings have been loaded anyway, but running them as-is might result in "
+						"unexpected behaviour. This could be the result of a change in the settings format, or due to "
 						"file corruption.")
 					msg.setInformativeText(txt)
 					msg.setDetailedText(str(problem_dict))

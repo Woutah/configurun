@@ -394,9 +394,11 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 
 		#Add non-existing options to problem dict
 		for option_groupname in option_keys - loaded_options:
+			if option_groupname not in problem_dict:
+				problem_dict[option_groupname] = []
 			problem_dict[option_groupname] += [KeyError(
-				f"Was not able to load <{option_groupname}> by deducing option-classtypes. All settings in this option-group were"
-				f"discarded(!).")]
+				f"Was not able to load <{option_groupname}> by deducing option-classtypes. All settings in this "
+				f"  option-group were discarded(!). Is this group missing from the loaded file?")]
 
 		self.reload_all_dataclass_models() #Update all linked proxymodels to reflect the new dataclass instances
 		self.proxyModelDictChanged.emit(self._option_proxy_model_dict) #Just emit signal, assume that changes were made
