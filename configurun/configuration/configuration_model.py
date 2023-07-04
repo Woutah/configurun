@@ -237,16 +237,19 @@ class ConfigurationModel(QtCore.QObject): #TODO: Also inherit from ABC to make s
 					self._cached_option_instances.get(option_class, option_class()) #Try cache, then create new instance
 			else:
 				self._configuration.options[option_name] = None
-
-			new_model = DataclassModel(self._configuration.options[option_name], undo_stack=self.undo_stack)
+			
+			if self._configuration.options[option_name] is not None:
+				new_model = DataclassModel(self._configuration.options[option_name], undo_stack=self.undo_stack)
+				#TODO: if ANY of the models change, this signal is emitted. Might not be neccesary in most cases (e.g.)
+				# Main options might update the model options, but not the other way around. Maybe use a list of
+				# option-groups for which we monitor changes, and only emit the signal if one of those changes.
+				new_model.dataChanged.connect(self.update_sub_options)
+			else:
+				new_model = None
 			self._option_proxy_model_dict[option_name].setSourceModel(
 				new_model
 			) #Set the new option-model
 
-			#TODO: if ANY of the models change, this signal is emitted. Might not be neccesary in most cases (e.g.)
-			# Main options might update the model options, but not the other way around. Maybe use a list of
-			# option-groups for which we monitor changes, and only emit the signal if one of those changes.
-			new_model.dataChanged.connect(self.update_sub_options)
 
 
 		#======= Sort the keys of the proxy model according to the received order ============
