@@ -31,6 +31,9 @@ This package was created in tandem with [pyside6-utils](https://github.com/Wouta
 - [Target Function](#target-function)
 - [Configuration](#configuration)
 - [Option metadata](#option-metadata)
+- [SSH-tunneling](#ssh-tunneling)
+	- [No-hop](#no-hop)
+	- [Hopping](#hopping)
 
 # Features
 
@@ -186,7 +189,7 @@ import os
 import typing
 from dataclasses import dataclass
 from configurun.configuration.base_options import BaseOptions
-from configurun.create import local_app
+from configurun.app import run_local
 from configurun.examples import example_target_function
 
 
@@ -197,7 +200,7 @@ class MyCustomOptions(BaseOptions): #Always inherit from BaseOptions (required t
 	# etc...
 
 if __name__ == "__main__":
-	local_app(
+	run_local(
 		target_function=example_target_function,
 		options_source=MyCustomOptions, #Simple: each configuration consists of a single options-class
 		workspace_path = os.path.join(os.getcwd(), "ExampleDataclassOptions")
@@ -213,7 +216,7 @@ We can use a `ArgumentParser`-object as an options source, this will internally 
 ```python
 import argparse
 import os
-from configurun.create import local_app
+from configurun.app import run_local
 from configurun.examples import example_target_function
 
 parser = argparse.ArgumentParser()
@@ -221,7 +224,7 @@ parser.add_argument("--required_arg", type=str, required=True, help="Required ar
 #... add more arguments here
 
 if __name__ == "__main__":
-	local_app(
+	run_local(
 		target_function=example_target_function,
 		options_source=parser, #Parser is converted internally to a dataclass-class which is used as the options-class
 		workspace_path = os.path.join(os.getcwd(), "ExampleArgparseOptions")
@@ -229,10 +232,9 @@ if __name__ == "__main__":
 ```
 
 ## Custom Options (`Callable`)
-
-A configuration is a collection of option-instances, which are grouped toghether in a `Configuration`-wrapper, which enables us to access the attributes of all enclosed options-instances using the `configuration[attribute]` / `configuration.<attribute>` / `option_class.get(attribute, default)`. For more information, see [this section](#configuration).
-
 We define an `option`-class as a class that has the `@decorator` and inherits from the `BaseOptions`-class.
+
+A configuration is a collection of option-instances, which are grouped toghether in a [`Configuration()`](#configuration)-wrapper, which enables us to access the attributes of all enclosed options-instances using the `configuration[attribute]` / `configuration.<attribute>` / `option_class.get(attribute, default)`. For more information, see [this section](#configuration).
 
 As an options-source, we can create a callable which takes the current Configuration-instance as an argument and returns 1 or more new options-classes (***not** instances*) which is called every time a setting is changed. If the types-change, the UI will be updated to reflect the new templates.
 This can be useful if we want to group options together, and only show certain groups when an attribute of another group is set to a certain value. For example:
@@ -243,7 +245,7 @@ This can be useful if we want to group options together, and only show certain g
 import os
 import typing
 from dataclasses import dataclass
-from configurun.create import local_app
+from configurun.app import run_local
 from configurun.examples import example_target_function
 from configurun.configuration import BaseOptions, Configuration
 
@@ -283,7 +285,7 @@ def deduce_new_option_classes(configuration: Configuration)\
 	} #NOTE: we must ALWAYS return a dictionary with at least 1 option class
 
 if __name__ == '__main__':
-	local_app(
+	run_local(
 		target_function=example_target_function,
 		options_source=deduce_new_option_classes,
 		workspace_path = os.path.join(os.getcwd(), "ExampleCallableOptions")
@@ -294,8 +296,8 @@ if __name__ == '__main__':
 # Target Function
 
 The target function is the function that does all the work. This is the function that is being called when an item starts "running" in the Run-Queue.
-It takes a single argument: a [`Configuration`-instance](#configuration) - instance.
-The configuration-object contains all settings as set by the user when "add to queue" was pressed.
+It takes a single argument: a [`Configuration`-instance](#configuration).
+The configuration-object contains all settings as set by the user when "add to queue" was pressed. 
 
 This example uses the example-configuration from [the Configuration section](#configuration), we simply print the values of the configuration to the console:
 
@@ -307,7 +309,7 @@ def target_function(configuration: Configuration):
 	#etc.
 ```
 
-If you have replaced an `argparse.Argumentparser` in the previous example, this is the place where you insert the user-provided settings to the script that uses the `ArgumentParser`-object. For example:
+If you have replaced an `argparse.Argumentparser`, this is the place where you insert the user-provided settings to the script that uses the `ArgumentParser`-object. For example:
 
 ```python
 # parsed_args = parser.parse_args() #will be done by user in UI
@@ -433,7 +435,7 @@ The following metadata-keys are supported:
 | `Options` / `Container` | The value should be one of the options provided in the constraint | `QComboBox` |
 | `StrOptions` | The value should be one of the str-options provided in the constraint | `QComboBox` |
 | `Interval` | The value should be within the interval provided in the constraint | `QSpinBox` or `QDoubleSpinBox` (limited) |
-| `None` | `None` is a valid value for this field `typing.Optional` | Adds reset-button to editor |
+| `None` | `None` is a valid value for this field, same as `typing.Optional` | Adds reset-button to editor |
 | `Range` | The value should be within the range provided in the constraint | `QSpinBox` (limited) |
 | `ConstrainedList` | [*(Custom - not part of Sklearn)](#constrainedlist) Indicates a list of of values of a constrained type | Based on type of list |
 
@@ -442,3 +444,35 @@ The following metadata-keys are supported:
 	<img src="https://github.com/Woutah/pyside6-utils/blob/main/pyside6_utils/examples/images/string_float_list_example.png?raw=True" width="300" />
 	<!-- <img src="./pyside6_utils/examples/images/string_float_list_example.png" width=300/> -->
 </p>
+
+# SSH-tunneling
+
+This section contains a quick tutorial on how to use SSH-tunnels to connect to a remote server-instance in case we're not running client and server on the same machine/network.
+
+## No-hop
+
+A SSH-tunnel can be used to forward `localhost:5454` on the client-instance-side to `<remote>:5454` on the server side so we connect to the server instance without opening up any ports on the server-side.
+If we can directly SSH into the target machine, we can connect the ports as follows (assuming we're using the default `5454`-port in both the server and client configuration):
+
+```bash
+ssh -L 5454:localhost:5454 user@remote_host
+```
+
+On the client-side, we can then connect to the server-instance by using `localhost:5454` as the host and the password we set in the server-instance.
+
+## Hopping
+
+If we cannot directly access the remote-machine, we can use a 2-step SSH-tunnel to connect to the server-instance.
+This example assumes we have:
+
+- `remote1`: directly accessible from our machine
+- `remote2`: only accessible from `remote1`
+- Using default Configurun-port `5454` on both the client and server-side
+
+We can then connect to `remote2` from our machine using the following command:
+
+```bash
+ssh -L 5454:localhost:61521 <username>@<remote1-ip> ssh -L 61521:localhost:5454 -N <remote2-ip>
+```
+
+This example forwards `localhost:5454`->`remote1:61521`->`remote2:5454`, so we can connect to the server-instance on `remote2` by using `localhost:5454` as the host and the password we set in the server-instance.
