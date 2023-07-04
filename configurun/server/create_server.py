@@ -87,18 +87,26 @@ def run_server(
 		**run_queue_kwargs
 	)
 
-	run_queue_server = RunQueueServer(
-			run_queue=runqueue,
-			password=password,
-			hostname=hostname,
-			port=port,
-			workspace_path=workspace_path
-	)
-	run_queue_server.run()
-	log.info("Server started, listening for client connections...")
-	while True:
-		try:
-			time.sleep(1)
-		except KeyboardInterrupt:
+	run_queue_server = None
+	try:
+		run_queue_server = RunQueueServer(
+				run_queue=runqueue,
+				password=password,
+				hostname=hostname,
+				port=port,
+				workspace_path=workspace_path
+		)
+		run_queue_server.run()
+		log.info("Server started, listening for client connections...")
+		while True:
+				time.sleep(1)
+
+	except KeyboardInterrupt:
+		log.info("Received keyboard interrupt, now attempting to cleanup server and close app...")
+	except Exception as e:
+		log.exception(f"{type(e).__name__}: {e}")
+		log.info("Due to the above unhandled exception, now attempting to cleanup server and close app...")
+	finally:
+		if run_queue_server:
 			_cleanup_server(run_queue_server)
-			break
+		exit(0)
