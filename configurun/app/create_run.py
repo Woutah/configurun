@@ -251,6 +251,7 @@ def run_client(
 
 	main_window.show() #Show the window
 	app.exec()
+	exit(0)
 
 
 

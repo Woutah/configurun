@@ -11,7 +11,6 @@ import traceback
 import PySignal
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
-import PySignal
 
 from configurun.classes.method_call_interceptor import (
     MethodCallInterceptedMeta, get_class_implemented_methods)
@@ -90,8 +89,6 @@ class RunQueueClient(
 
 		#Created based on the session key received from the server
 		self._listen_thread = None
-
-		self._test_thread = None
 		self._aes_session_key = None
 
 		# self._method_return_queue = queue.Queue() #When the server responds - the listener thread will put the
@@ -331,10 +328,6 @@ class RunQueueClient(
 			#Just pass on the exception
 			self.disconnect_clean_server() #Clean up
 			raise exception
-
-		# self._test_thread = threading.Thread(target=self._send_to_server)
-		# self._test_thread.start()
-
 
 
 	def _listen_to_server(self):
