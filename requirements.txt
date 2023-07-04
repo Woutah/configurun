@@ -1,4 +1,4 @@
-#Generated using pipreqs
+#Generated using pipreqs - Added exact versions used when testing
 PySide6==6.5.1.1
 pathos>=0.3.0
 setuptools>=65.0.0
@@ -7,5 +7,5 @@ multiprocess==0.70.14
 numpydoc==1.5.0
 pycryptodome==3.18.0
 scikit_learn==1.2.0 #NOTE: only if we want to run the sklearn example
-pyside6-utils==1.1.0
+pyside6-utils==1.2.0
 
