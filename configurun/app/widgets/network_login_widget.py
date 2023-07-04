@@ -25,12 +25,11 @@ class NetworkLoginWidget(QtWidgets.QWidget):
 		self._ui = Ui_NetworkLoginWidget()
 		self._ui.setupUi(widget)
 		self._settings = settings
-
 		self.server_ip_history : list[str] = self._settings.value("server_ip_history", None) # type: ignore
 		self.server_port_history : list[str] = self._settings.value("server_port_history", None) # type: ignore
-		if self.server_ip_history is None:
+		if self.server_ip_history is None or not isinstance(self.server_ip_history, list):
 			self.server_ip_history = []
-		if self.server_port_history is None:
+		if self.server_port_history is None or not isinstance(self.server_port_history, list):
 			self.server_port_history = []
 		assert isinstance(self.server_ip_history, list)
 		assert isinstance(self.server_port_history, list)
