@@ -4,7 +4,7 @@ Implements several option-dataclasses to show how to use this framework.
 import typing
 from dataclasses import dataclass, field
 
-from pyside6_utils.classes.constraints import (Interval, StrOptions)
+from pyside6_utils.classes.constraints import (Interval, StrOptions, ConstrainedList)
 
 from configurun.configuration.base_options import BaseOptions
 
@@ -18,7 +18,17 @@ class ExampleDatasetOptions(BaseOptions):
 			display_name="Dataset Name",
 			help="Name of the dataset to be used, is used for logging purposes and keeping track of the results",
 			constraints = [str, None]
+		)
 	)
+
+
+	indexes : typing.List[int] | None = field(
+		default=None,
+		metadata=dict(
+			display_name="Indexes",
+			help="Indexes of the dataset to be used (list of ints > 0)",
+			constraints = [ConstrainedList([Interval(int, 0, None, closed='both')]), None]
+		)
 	)
 
 
@@ -85,13 +95,13 @@ class ExampleDatasetOptions(BaseOptions):
 @dataclass
 class ExtendedExampleDatasetOptions(ExampleDatasetOptions):
 	"""Extends the example dataset options with some more options"""
-	labels : str | None = field(
+	labels : typing.List[str] | None = field(
 		default=None,
 		metadata=dict(
 			display_name="Labels",
 			help=("In case a dataset contains several labels (multi-task), "
 				   "which type of labels should be used in regression or classification, the name of column(s)."),
-			constraints = [str, None] #TODO: list of strings?
+			constraints = [ConstrainedList([str]), None] #TODO: list of strings?
 	))
 	normalization : typing.Literal['standardization', 'minmax', 'per_sample_std', 'per_sample_minmax'] = field(
 		default='standardization',
@@ -149,8 +159,6 @@ class ExampleGeneralOptions(BaseOptions):
 		)
 	)
 
-
-
 	print_interval : int = field(
 		default=1,
 		metadata=dict(
@@ -159,11 +167,12 @@ class ExampleGeneralOptions(BaseOptions):
 		)
 	)
 
-	gpu_index : str =  field(
-		default='0',
+	gpu_indexes : typing.List[int] | None = field(
+		default=None,
 		metadata=dict(
-			display_name="GPU Index",
-			help="GPU index"
+			display_name="GPU indexes",
+			help="Indexes of the videocards to use - None for CPU, -1 for all",
+			constraints = [ConstrainedList([Interval(int, -1, None, closed='both')]), None]
 		)
 	)
 

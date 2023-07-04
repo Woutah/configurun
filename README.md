@@ -387,7 +387,7 @@ print(config.get('some_other_int', -1)))
 # Option metadata
 
 The UI is mainly built around the [`field()`](https://docs.python.org/3/library/dataclasses.html#dataclasses.field) functionality of python-`dataclass`, which allows the display-model to make use of the default values, type hints and other information.
-For each attribute in our `option`-definition, we can provide additional information in the `metadata` attribute of `field()`. This additional information is used to determine the editor-type, constraints etc. <br>
+While typehints (e.g. `int`, `str`, `typing.List[int]`, etc.) are enough to create the editors, we can also provide additional information in the `metadata`-attribute of `field()` to further constrain the editors and provide additional information to the user. <br>
 
 For example:
 
@@ -395,11 +395,11 @@ For example:
 from configurun.configuration import base_options
 from dataclasses import field, dataclass
 #Used to constrain the editors: (can also be imported from sklearn)
-from pyside6_utils.classes.constraints import Interval
+from pyside6_utils.classes.constraints import Interval, ConstrainedList
 
 @dataclass
 class TestOptions(BaseOptions):
-	test_int_property : int | None = field(
+	test_int_list_property : typing.List[int] | None = field(
 		default=None, #The default value used in the UI
 		metadata=dict( #Contains additional information for the UI
 			display_name="Test property", #The display-name
@@ -407,7 +407,7 @@ class TestOptions(BaseOptions):
 			required=True, #If required, the field is red if not filled in
 			constraints = [ #Limit editors (min/max, options, etc.)
 				#The following constrains the editor to have value > 1
-				Interval(type=int, left=1, right=None, closed="both"),
+				ConstrainedList([Interval(type=int, left=1, right=None, closed="both")]),
 				None #Or value can be None
 			]
 			# etc...
