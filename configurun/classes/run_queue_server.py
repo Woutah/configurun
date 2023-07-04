@@ -92,13 +92,7 @@ class RunQueueServer():
 
 		self._initial_run_queue_load() #Load the run-queue from the workspace- might ask for user input if problem arises
 
-		self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		used_host_name = socket.gethostname() if (hostname is None or len(hostname) == 0) else hostname
-		log.info(f"Binding server to {used_host_name}:{port}")
-		self._socket.bind(( #Bind the socket to the given hostname and port
-				used_host_name,
-				port
-		))
+		self._socket = None
 
 		#Generate a public/private key pair for the server
 		self._rsa_key : RSA.RsaKey = RSA.generate(RSA_KEY_SIZE_BITS)
@@ -119,6 +113,8 @@ class RunQueueServer():
 		self._is_terminating = False #To check whether the server is terminating (don't start doing new stuff)
 		self._server_stop_flag = threading.Event() #To stop the server from running (does not always indicate termination)
 
+		self._hostname = hostname
+		self._port = port
 
 		#============= Manage signal-triggered events =============
 		for signal_name in self._run_queue.__class__.__dict__:
@@ -222,6 +218,15 @@ class RunQueueServer():
 			raise RuntimeError("Server is terminating - cannot start running the server now...")
 		if self._connection_listener_thread is not None:
 			raise RuntimeError("Server is already running")
+		if self._socket is not None:
+			raise RuntimeError("Server is already running - socket already exists")
+		self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		used_host_name = socket.gethostname() if (self._hostname is None or len(self._hostname) == 0) else self._hostname
+		log.info(f"Binding server to {used_host_name}:{self._port}")
+		self._socket.bind(( #Bind the socket to the given hostname and port
+				used_host_name,
+				self._port
+		))
 		self._connection_listener_thread = threading.Thread(target=self._listen_for_connections)
 		self._connection_listener_thread.start()
 		self._server_stop_flag.clear()
