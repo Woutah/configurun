@@ -393,7 +393,7 @@
   <customwidget>
    <class>RunQueueTreeView</class>
    <extends>QTreeView</extends>
-   <header>configurun.windows.views.run_queue_tree_view</header>
+   <header>configurun.app.views.run_queue_tree_view</header>
   </customwidget>
  </customwidgets>
  <resources>

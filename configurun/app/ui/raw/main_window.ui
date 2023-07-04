@@ -596,7 +596,7 @@
   <customwidget>
    <class>RunQueueWidget</class>
    <extends>QWidget</extends>
-   <header>configurun.windows.widgets.run_queue_widget</header>
+   <header>configurun.app.widgets.run_queue_widget</header>
    <container>1</container>
   </customwidget>
  </customwidgets>
