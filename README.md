@@ -39,10 +39,18 @@ This package was created in tandem with [pyside6-utils](https://github.com/Wouta
 
 ## Configuration Editor
 
-The configuration editor allows the user to specify a configuration-template using either (groups of) [`@dataclass`-class](#custom-options-dataclass) or an [`ArgumentParser`-instance](#custom-options-dataclass). The editor will then automatically create a UI based on the provided template. Editors are specifically created for each option-property based on provided template-types (and [extra constraints](#option-metadata)). Help-messages are displayed on hover, required arguments are highlighted when not filled in, etc.
+The configuration editor allows the user to specify a configuration-template using either (groups of) [`@dataclass`-class](#custom-options-dataclass) or an [`ArgumentParser`-instance](#custom-options-dataclass). The editor will then automatically create a UI based on the provided template. Editors are specifically created for each option-property based on provided template-types (and [extra constraints](#option-metadata)). 
+Help-messages are displayed on hover, required arguments are highlighted when not filled in, etc.
 <p align="center">
 	<!-- <img src="./configurun/examples/images/configuration_editor_example.png" width="600" /> -->
 	<img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/configuration_editor_example.png" width="600" />
+</p>
+
+More complex typehints using `List` / `Union` / `Literal` are supported and are automatically built into widgets that allow the user to add/remove items and switch input-types:
+
+<p align="center">
+	<img src="https://github.com/Woutah/pyside6-utils/blob/main/pyside6_utils/examples/images/string_float_list_example.png?raw=True" width="300" />
+	<!-- <img src="./configurun/examples/images/string_float_list_example.png" width=300/> -->
 </p>
 
 We can also define our own [option-source-method](#custom-options-callable) to dynamically create new option-groups based on the current configuration. This can be useful if we want to group options together, and only show certain groups when an attribute of another group is set to a certain value. E.g: only show `ExtendedExampleModel`-options if property `model_type` in `MainOptions` is set to `"ExtendedExampleModel"`. <br>
