@@ -1,12 +1,11 @@
 #Generated using pipreqs
+PySide6==6.5.1.1
+pathos>=0.3.0
+setuptools>=65.0.0
 dill==0.3.6
 multiprocess==0.70.14
 numpydoc==1.5.0
 pycryptodome==3.18.0
-PySide6==6.5.1.1
-PySide6==6.5.1.1
-PySide6_Addons==6.5.1.1
-PySide6_Essentials==6.5.1.1
-pyside6_utils.egg==info
 scikit_learn==1.2.0 #NOTE: only if we want to run the sklearn example
+pyside6-utils==1.1.0
 
