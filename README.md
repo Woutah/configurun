@@ -469,7 +469,6 @@ ssh -L 5454:localhost:5454 user@remote_host
 On the client-side, we can then connect to the server-instance by using `localhost:5454` as the host and the password we set in the server-instance.
 
 ## Hopping
-
 If we cannot directly access the remote-machine, we can use a 2-step SSH-tunnel to connect to the server-instance.
 This example assumes we have:
 
@@ -480,7 +479,7 @@ This example assumes we have:
 We can then connect to `remote2` from our machine using the following command:
 
 ```bash
-ssh -L 5454:localhost:61521 <username>@<remote1-ip> ssh -L 61521:localhost:5454 -N <remote2-ip>
+ssh -J <username1>@<remote1>, <username2>@<remote2> -L 5356:localhost:5356
 ```
 
-This example forwards `localhost:5454`->`remote1:61521`->`remote2:5454`, so we can connect to the server-instance on `remote2` by using `localhost:5454` as the host and the password we set in the server-instance.
+This example forwards `localhost:5454`->`remote2:5454`, so we can connect to the server-instance on `remote2` by using `localhost:5454` as the host and the password we set in the server-instance.
