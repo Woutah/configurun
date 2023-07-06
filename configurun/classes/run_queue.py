@@ -480,8 +480,11 @@ class RunQueue():
 		with open(filepath, "r", encoding="utf-8") as read_file:
 			if fseek_end == -1 and max_bytes == -1: #If just reading the whole file
 				return read_file.read(), last_edit_dt
-			elif fseek_end == -1: #If reading from the end of the file
-				read_file.seek(0, max(0, os.SEEK_END - max_bytes))
+			elif fseek_end == -1: #If reading to the end of the file
+				#Start reading x bytes from the end of the file
+				read_file.seek(0, os.SEEK_END)
+				file_size = read_file.tell()
+				read_file.seek(max(0, file_size - max_bytes), os.SEEK_SET)
 			if max_bytes == -1:
 				return read_file.read(), last_edit_dt
 

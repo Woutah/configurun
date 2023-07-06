@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
 	name = "configurun",
-	version= "0.2.2",
+	version= "0.2.3",
 	packages=find_packages('.'),
     description=("Cross-platform user-interface tools to create and manage (machine learning) configurations and run them automatically and remotely."),
     long_description=open('README.md', encoding='utf-8').read(),

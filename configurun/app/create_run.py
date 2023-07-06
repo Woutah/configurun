@@ -213,6 +213,7 @@ def run_client(
 		level=log_level) #Without time
 	root_logger = logging.getLogger()
 	root_logger.setLevel(log_level)
+	root_logger.handlers=[handler]
 
 
 	if config_model_kwargs is None:

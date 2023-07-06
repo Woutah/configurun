@@ -125,12 +125,20 @@ class NetworkMainWindow(MainWindow):
 			lambda *_: self.network_connection_widget.save_histories()
 		)
 
-		self.reconnect_button_1.clicked.connect(self.connection_window.show)
-		self.reconnect_button_2.clicked.connect(self.connection_window.show)
-		#Also move window to front
+
+		#========= Make sure window is shown when (re)connecting ==========
 		self.reconnect_button_1.clicked.connect(lambda *_: self.connection_window.activateWindow())
 		self.reconnect_button_2.clicked.connect(lambda *_: self.connection_window.activateWindow())
+		self.reconnect_button_1.clicked.connect(lambda *_: self.connection_window.show())
+		self.reconnect_button_1.clicked.connect(lambda *_: self.connection_window.setFocus())
+		self.reconnect_button_2.clicked.connect(lambda *_: self.connection_window.show())
+		self.reconnect_button_2.clicked.connect(lambda *_: self.connection_window.setFocus())
+		self.reconnect_button_1.clicked.connect(lambda *_: self.connection_window.raise_())
+		self.reconnect_button_2.clicked.connect(lambda *_: self.connection_window.raise_())
+		#Also move window to front
+		self.open_connection_action.triggered.connect(self.connection_window.setFocus())
 		self.open_connection_action.triggered.connect(self.connection_window.show)
+		self.open_connection_action.triggered.connect(lambda *_: self.connection_window.raise_())
 
 
 

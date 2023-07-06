@@ -100,10 +100,24 @@ class RunQueueConsoleItem(BaseConsoleItem):
 								output_path : str,
 								edit_dt : datetime.datetime,
 								filepos : int,
-								msg : str
+								msg : str,
+								emit_datachanged : bool = True 
 							): # pylint: disable=unused-argument
 		"""Called when new command line output is received, inserts the new text into the buffer and emits 
-		the currentTextChanged signal if the buffer changed"""
+		the currentTextChanged signal if the buffer changed
+		
+		Args:
+			item_id (int): The id of the item for which the output is received
+			name (str): The name of the item
+			output_path (str): The path of the item
+			edit_dt (datetime.datetime): The last (known) change to the output file
+			filepos (int): The start-position where the new text should be inserted
+			msg (str): The new text message
+			emit_datachanged (bool, optional): Whether to emit the dataChanged signal if metadata changed. 
+				Defaults to True. Set to false when using this function when resetting a model that uses this item
+				to avoid emitting the dataChanged signal before the data of the model is fully reset.
+		
+		"""
 		if item_id != self._id: #Skip if not the correct id
 			return
 		if name != self._name:
@@ -162,7 +176,7 @@ class RunQueueConsoleItem(BaseConsoleItem):
 
 
 		self.currentTextChanged.emit(self._current_text)
-		if data_changed: #If the metadata changed, emit the dataChanged signal
+		if data_changed and emit_datachanged: #If the metadata changed, emit the dataChanged signal
 			self.dataChanged.emit()
 			# if filepos + len(msg) > len(self._current_text):
 
@@ -201,18 +215,35 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 	A RunQueue model that synchronizes with text-output from running items in the runqueue by requesting all text-data
 	from the runqueue upon connection, and then subscribing to any changes to the text-output of the items
 	running in the runqueue.
+
+	On reset, will try to fetch the history of the consoles using the runqueue fetch methods.
 	"""
 
 
-	def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+	def __init__(self, 
+	    		parent: QtWidgets.QWidget | None = None,
+				max_initial_console_history : int = 200_000
+			) -> None:
+		"""Initializes the runqueueconsolemodel
+
+		Args:
+			parent (QtWidgets.QWidget | None, optional): The parent. Defaults to None.
+			max_initial_console_history (int, optional): Limits the max amount of characters that the model will 
+				fetch on-reset (per item) this makes sure that the initial load times on model-reset do not become 
+				too outrageous by only loading part of the data. Especially useful useful when working over network 
+				connections. NOTE: this limit is not enforced when gradually loading data from the runqueue as 
+				we assume that it's not feasible to load too much text-data in a single session.
+				Defaults to 200_000. -1 for no limit.
+		"""
+
 		super().__init__(parent)
 		self._run_queue = None
 		self._id_item_map_mutex = threading.Lock()
 		self._id_item_map : typing.OrderedDict[int, RunQueueConsoleItem] = OrderedDict({}) #Maps run queue id to item
 			# Note: we use an ordered dict to keep a consistent item-order for the UI
-		self._id_order : typing.List[int] = [] #The order of the ids in the model
 		self._ignored_ids : typing.Set[int] = set() #Ids that are ignored/not tracked
 
+		self._max_initial_console_history = max_initial_console_history
 
 		self._new_cmd_text_signal : QtCore.SignalInstance | None= None
 		self._active_ids_signal : QtCore.SignalInstance | None = None
@@ -257,9 +288,16 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 					if cur_id in self._ignored_ids:
 						continue
 					item = RunQueueConsoleItem(cur_id, name, path, running)
-					self.append_row(item)
+					self._append_row(item)
 
-					all_txt, last_edit_dt = self._run_queue.get_command_line_output(cur_id, -1, file_size)
+					if self._max_initial_console_history > 0 and file_size > self._max_initial_console_history: #if limit to initial console history
+						all_txt, last_edit_dt = self._run_queue.get_command_line_output(
+							cur_id, -1, self._max_initial_console_history) #TODO: this probably goes wrong if we resume
+							# logging on an existing logfile, as we will "start again" at filepos 0
+							# while the actual filepos = file_size-self._max_initial_console_history.
+							# probably best to put a start_pos inside run_queue_item 
+					else: #Fetch all data NOTE: this can be very costly, especially over network connections
+						all_txt, last_edit_dt = self._run_queue.get_command_line_output(cur_id, -1, file_size)
 					item.on_commandline_output( #Append all text to the item #TODO: do this before reading file to avoid
 							# missing any of the data that was added during reading
 						item_id=cur_id,
@@ -267,7 +305,9 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 						output_path=path,
 						edit_dt=last_edit_dt,
 						filepos=0,
-						msg=all_txt
+						msg=all_txt,
+						emit_datachanged=False #Don't emit changes, otherwise we will try to update items that are not
+							# yet known to the model
 					) #TODO: maybe only import active items?
 
 
@@ -374,12 +414,15 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 	# 			self.appendRow(item)
 	# 	self.endResetModel()
 
-	def append_row(self, item : RunQueueConsoleItem):
-		"""Append a row to the model - consisting of a single ConsoleStandardItem
+	def _append_row(self, item : RunQueueConsoleItem):
+		"""Append a row to the model - consisting of a single ConsoleStandardItem.
+		NOTE: this is the same as appendRow, but without the begin/endInsertRows calls, better to be used during model
+		reset to avoid emitting dataChanged/rowInserted signals for new items as this might cause issues when 
+		begin/endresetModel is called during a reset
+		
 		Args:
 			item (ConsoleStandardItem): The item to append (each row corresponds to 1 item)
 		"""
-		self.beginInsertRows(QtCore.QModelIndex(), self.rowCount(), self.rowCount()) #No parent, insert at end
 		cur_item_id = item.get_id()
 		with self._id_item_map_mutex:
 			assert cur_item_id not in self._id_item_map, "Item with this ID already in model"
@@ -394,6 +437,15 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 				self.index(list(self._id_item_map.keys()).index(item_id), self.columnCount()-1))
 		)
 
+
+
+	def append_row(self, item : RunQueueConsoleItem):
+		"""Append a row to the model - consisting of a single ConsoleStandardItem
+		Args:
+			item (ConsoleStandardItem): The item to append (each row corresponds to 1 item)
+		"""
+		self.beginInsertRows(QtCore.QModelIndex(), self.rowCount(), self.rowCount()) #No parent, insert at end
+		self._append_row(item)
 		self.endInsertRows()
 
 	def removeRow(self, row: int, parent : QtCore.QModelIndex) -> None:
