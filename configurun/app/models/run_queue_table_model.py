@@ -127,6 +127,7 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		for connection in self._run_queue_connections:
 			connection.disconnect()
 
+		#NOTE: runqueue connections are not qt-signals, insertions etc. are not necessarily done in the main thread
 		self._run_queue_connections.append(self._run_queue.queueChanged.connect(self._queue_changed))
 		self._run_queue_connections.append( #On item-insertion in runQueue
 			self._run_queue.allItemsDictInsertion.connect(self._handle_run_queue_insertion)
@@ -139,12 +140,6 @@ class RunQueueTableModel(QtCore.QAbstractTableModel):
 		self._run_queue_connections.append(self._run_queue.autoProcessingStateChanged.connect(
 			self.autoprocessing_state_changed))
 
-
-		# self._cur_queue_copy = self._run_queue.get_queue_snapshot_copy()
-		# self._cur_run_list_copy = self._run_queue.get_run_list_snapshot_copy()
-
-
-		# if also_instantiate:
 		self._reset_model()
 		self.endResetModel()
 

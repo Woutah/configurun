@@ -42,7 +42,7 @@ class OptionsSource(Enum):
 	QUEUE = 1
 
 
-class MainWindow():
+class MainWindow(QtCore.QObject):
 	"""
 	The main QT window for this app which provides the user with several tools to edit/manage/run machine learning
 	settings.
@@ -73,6 +73,7 @@ class MainWindow():
 			settings_in_workspace_path (bool, optional): Whether to store the settings in the workspace path or in the default
 				QSettings location. Defaults to True
 		"""
+		super().__init__()
 		self.ui = Ui_MainWindow() # pylint: disable=C0103
 		self.ui.setupUi(window)
 
