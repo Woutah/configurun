@@ -163,14 +163,18 @@ class RunQueueClient(
 			),
 			aes_cypher_key= self._aes_session_key
 		)
+		try:
+			if function_name == self.get_command_line_output.__name__: #TODO: might be a more elegant way to do this, maybe
+				# request data in multiple chunks? Probably best to limit console-mirror-size as >50mb files
+				# are not very UI-friendly
+				return self._await_method_response(method_call_id, timeout=5) #Since log file can be quite large, wait longer
 
-		if function_name == self.get_command_line_output.__name__: #TODO: might be a more elegant way to do this, maybe
-			# request data in multiple chunks? Probably best to limit console-mirror-size as >50mb files
-			# are not very UI-friendly
-			return self._await_method_response(method_call_id, timeout=5) #Since log file can be quite large, wait longer
-
-		return self._await_method_response(method_call_id, timeout=3) #Wait for the server to respond to the method call
-			#and return the result
+			return self._await_method_response(method_call_id, timeout=3) #Wait for the server to respond to the method call
+				#and return the result
+		except TimeoutError as exception:
+			log.error(f"Timeout while waiting for response of {function_name}(...) with id {method_call_id} - {exception}")
+			# raise exception
+			return None
 
 	def _await_method_response(self, function_response_id : int, timeout : float):
 		"""
@@ -182,8 +186,8 @@ class RunQueueClient(
 			ret = return_queue.get(block=True, timeout=timeout)
 			log.info(f"Received response from server for method call with id {function_response_id} of type {type(ret)}")
 		except (TimeoutError, queue.Empty) as exception: #If the queue is empty, then the server did not respond in time #pylint: unused-variable
-			raise TimeoutError(f"Timeout while waiting ({timeout}s) for response of method call with \
-		    	id {function_response_id}") #from exception
+			raise TimeoutError(f"Timeout while waiting ({timeout}s) for response of method call with" 
+		    	f"id {function_response_id}") #from exception
 		finally: #Always clean up the queue to no longer listen for this id
 			with self._method_reponse_dict_lock:
 				del self._method_response_dict[function_response_id]
