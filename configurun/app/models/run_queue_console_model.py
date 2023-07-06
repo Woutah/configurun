@@ -270,7 +270,7 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 					if cur_id in self._ignored_ids:
 						continue
 					item = RunQueueConsoleItem(cur_id, name, path, running)
-					self.append_row(item)
+					self._append_row(item)
 
 					all_txt, last_edit_dt = self._run_queue.get_command_line_output(cur_id, -1, file_size)
 					item.on_commandline_output( #Append all text to the item #TODO: do this before reading file to avoid
@@ -389,12 +389,15 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 	# 			self.appendRow(item)
 	# 	self.endResetModel()
 
-	def append_row(self, item : RunQueueConsoleItem):
-		"""Append a row to the model - consisting of a single ConsoleStandardItem
+	def _append_row(self, item : RunQueueConsoleItem):
+		"""Append a row to the model - consisting of a single ConsoleStandardItem.
+		NOTE: this is the same as appendRow, but without the begin/endInsertRows calls, better to be used during model
+		reset to avoid emitting dataChanged/rowInserted signals for new items as this might cause issues when 
+		begin/endresetModel is called during a reset
+		
 		Args:
 			item (ConsoleStandardItem): The item to append (each row corresponds to 1 item)
 		"""
-		self.beginInsertRows(QtCore.QModelIndex(), self.rowCount(), self.rowCount()) #No parent, insert at end
 		cur_item_id = item.get_id()
 		with self._id_item_map_mutex:
 			assert cur_item_id not in self._id_item_map, "Item with this ID already in model"
@@ -409,6 +412,15 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 				self.index(list(self._id_item_map.keys()).index(item_id), self.columnCount()-1))
 		)
 
+
+
+	def append_row(self, item : RunQueueConsoleItem):
+		"""Append a row to the model - consisting of a single ConsoleStandardItem
+		Args:
+			item (ConsoleStandardItem): The item to append (each row corresponds to 1 item)
+		"""
+		self.beginInsertRows(QtCore.QModelIndex(), self.rowCount(), self.rowCount()) #No parent, insert at end
+		self._append_row(item)
 		self.endInsertRows()
 
 	def removeRow(self, row: int, parent : QtCore.QModelIndex) -> None:
