@@ -299,6 +299,7 @@ class Transmission():
 		aes_nonce = recv_socket.recv(16) #Receive the nonce used for AES encryption
 
 		data = recv_socket.recv(transmission_size)
+		assert(len(data) == transmission_size), "Received transmission data size does not match the received transmission size"
 
 		if aes_cipher_key is not None:
 			aes_cipher = AES.new(aes_cipher_key, AES.MODE_EAX, nonce=aes_nonce)

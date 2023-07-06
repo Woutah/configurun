@@ -100,10 +100,24 @@ class RunQueueConsoleItem(BaseConsoleItem):
 								output_path : str,
 								edit_dt : datetime.datetime,
 								filepos : int,
-								msg : str
+								msg : str,
+								emit_datachanged : bool = True 
 							): # pylint: disable=unused-argument
 		"""Called when new command line output is received, inserts the new text into the buffer and emits 
-		the currentTextChanged signal if the buffer changed"""
+		the currentTextChanged signal if the buffer changed
+		
+		Args:
+			item_id (int): The id of the item for which the output is received
+			name (str): The name of the item
+			output_path (str): The path of the item
+			edit_dt (datetime.datetime): The last (known) change to the output file
+			filepos (int): The start-position where the new text should be inserted
+			msg (str): The new text message
+			emit_datachanged (bool, optional): Whether to emit the dataChanged signal if metadata changed. 
+				Defaults to True. Set to false when using this function when resetting a model that uses this item
+				to avoid emitting the dataChanged signal before the data of the model is fully reset.
+		
+		"""
 		if item_id != self._id: #Skip if not the correct id
 			return
 		if name != self._name:
@@ -162,7 +176,7 @@ class RunQueueConsoleItem(BaseConsoleItem):
 
 
 		self.currentTextChanged.emit(self._current_text)
-		if data_changed: #If the metadata changed, emit the dataChanged signal
+		if data_changed and emit_datachanged: #If the metadata changed, emit the dataChanged signal
 			self.dataChanged.emit()
 			# if filepos + len(msg) > len(self._current_text):
 
@@ -210,7 +224,6 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 		self._id_item_map_mutex = threading.Lock()
 		self._id_item_map : typing.OrderedDict[int, RunQueueConsoleItem] = OrderedDict({}) #Maps run queue id to item
 			# Note: we use an ordered dict to keep a consistent item-order for the UI
-		self._id_order : typing.List[int] = [] #The order of the ids in the model
 		self._ignored_ids : typing.Set[int] = set() #Ids that are ignored/not tracked
 
 
@@ -267,7 +280,9 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 						output_path=path,
 						edit_dt=last_edit_dt,
 						filepos=0,
-						msg=all_txt
+						msg=all_txt,
+						emit_datachanged=False #Don't emit changes, otherwise we will try to update items that are not
+							# yet known to the model
 					) #TODO: maybe only import active items?
 
 
