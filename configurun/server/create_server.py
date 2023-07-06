@@ -26,9 +26,9 @@ def _cleanup_server(run_queue_server : RunQueueServer):
 
 def run_server(
 			target_function : typing.Callable,
+			password : str,
 			workspace_path : str = "",
 			run_queue_n_processes : int = 1,
-			password : str = "",
 			hostname : str = "localhost",
 			port : int = 5454,
 			log_level : int = logging.INFO,
@@ -103,8 +103,8 @@ def run_server(
 
 	except KeyboardInterrupt:
 		log.info("Received keyboard interrupt, now attempting to cleanup server and close app...")
-	except Exception as e:
-		log.exception(f"{type(e).__name__}: {e}")
+	except Exception as exception: #pylint: disable=broad-except
+		log.exception(f"{type(exception).__name__}: {exception}")
 		log.info("Due to the above unhandled exception, now attempting to cleanup server and close app...")
 	finally:
 		if run_queue_server:
