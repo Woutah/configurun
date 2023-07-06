@@ -479,7 +479,7 @@ This example assumes we have:
 We can then connect to `remote2` from our machine using the following command:
 
 ```bash
-ssh -J <username1>@<remote1>, <username2>@<remote2> -L 5356:localhost:5356
+ssh -J <username1>@<remote1>, <username2>@<remote2> -L 5454:localhost:5454
 ```
 
 This example forwards `localhost:5454`->`remote2:5454`, so we can connect to the server-instance on `remote2` by using `localhost:5454` as the host and the password we set in the server-instance.
