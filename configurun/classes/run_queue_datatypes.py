@@ -300,10 +300,12 @@ class Transmission():
 		aes_nonce = recv_socket.recv(16) #Receive the nonce used for AES encryption
 
 		# data = recv_socket.recv(transmission_size) #NOTE: recv does not guarantee that all data is received
-		#We loop and use recv() until we have received all data using MAX_PACKET_SIZE as the max size of a packet
+		# We loop and use recv() until we have received all data using MAX_PACKET_SIZE as the max size of a packet
+		# Also make sure we don't over-read the data, otherwise the next transmission will go wrong
 		data = bytearray()
-		while len(data) < transmission_size:
-			data.extend(recv_socket.recv(MAX_RECV_SIZE))
+		while len(data) < transmission_size: 
+			data.extend(recv_socket.recv(min(MAX_RECV_SIZE, transmission_size - len(data))))
+
 
 		assert(len(data) == transmission_size),\
 			f"Received transmission size {transmission_size} does not match the received data size {len(data)}"
