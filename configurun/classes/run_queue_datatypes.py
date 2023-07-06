@@ -25,7 +25,7 @@ from Crypto.Random import get_random_bytes
 
 RSA_KEY_SIZE_BITS = 2048 #The size of the key used for encryption/decryption
 PASSWORD_HASH_SIZE = 512 #The size of the password hash in bytes
-MAX_RECV_SIZE = 2048 #The maximum size of a packet in bytes which we recv per iteration
+MAX_RECV_SIZE = 65_536 #The maximum size of a TCP-package in bytes which we recv per iteration 2^16
 AES_KEY_SIZE = 32 #The size of the used AES key in bytes
 AES_EMPTY_KEY = b"\x00"*16 #16 bytes of "0" - not used when not encrypted
 
