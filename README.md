@@ -459,7 +459,7 @@ This section contains a quick tutorial on how to use SSH-tunnels to connect to a
 
 ## No-hop
 
-A SSH-tunnel can be used to forward `localhost:5454` on the client-instance-side to `<remote>:5454` on the server side so we connect to the server instance without opening up any ports on the server-side.
+A SSH-tunnel can be used to forward `localhost:5454` on the client-instance-side to `<remote>:5454` on the server side so we connect to the server instance without permanently port forwarding any ports on the server-side.
 If we can directly SSH into the target machine, we can connect the ports as follows (assuming we're using the default `5454`-port in both the server and client configuration):
 
 ```bash
