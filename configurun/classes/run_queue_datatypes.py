@@ -25,6 +25,7 @@ from Crypto.Random import get_random_bytes
 
 RSA_KEY_SIZE_BITS = 2048 #The size of the key used for encryption/decryption
 PASSWORD_HASH_SIZE = 512 #The size of the password hash in bytes
+MAX_RECV_SIZE = 2048 #The maximum size of a packet in bytes which we recv per iteration
 AES_KEY_SIZE = 32 #The size of the used AES key in bytes
 AES_EMPTY_KEY = b"\x00"*16 #16 bytes of "0" - not used when not encrypted
 
@@ -298,8 +299,14 @@ class Transmission():
 
 		aes_nonce = recv_socket.recv(16) #Receive the nonce used for AES encryption
 
-		data = recv_socket.recv(transmission_size)
-		assert(len(data) == transmission_size), "Received transmission data size does not match the received transmission size"
+		# data = recv_socket.recv(transmission_size) #NOTE: recv does not guarantee that all data is received
+		#We loop and use recv() until we have received all data using MAX_PACKET_SIZE as the max size of a packet
+		data = bytearray()
+		while len(data) < transmission_size:
+			data.extend(recv_socket.recv(MAX_RECV_SIZE))
+
+		assert(len(data) == transmission_size),\
+			f"Received transmission size {transmission_size} does not match the received data size {len(data)}"
 
 		if aes_cipher_key is not None:
 			aes_cipher = AES.new(aes_cipher_key, AES.MODE_EAX, nonce=aes_nonce)
