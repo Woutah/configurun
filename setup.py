@@ -4,10 +4,9 @@ from setuptools import setup, find_packages
 
 setup(
 	name = "configurun",
-	version= "0.2.1",
+	version= "0.2.2",
 	packages=find_packages('.'),
-    description=("PySide6 based user-interface tools to create and manage machine learning "
-                 "training/testing-configurations and run them automatically and/or remotely.."),
+    description=("Cross-platform user-interface tools to create and manage (machine learning) configurations and run them automatically and remotely."),
     long_description=open('README.md', encoding='utf-8').read(),
     long_description_content_type='text/markdown',
     author="Wouter Stokman",
@@ -22,7 +21,7 @@ setup(
 		'multiprocess>=0.70.00', #Works for 0.70.14
 		'numpydoc>=1.4.0', #Works for 1.5.0
 		'pycryptodome>=3.10.0', #Works for 3.18.0
-        'pyside6-utils==1.2.0',
+        'pyside6-utils>=1.2.0',
         'PySignal>=1.1.1' #Works for 1.1.1,
 	]
 )

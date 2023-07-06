@@ -36,6 +36,9 @@ class NetworkMainWindow(MainWindow):
 		- settings_in_workspace_path (bool, optional) - Whether to store the settings in the workspace path or in the
 			default QSettings location. Defaults to True
 	"""
+	_authenConnectionStateChanged = QtCore.Signal(bool) #Emitted when the connection state changes (True=authenticated)
+		# Copy used to make sure that the signal emitted from the run_queue is emitted in the qt-main thread
+		# (since it's a non-qt signal using PySignal). 
 
 	def __init__(self,
 				configuration_model : ConfigurationModel,
@@ -102,8 +105,17 @@ class NetworkMainWindow(MainWindow):
 		self.server_connection_state_changed(self._run_queue.is_connected_and_authenticated()) #Set initial state
 
 
+		#========= Link runqueue signals to UI updates ===========
+		#NOTE: authenConnectionChanged is a non-main-thread non-qt-signal
+		# as such, we must make sure that updates to the UI are done in the main thread by using a single-shot timer
+		self._authenConnectionStateChanged.connect(self.server_connection_state_changed)
+		self._run_queue.authenConnectionStateChanged.connect(
+			lambda connected : self._authenConnectionStateChanged.emit(connected)
+		)
+
+
+
 		#=========== Link connection view buttons to connection window ==============
-		self._run_queue.authenConnectionStateChanged.connect(self.server_connection_state_changed)
 		self.network_connection_widget.connectClicked.connect(self.connect_to_server)
 		self.network_connection_widget.disconnectClicked.connect(self.disconnect_from_server)
 		self.network_connection_widget.cancelClicked.connect(lambda *_: self.connection_window.close())
@@ -183,7 +195,7 @@ class NetworkMainWindow(MainWindow):
 		else:
 			self.network_connection_widget.client_disconnected()
 			self.connection_window.activateWindow()
-			self.connection_window.show()
+			self.connection_window.show() #Goes wrong here
 			self.window.statusBar().showMessage("Not Connected", timeout=0) #Show message until next msg
 
 
