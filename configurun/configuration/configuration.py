@@ -54,14 +54,18 @@ class Configuration(object):
 		Check if Configuration.options has an instance of the given type
 		E.g.
 		"""
-		return any(isinstance(value, instance_type) for value in self.options.values())
+		for value in self.options.values():
+			if isinstance(value, instance_type):
+				return True
+		return False
+		# return any(isinstance(value, instance_type) for value in self.options.values())
 
 	def hasattr(self, key):
 		"""
 		Check if one of the sub-options classes has the given attribute
 		"""
 
-		for options_class in self.options:
+		for options_class in self.options.values():
 			if hasattr(options_class, key):
 				return True
 		return False
@@ -121,12 +125,12 @@ class Configuration(object):
 		return new_dict
 
 	@staticmethod
-	def get_configuration_from_passed_options(*args) -> 'Configuration':
+	def get_configuration_from_passed_options(option_dict : typing.Dict[str, BaseOptions]) -> 'Configuration':
 		"""
 		Create a new Configuration instance from the passed options. 
 
 		Args:
-			*args (typing.List[BaseOptions]): A list of options to add to the new configuration. ALL instances must 
+			option_dict (typing.Dict[str, BaseOptions]): A dict of options to add to the configuration. Options must
 				inherit from BaseOptions and must have the @dataclass-decorator to be fully compatible with 
 				the Configuration-ui app. If directly used for the attribute-lookup function of this class,
 				this is not neccesry. 
@@ -137,8 +141,9 @@ class Configuration(object):
 				#TODO: enforce this in the __init__ function of this class?
 		"""
 		new_config = Configuration()
-		for options in args:
-			new_config.add_options(options)
+		new_config.options = option_dict
+		# for options in args:
+		# 	new_config.add_options(options)
 		return new_config
 
 
