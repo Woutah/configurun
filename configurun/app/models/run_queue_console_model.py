@@ -347,6 +347,7 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 			item = RunQueueConsoleItem(item_id, item_name, item_path)
 			self.append_row(item)
 
+		#TODO: maybe process in non-main thread? Settext probably most intensive though...
 		self._id_item_map[item_id].on_commandline_output(item_id, item_name, item_path, item_edit_dt, item_filepos, item_msg)
 
 	def running_ids_changed(self, runnings_ids : typing.List[int]):
@@ -425,7 +426,9 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 		"""
 		cur_item_id = item.get_id()
 		with self._id_item_map_mutex:
-			assert cur_item_id not in self._id_item_map, "Item with this ID already in model"
+			if cur_item_id in self._id_item_map:
+				log.warning("Item with this ID already in model, duplicate ID? Skipping row-insertion.")
+				return
 			self._id_item_map[cur_item_id] = item
 			#TODO: only emit dataChanged for this item
 		item.dataChanged.connect(
@@ -569,13 +572,13 @@ if __name__ == "__main__":
 
 	def func(model):
 		time.sleep(4)
-		model.newCommandLineOutput(
-			id=1,
-			name="test1",
-			path="",
-			edit_dt=datetime.datetime.now(),
-			filepos=0,
-			msg = cur_text
+		model.new_command_line_output(
+			item_id=1,
+			item_name="test1",
+			item_path="",
+			item_edit_dt=datetime.datetime.now(),
+			item_filepos=0,
+			item_msg = cur_text
 		)
 	thread2 = threading.Thread(target=lambda: func(model))
 	thread2.start()
