@@ -9,6 +9,7 @@ records.xls
 test.json
 test.py
 examples/cur_framework_options.py
+TODO.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
