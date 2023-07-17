@@ -21,7 +21,7 @@ class RunQueueConsoleItem(BaseConsoleItem):
 	"""
 	Model that synchronizes with text-output from running items in the runqueue.
 	"""
-	currentTextChanged = QtCore.Signal(str) #Emitted when the text in the file changes
+	currentTextChanged = QtCore.Signal(str, int) #Emitted when the text in the file changes, int=filepos (start-index)
 	dataChanged = QtCore.Signal() #When the metadata of the item changes (e.g. last-edit-date, name, runState not txt)
 	filledTextPositionsChanged = QtCore.Signal(object) #Emitted when the receieved text is filled in the buffer
 
@@ -175,7 +175,7 @@ class RunQueueConsoleItem(BaseConsoleItem):
 				if len(self._current_text) > filepos else "")
 
 
-		self.currentTextChanged.emit(self._current_text)
+		self.currentTextChanged.emit(self._current_text, 0) #For now, the full buffer is always emitted
 		if data_changed and emit_datachanged: #If the metadata changed, emit the dataChanged signal
 			self.dataChanged.emit()
 			# if filepos + len(msg) > len(self._current_text):
@@ -233,7 +233,9 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 				too outrageous by only loading part of the data. Especially useful useful when working over network 
 				connections. NOTE: this limit is not enforced when gradually loading data from the runqueue as 
 				we assume that it's not feasible to load too much text-data in a single session.
-				Defaults to 200_000. -1 for no limit.
+				Defaults to 200_000. #TODO: probably better to do this anyway as creating new strings for each 
+				append can be very expensive if the string is very large.
+				-1 for no limit. 
 		"""
 
 		super().__init__(parent)
