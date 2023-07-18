@@ -17,6 +17,27 @@ from configurun.classes.run_queue import RunQueue
 
 log = logging.getLogger(__name__)
 
+
+
+class MethodExecutionThread(QtCore.QThread):
+	"""Very simple thread that runs a function in a separate thread and stores the return value"""
+	def __init__(self, function, *args, **kwargs):
+		super().__init__()
+		self._function = function
+		self._args = args
+		self._kwargs = kwargs
+		self._ret_val = None
+
+
+
+	def run(self) -> typing.Any:
+		try:
+			self._ret_val = self._function(*self._args, **self._kwargs)
+		except Exception as exception: #pylint: disable=broad-exception-caught
+			print(f"Error when running function {self._function.__name__} in thread: {exception}")
+		self.quit()
+
+
 class RunQueueConsoleItem(BaseConsoleItem):
 	"""
 	Model that synchronizes with text-output from running items in the runqueue.
@@ -60,6 +81,10 @@ class RunQueueConsoleItem(BaseConsoleItem):
 	       QtCore.QSize(),
 		   QtGui.QIcon.Mode.Normal,
 		   QtGui.QIcon.State.Off)
+		
+		self._threadlist_mutex = threading.Lock()
+		self._threads = []
+	
 
 	def get_id(self) -> int:
 		"""Returns the id of this item - id is set at creation and should be unique for each item"""
@@ -108,8 +133,8 @@ class RunQueueConsoleItem(BaseConsoleItem):
 		
 		Args:
 			item_id (int): The id of the item for which the output is received
-			name (str): The name of the item
 			output_path (str): The path of the item
+			name (str): The name of the item
 			edit_dt (datetime.datetime): The last (known) change to the output file
 			filepos (int): The start-position where the new text should be inserted
 			msg (str): The new text message
@@ -117,6 +142,40 @@ class RunQueueConsoleItem(BaseConsoleItem):
 				Defaults to True. Set to false when using this function when resetting a model that uses this item
 				to avoid emitting the dataChanged signal before the data of the model is fully reset.
 		
+		"""
+		# self._process_commandline_output(item_id, name, output_path, edit_dt, filepos, msg, emit_datachanged)
+		thread = MethodExecutionThread(
+			self._process_commandline_output,
+			# print,
+			item_id,
+			name,
+			output_path,
+			edit_dt,
+			filepos,
+			msg,
+			emit_datachanged
+		)
+		#NOTE: we move thread to main thread to avoid issues with Qt signals
+		thread.moveToThread(QtCore.QCoreApplication.instance().thread())
+		thread.setParent(self)
+		thread.start()
+		thread.finished.connect(thread.deleteLater)
+
+
+
+	def _process_commandline_output(
+		self,
+		item_id : int,
+		name : str,
+		output_path : str,
+		edit_dt : datetime.datetime,
+		filepos : int,
+		msg : str,
+		emit_datachanged : bool = True
+	):
+		"""
+		Actually processes the new command line output, inserts the new text into the buffer and emits a signal
+		Since appending to a large string is quite expensive, 
 		"""
 		if item_id != self._id: #Skip if not the correct id
 			return
@@ -165,7 +224,6 @@ class RunQueueConsoleItem(BaseConsoleItem):
 					i+=1
 			if filled_text_positions_changed:
 				self.filledTextPositionsChanged.emit(self._filled_filepositions)
-
 			#=========== Insert actual text into the buffer ===========
 			#TODO: make use of a ringbuffer of user-specified size
 			new_text = self._current_text[:filepos] if len(self._current_text) > filepos else \
@@ -514,7 +572,7 @@ if __name__ == "__main__":
 	model = RunQueueConsoleModel()
 	print("Now running a test-instance of RunQueueConsoleModel")
 
-	widget = ConsoleWidget()
+	widget = ConsoleWidget(ui_text_min_update_interval=0.5)
 	# widget = QtWidgets.QTableView()
 	widget.set_model(model)
 	widget.show()
@@ -546,7 +604,7 @@ if __name__ == "__main__":
 		item_msg = "testmsg4"
 	)
 	model._id_item_map[4]._active_state = False
-	cur_text = "\n".join([f"This is a test {i}" for i in range(1, 11)]) + '\nThis should now continue...\n'
+	cur_text = "\n".join([f"This is a test {i}" for i in range(1, 1_000_000)]) + '\nThis should now continue...\n'
 
 
 	def testfunc(model : RunQueueConsoleModel, start_pos):
@@ -554,7 +612,7 @@ if __name__ == "__main__":
 		cur_pos = start_pos
 		while True:
 			i+= 1
-			new_msg = f"Currently logging {i}\n"
+			new_msg = f"Currently logging {i}\n\n"
 			model.new_command_line_output(
 				item_id=1,
 				item_name="test1",
@@ -564,13 +622,14 @@ if __name__ == "__main__":
 				item_msg = new_msg
 			)
 			cur_pos += len(new_msg)
-			if 1 in model._id_item_map:
-				print(f"Filled text: {model._id_item_map[1]._filled_filepositions}")
-			time.sleep(2)
+			# if 1 in model._id_item_map:
+			# 	print(f"Filled text: {model._id_item_map[1]._filled_filepositions}")
+			# time.sleep(1)
+			time.sleep(0.1)
 
 	print("len curtext: ", len(cur_text))
-	thread = threading.Thread(target=lambda: testfunc(model, len(cur_text)))
-	thread.start()
+	test_thread = threading.Thread(target=lambda: testfunc(model, len(cur_text)))
+	test_thread.start()
 
 	def func(model):
 		time.sleep(4)
@@ -584,5 +643,5 @@ if __name__ == "__main__":
 		)
 	thread2 = threading.Thread(target=lambda: func(model))
 	thread2.start()
-
+	print("Now executing app")
 	app.exec()
