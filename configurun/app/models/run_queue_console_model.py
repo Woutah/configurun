@@ -50,7 +50,10 @@ class RunQueueConsoleItem(BaseConsoleItem):
 	    	item_id :int,
 			name : str,
 			path : str | None = None,
-			active_state : bool = True
+			active_state : bool = True,
+			max_buffer_emit_size : int = 10_000 #How many character to emit (at max) when the buffer changes. Should be 
+				#> the largest amount of characters that can be added in a single commandline-output signal
+				#Note that we can temporarily turn this off when calling on_commandline_output (e.g. when resetting)
 			):
 		super().__init__()
 		self._edit_mutex = threading.Lock() #When adding from/to the buffer, lock this mutex
@@ -61,6 +64,7 @@ class RunQueueConsoleItem(BaseConsoleItem):
 		self._path : str | None = path
 		# max_buffer : int = 100_000
 		self._current_gap : list[int] = [0, 0] #We allow for 1 gap in the text
+		self._max_buffer_emit_size = max_buffer_emit_size
 
 		self._filled_filepositions : list[tuple[int,int]]= [(0,0)] #A list of tuples (min, max) of filled filepositions
 		 #If this is length 1, that means we have processed all data up to filled_filepositions[0][1] without gaps
@@ -126,7 +130,8 @@ class RunQueueConsoleItem(BaseConsoleItem):
 								edit_dt : datetime.datetime,
 								filepos : int,
 								msg : str,
-								emit_datachanged : bool = True 
+								emit_datachanged : bool = True,
+								respect_max_buffer_emit_size : bool = True
 							): # pylint: disable=unused-argument
 		"""Called when new command line output is received, inserts the new text into the buffer and emits 
 		the currentTextChanged signal if the buffer changed
@@ -141,7 +146,10 @@ class RunQueueConsoleItem(BaseConsoleItem):
 			emit_datachanged (bool, optional): Whether to emit the dataChanged signal if metadata changed. 
 				Defaults to True. Set to false when using this function when resetting a model that uses this item
 				to avoid emitting the dataChanged signal before the data of the model is fully reset.
-		
+
+			respect_max_buffer_emit_size (bool, optional): Whether to respect the max_buffer_emit_size when emitting
+				the currentTextChanged signal. Defaults to True. Set to false when using this function when resetting
+				the contents of the buffer
 		"""
 		# self._process_commandline_output(item_id, name, output_path, edit_dt, filepos, msg, emit_datachanged)
 		thread = MethodExecutionThread(
@@ -153,7 +161,8 @@ class RunQueueConsoleItem(BaseConsoleItem):
 			edit_dt,
 			filepos,
 			msg,
-			emit_datachanged
+			emit_datachanged,
+			respect_max_buffer_emit_size
 		)
 		#NOTE: we move thread to main thread to avoid issues with Qt signals
 		thread.moveToThread(QtCore.QCoreApplication.instance().thread())
@@ -171,7 +180,8 @@ class RunQueueConsoleItem(BaseConsoleItem):
 		edit_dt : datetime.datetime,
 		filepos : int,
 		msg : str,
-		emit_datachanged : bool = True
+		emit_datachanged : bool = True,
+		respect_max_buffer_emit_size : bool = True
 	):
 		"""
 		Actually processes the new command line output, inserts the new text into the buffer and emits a signal
@@ -232,8 +242,13 @@ class RunQueueConsoleItem(BaseConsoleItem):
 			self._current_text = new_text +(self._current_text[filepos + len(msg):] \
 				if len(self._current_text) > filepos else "")
 
+			print(f"Updating item...")
+			from_index = 0
+			if respect_max_buffer_emit_size and len(self._current_text) > self._max_buffer_emit_size:
+				from_index = len(self._current_text) - self._max_buffer_emit_size
 
-		self.currentTextChanged.emit(self._current_text, 0) #For now, the full buffer is always emitted
+			self.currentTextChanged.emit(self._current_text[from_index:], from_index) #For now, the full buffer is always emitted
+
 		if data_changed and emit_datachanged: #If the metadata changed, emit the dataChanged signal
 			self.dataChanged.emit()
 			# if filepos + len(msg) > len(self._current_text):
@@ -572,7 +587,7 @@ if __name__ == "__main__":
 	model = RunQueueConsoleModel()
 	print("Now running a test-instance of RunQueueConsoleModel")
 
-	widget = ConsoleWidget(ui_text_min_update_interval=0.5)
+	widget = ConsoleWidget(ui_text_min_update_interval=0.05)
 	# widget = QtWidgets.QTableView()
 	widget.set_model(model)
 	widget.show()
@@ -625,7 +640,7 @@ if __name__ == "__main__":
 			# if 1 in model._id_item_map:
 			# 	print(f"Filled text: {model._id_item_map[1]._filled_filepositions}")
 			# time.sleep(1)
-			time.sleep(0.1)
+			time.sleep(0.01)
 
 	print("len curtext: ", len(cur_text))
 	test_thread = threading.Thread(target=lambda: testfunc(model, len(cur_text)))
