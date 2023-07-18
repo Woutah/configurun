@@ -51,6 +51,7 @@ class RunQueueConsoleItem(BaseConsoleItem):
 			name : str,
 			path : str | None = None,
 			active_state : bool = True,
+			max_buffer_size : int = 200_000, #How many characters to keep in history-buffer (can be requested)
 			max_buffer_emit_size : int = 200_000 #How many character to emit (at max) when the buffer changes. Should be 
 				#> the largest amount of characters that can be added in a single commandline-output signal
 				#Note that we can temporarily turn this off when calling on_commandline_output (e.g. when resetting)
@@ -65,10 +66,13 @@ class RunQueueConsoleItem(BaseConsoleItem):
 		# max_buffer : int = 100_000
 		self._current_gap : list[int] = [0, 0] #We allow for 1 gap in the text
 		self._max_buffer_emit_size = max_buffer_emit_size
+		self._max_buffer_size = max_buffer_size
 
 		self._filled_filepositions : list[tuple[int,int]]= [(0,0)] #A list of tuples (min, max) of filled filepositions
 		 #If this is length 1, that means we have processed all data up to filled_filepositions[0][1] without gaps
 		 # E.g. [(0, 100), (200, 300)] means we have 'processed' all chars from 0->99 and 200->299, but not 100->199
+		self._buffer_startpos : int = 0 #The start position of the buffer (e.g. the first char in the buffer relative
+			#to the file it is saved in)
 
 		self.runqueue_console_connection = None
 
@@ -210,54 +214,86 @@ class RunQueueConsoleItem(BaseConsoleItem):
 				self._last_edited = edit_dt
 				data_changed = True
 
-			filled_text_positions_changed = False
+			#NOTE: might be useful to use this?
+			# filled_text_positions_changed = False
 
-			cur_filepositions = copy.copy(self._filled_filepositions)
+			# cur_filepositions = copy.copy(self._filled_filepositions)
 
-			#========== Insert new filled filepositions based on new msg ===========
-			for i, (cur_min, cur_max) in enumerate(cur_filepositions):
-				if filepos >= cur_min and filepos <= cur_max: #If filling from this interval
-					if filepos + len(msg) <= cur_max: #If already filled this part
-						break
-					else:
-						self._filled_filepositions[i] = (cur_min, filepos + len(msg))
-						filled_text_positions_changed = True
-						break
-				elif i+1 < len(cur_filepositions): #If the next item is not the last item
-					if filepos >= cur_max and filepos + len(msg) <= cur_filepositions[i+1][0]: #If filling in between 2
-						self._filled_filepositions.insert(i+1, (filepos, filepos + len(msg)))
-						filled_text_positions_changed = True
-						break
-				else: #If the last item, and filepos > max (already checked above)
-					self._filled_filepositions.append((filepos, filepos + len(msg)))
-					filled_text_positions_changed = True
+			# #========== Insert new filled filepositions based on new msg ===========
+			# for i, (cur_min, cur_max) in enumerate(cur_filepositions):
+			# 	if filepos >= cur_min and filepos <= cur_max: #If filling from this interval
+			# 		if filepos + len(msg) <= cur_max: #If already filled this part
+			# 			break
+			# 		else:
+			# 			self._filled_filepositions[i] = (cur_min, filepos + len(msg))
+			# 			filled_text_positions_changed = True
+			# 			break
+			# 	elif i+1 < len(cur_filepositions): #If the next item is not the last item
+			# 		if filepos >= cur_max and filepos + len(msg) <= cur_filepositions[i+1][0]: #If filling in between 2
+			# 			self._filled_filepositions.insert(i+1, (filepos, filepos + len(msg)))
+			# 			filled_text_positions_changed = True
+			# 			break
+			# 	else: #If the last item, and filepos > max (already checked above)
+			# 		self._filled_filepositions.append((filepos, filepos + len(msg)))
+			# 		filled_text_positions_changed = True
 
-			#===== Iterate over all filled filepositions and merge overlapping ones=======
-			if filled_text_positions_changed:
-				i = 0
-				while i < (len(self._filled_filepositions)-1):
-					if self._filled_filepositions[i][1] >= self._filled_filepositions[i+1][0]:
-						# new_filled.append((cur_filepositions[i][0], cur_filepositions[i+1][1]))
-						self._filled_filepositions[i] = (
-							cur_filepositions[i][0], max(cur_filepositions[i+1][1], cur_filepositions[i][1]))
-						del self._filled_filepositions[i+1]
-						continue
-					i+=1
-			if filled_text_positions_changed:
-				self.filledTextPositionsChanged.emit(self._filled_filepositions)
+			# #===== Iterate over all filled filepositions and merge overlapping ones=======
+			# if filled_text_positions_changed:
+			# 	i = 0
+			# 	while i < (len(self._filled_filepositions)-1):
+			# 		if self._filled_filepositions[i][1] >= self._filled_filepositions[i+1][0]:
+			# 			# new_filled.append((cur_filepositions[i][0], cur_filepositions[i+1][1]))
+			# 			self._filled_filepositions[i] = (
+			# 				cur_filepositions[i][0], max(cur_filepositions[i+1][1], cur_filepositions[i][1]))
+			# 			del self._filled_filepositions[i+1]
+			# 			continue
+			# 		i+=1
+			# if filled_text_positions_changed:
+			# 	self.filledTextPositionsChanged.emit(self._filled_filepositions)
+
+
 			#=========== Insert actual text into the buffer ===========
-			#TODO: make use of a ringbuffer of user-specified size
-			new_text = self._current_text[:filepos] if len(self._current_text) > filepos else \
-				self._current_text + ("X" * (filepos - len(self._current_text)))
-			new_text += msg
-			self._current_text = new_text +(self._current_text[filepos + len(msg):] \
-				if len(self._current_text) > filepos else "")
+			if filepos > (self._buffer_startpos + 2*self._max_buffer_size) or \
+				filepos < (self._buffer_startpos - 2*self._max_buffer_size): 
+				#If the filepos is more than 2x the max_buffer_size away from the buffer_startpos, reset the buffer
+				new_text = msg
+				self._current_text = new_text
+				self._buffer_startpos = filepos
+
+			else:
+				#TODO: make use of a ringbuffer of user-specified size?
+
+				#If new before startpoint of current buffer
+				if filepos < self._buffer_startpos:
+					new_text = msg
+					#If some of the old text remains
+					new_text += self._current_text[filepos-self._buffer_startpos+len(msg):] if (filepos+len(msg)) > self._buffer_startpos\
+						else "X" * max(0, (self._buffer_startpos- (filepos+len(msg)))) + self._current_text #Fill voids with X's
+				
+				else: #If new after/on startpoint of current buffer
+					new_text = self._current_text[:filepos-self._buffer_startpos]
+					new_text += "X"* max(0, (filepos) - (self._buffer_startpos + len(self._current_text))) #If void between cur buffer and new buffer, fill with X's
+					new_text += msg #Add new text
+
+					# new_text += self._current_text[len(new_text):]
+					# self._buffer_startpos = filepos
+				self._current_text = new_text
+				# new_text = self._current_text[:filepos-self._buffer_startpos] if filepos > self._buffer_startpos else \
+				# 	self._current_text + ("X" * (filepos - self._buffer_startpos - len(self._current_text)))
+				# new_text += msg
+				# self._current_text = new_text +(self._current_text[filepos + len(msg):] \
+				# 	if (len(self._current_text) + self._buffer_startpos) > filepos else "")
+
+			if self._max_buffer_size > 0 and len(self._current_text) > self._max_buffer_size: #If buffer too large
+				self._buffer_startpos = (len(self._current_text) - self._max_buffer_size) + self._buffer_startpos
+				self._current_text = self._current_text[-self._max_buffer_size:]
+
 
 			from_index = 0
 			if respect_max_buffer_emit_size and len(self._current_text) > self._max_buffer_emit_size:
 				from_index = len(self._current_text) - self._max_buffer_emit_size
 
-			self.currentTextChanged.emit(self._current_text[from_index:], from_index) #For now, the full buffer is always emitted
+			self.currentTextChanged.emit(self._current_text[from_index:], self._buffer_startpos+from_index) #For now, the full buffer is always emitted
 
 		if data_changed and emit_datachanged: #If the metadata changed, emit the dataChanged signal
 			self.dataChanged.emit()
@@ -629,7 +665,7 @@ if __name__ == "__main__":
 		item_msg = "testmsg4"
 	)
 	model._id_item_map[4]._active_state = False
-	cur_text = "\n".join([f"This is a test {i}" for i in range(1, 1_000_000)]) + '\nThis should now continue...\n'
+	cur_text = "\n".join([f"This is a test {i}" for i in range(1, 50_000_000)]) + '\nThis should now continue...\n'
 
 
 	def testfunc(model : RunQueueConsoleModel, start_pos):
