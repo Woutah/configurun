@@ -97,6 +97,14 @@ class RunQueueConsoleItem(BaseConsoleItem):
 	def get_id(self) -> int:
 		"""Returns the id of this item - id is set at creation and should be unique for each item"""
 		return self._id
+	
+	def get_max_buffer_size(self, max_buffer_size : int) -> int:
+		"""Returns the max buffer size for this item
+
+		Returns:
+			int: The max buffer size for this item
+		"""
+		return self._max_buffer_size
 
 	def set_active_state(self, new_active_state : bool):
 		"""Sets the active state of the item (e.g. whether it is running or not)
@@ -254,12 +262,18 @@ class RunQueueConsoleItem(BaseConsoleItem):
 
 			#=========== Insert actual text into the buffer ===========
 			if filepos > (self._buffer_startpos + 2*self._max_buffer_size) or \
-				filepos < (self._buffer_startpos - 2*self._max_buffer_size): 
-				#If the filepos is more than 2x the max_buffer_size away from the buffer_startpos, reset the buffer
+				(filepos+len(msg)) < (self._buffer_startpos - 2*self._max_buffer_size) or\
+				len(self._current_text) == 0: 
+				#If the buffer is more than 2x the max_buffer_size away from the current buffer, reset the buffer
+				#(or if the buffer is totally empty)
+				# print("Resetting buffer!")
+				# print(f"Filepos={filepos}, buffer_startpos={self._buffer_startpos}, "
+	  			# 	f"len(self._current_text)={len(self._current_text)} len msg = {len(msg)}" 
+	  			# )
+
 				new_text = msg
 				self._current_text = new_text
 				self._buffer_startpos = filepos
-
 			else:
 				#TODO: make use of a ringbuffer of user-specified size?
 
@@ -267,40 +281,34 @@ class RunQueueConsoleItem(BaseConsoleItem):
 				if filepos < self._buffer_startpos:
 					new_text = msg
 					#If some of the old text remains
-					new_text += self._current_text[filepos-self._buffer_startpos+len(msg):] if (filepos+len(msg)) > self._buffer_startpos\
+					new_text += self._current_text[filepos-self._buffer_startpos+len(msg):] if \
+							(filepos+len(msg)) > self._buffer_startpos\
 						else "X" * max(0, (self._buffer_startpos- (filepos+len(msg)))) + self._current_text #Fill voids with X's
+					self._buffer_startpos = filepos
 				
 				else: #If new after/on startpoint of current buffer
 					new_text = self._current_text[:filepos-self._buffer_startpos]
-					new_text += "X"* max(0, (filepos) - (self._buffer_startpos + len(self._current_text))) #If void between cur buffer and new buffer, fill with X's
+					new_text += "X"* max(0, (filepos) - (self._buffer_startpos + len(self._current_text))) #If void 
+						#between cur buffer and new buffer, fill with X's
 					new_text += msg #Add new text
 
-					# new_text += self._current_text[len(new_text):]
-					# self._buffer_startpos = filepos
 				self._current_text = new_text
-				# new_text = self._current_text[:filepos-self._buffer_startpos] if filepos > self._buffer_startpos else \
-				# 	self._current_text + ("X" * (filepos - self._buffer_startpos - len(self._current_text)))
-				# new_text += msg
-				# self._current_text = new_text +(self._current_text[filepos + len(msg):] \
-				# 	if (len(self._current_text) + self._buffer_startpos) > filepos else "")
 
 			if self._max_buffer_size > 0 and len(self._current_text) > self._max_buffer_size: #If buffer too large
 				self._buffer_startpos = (len(self._current_text) - self._max_buffer_size) + self._buffer_startpos
 				self._current_text = self._current_text[-self._max_buffer_size:]
 
 
-			from_index = 0
+			self.currentTextChanged.emit(self._current_text, self._buffer_startpos) #For now, the full buffer is always emitted
 			if respect_max_buffer_emit_size and len(self._current_text) > self._max_buffer_emit_size:
 				from_index = len(self._current_text) - self._max_buffer_emit_size
-
-			self.currentTextChanged.emit(self._current_text[from_index:], self._buffer_startpos+from_index) #For now, the full buffer is always emitted
 
 		if data_changed and emit_datachanged: #If the metadata changed, emit the dataChanged signal
 			self.dataChanged.emit()
 			# if filepos + len(msg) > len(self._current_text):
 
-	def get_current_text(self) -> str:
-		return self._current_text
+	def get_current_text(self) -> typing.Tuple[str, int]:
+		return self._current_text, self._buffer_startpos
 
 	def data(self, role : QtCore.Qt.ItemDataRole, column : int = 0):
 		if role == QtCore.Qt.ItemDataRole.DisplayRole:
@@ -417,6 +425,7 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 							# logging on an existing logfile, as we will "start again" at filepos 0
 							# while the actual filepos = file_size-self._max_initial_console_history.
 							# probably best to put a start_pos inside run_queue_item 
+							#TODO: just 
 					else: #Fetch all data NOTE: this can be very costly, especially over network connections
 						all_txt, last_edit_dt = self._run_queue.get_command_line_output(cur_id, -1, file_size)
 					item.on_commandline_output( #Append all text to the item #TODO: do this before reading file to avoid
@@ -665,7 +674,7 @@ if __name__ == "__main__":
 		item_msg = "testmsg4"
 	)
 	model._id_item_map[4]._active_state = False
-	cur_text = "\n".join([f"This is a test {i}" for i in range(1, 50_000_000)]) + '\nThis should now continue...\n'
+	cur_text = "\n".join([f"This is a test {i}" for i in range(1, 1_000_000)]) + '\nThis should now continue...\n'
 
 
 	def testfunc(model : RunQueueConsoleModel, start_pos):
@@ -688,7 +697,23 @@ if __name__ == "__main__":
 			# time.sleep(1)
 			time.sleep(0.01)
 
-	print("len curtext: ", len(cur_text))
+	# print("len curtext: ", len(cur_text))
+	# model.new_command_line_output(
+	# 	item_id=1,
+	# 	item_name="test1",
+	# 	item_path="",
+	# 	item_edit_dt=datetime.datetime.now(),
+	# 	item_filepos=0,
+	# 	item_msg = cur_text
+	# )
+	# model.new_command_line_output(
+	# 	item_id=1,
+	# 	item_name="test1",
+	# 	item_path="",
+	# 	item_edit_dt=datetime.datetime.now(),
+	# 	item_filepos=len(cur_text),
+	# 	item_msg = "This should be right behind the cur_text string"
+	# )
 	test_thread = threading.Thread(target=lambda: testfunc(model, len(cur_text)))
 	test_thread.start()
 
