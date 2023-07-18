@@ -51,7 +51,7 @@ class RunQueueConsoleItem(BaseConsoleItem):
 			name : str,
 			path : str | None = None,
 			active_state : bool = True,
-			max_buffer_emit_size : int = 10_000 #How many character to emit (at max) when the buffer changes. Should be 
+			max_buffer_emit_size : int = 200_000 #How many character to emit (at max) when the buffer changes. Should be 
 				#> the largest amount of characters that can be added in a single commandline-output signal
 				#Note that we can temporarily turn this off when calling on_commandline_output (e.g. when resetting)
 			):
@@ -151,10 +151,7 @@ class RunQueueConsoleItem(BaseConsoleItem):
 				the currentTextChanged signal. Defaults to True. Set to false when using this function when resetting
 				the contents of the buffer
 		"""
-		# self._process_commandline_output(item_id, name, output_path, edit_dt, filepos, msg, emit_datachanged)
-		thread = MethodExecutionThread(
-			self._process_commandline_output,
-			# print,
+		self._process_commandline_output(
 			item_id,
 			name,
 			output_path,
@@ -164,11 +161,25 @@ class RunQueueConsoleItem(BaseConsoleItem):
 			emit_datachanged,
 			respect_max_buffer_emit_size
 		)
-		#NOTE: we move thread to main thread to avoid issues with Qt signals
-		thread.moveToThread(QtCore.QCoreApplication.instance().thread())
-		thread.setParent(self)
-		thread.start()
-		thread.finished.connect(thread.deleteLater)
+
+		#TODO: maybe process in non main thread? The following works but throws some errors every now and then.
+		# thread = MethodExecutionThread(
+		# 	self._process_commandline_output,
+		# 	# print,
+		# 	item_id,
+		# 	name,
+		# 	output_path,
+		# 	edit_dt,
+		# 	filepos,
+		# 	msg,
+		# 	emit_datachanged,
+		# 	respect_max_buffer_emit_size
+		# )
+		# #NOTE: we move thread to main thread to avoid issues with Qt signals
+		# thread.moveToThread(QtCore.QCoreApplication.instance().thread())
+		# thread.setParent(self)
+		# thread.start()
+		# thread.finished.connect(thread.deleteLater)
 
 
 
@@ -242,7 +253,6 @@ class RunQueueConsoleItem(BaseConsoleItem):
 			self._current_text = new_text +(self._current_text[filepos + len(msg):] \
 				if len(self._current_text) > filepos else "")
 
-			print(f"Updating item...")
 			from_index = 0
 			if respect_max_buffer_emit_size and len(self._current_text) > self._max_buffer_emit_size:
 				from_index = len(self._current_text) - self._max_buffer_emit_size
