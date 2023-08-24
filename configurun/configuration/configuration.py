@@ -104,7 +104,7 @@ class Configuration(object):
 
 	def __getitem__(self, key):
 		return self.__getattr__(key)
-
+	
 	def get(self, key : str, default : typing.Any):
 		"""
 		A safe alternative to the __getattr__ function. This function will return the default value if the given

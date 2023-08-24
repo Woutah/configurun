@@ -3,7 +3,6 @@ Implements a RunQueue model that synchronizes with text-output from running item
 """
 
 
-import copy
 import datetime
 import logging
 import threading
@@ -42,8 +41,9 @@ class RunQueueConsoleItem(BaseConsoleItem):
 	"""
 	Model that synchronizes with text-output from running items in the runqueue.
 	"""
-	currentTextChanged = QtCore.Signal(str, int) #Emitted when the text in the file changes, int=filepos (start-index)
-	dataChanged = QtCore.Signal() #When the metadata of the item changes (e.g. last-edit-date, name, runState not txt)
+	loadedLinesChanged = QtCore.Signal(list, int) #Emits all lines that have been changed, together with the start
+		# line-index
+	dataChanged = QtCore.Signal() #When the metadata of the item changes (e.g. last-edit-date, name, running-state)
 	filledTextPositionsChanged = QtCore.Signal(object) #Emitted when the receieved text is filled in the buffer
 
 	def __init__(self,
@@ -51,28 +51,34 @@ class RunQueueConsoleItem(BaseConsoleItem):
 			name : str,
 			path : str | None = None,
 			active_state : bool = True,
-			max_buffer_size : int = 200_000, #How many characters to keep in history-buffer (can be requested)
-			max_buffer_emit_size : int = 200_000 #How many character to emit (at max) when the buffer changes. Should be 
-				#> the largest amount of characters that can be added in a single commandline-output signal
-				#Note that we can temporarily turn this off when calling on_commandline_output (e.g. when resetting)
+			max_buffered_lines : int = 10_000, #Max 10k lines buffered from file
+			# max_buffer_size : int = 200_000, #How many characters to read (at max)
+			# max_buffer_emit_size : int = 200_000 #How many character to emit (at max) when the buffer changes. Should be
+			# 	#> the largest amount of characters that can be added in a single commandline-output signal
+			# 	#Note that we can temporarily turn this off when calling on_commandline_output (e.g. when resetting)
 			):
 		super().__init__()
 		self._edit_mutex = threading.Lock() #When adding from/to the buffer, lock this mutex
-		self._current_text : str = ""
+		self._max_buffered_lines = max_buffered_lines
+		# self._current_text : str = ""
+		self._loaded_lines : list[str] = [] #List of all lines that have been loaded from the file
+		self._total_loaded_lines : int = 0 #Total amount of lines that have been loaded from the file
+
+		self._currently_loaded_line_range : list[int] = [0, 0]
 		self._name : str = name
 		self._last_edited : datetime.datetime | None = None
 		self._id : int = item_id
 		self._path : str | None = path
 		# max_buffer : int = 100_000
 		self._current_gap : list[int] = [0, 0] #We allow for 1 gap in the text
-		self._max_buffer_emit_size = max_buffer_emit_size
-		self._max_buffer_size = max_buffer_size
+		# self._max_buffer_emit_size = max_buffer_emit_size
+		# self._max_buffer_size = max_buffer_size
 
-		self._filled_filepositions : list[tuple[int,int]]= [(0,0)] #A list of tuples (min, max) of filled filepositions
-		 #If this is length 1, that means we have processed all data up to filled_filepositions[0][1] without gaps
-		 # E.g. [(0, 100), (200, 300)] means we have 'processed' all chars from 0->99 and 200->299, but not 100->199
-		self._buffer_startpos : int = 0 #The start position of the buffer (e.g. the first char in the buffer relative
-			#to the file it is saved in)
+		self._loaded_buffer : list[int] = [0, 0]
+
+		# self._buffer_startpos : int = 0 #The start position of the buffer (e.g. the first char in the buffer relative
+		# 	#to the file it is saved in)
+
 
 		self.runqueue_console_connection = None
 
@@ -89,22 +95,16 @@ class RunQueueConsoleItem(BaseConsoleItem):
 	       QtCore.QSize(),
 		   QtGui.QIcon.Mode.Normal,
 		   QtGui.QIcon.State.Off)
-		
+
 		self._threadlist_mutex = threading.Lock()
 		self._threads = []
-	
+
+
+
 
 	def get_id(self) -> int:
 		"""Returns the id of this item - id is set at creation and should be unique for each item"""
 		return self._id
-	
-	def get_max_buffer_size(self, max_buffer_size : int) -> int:
-		"""Returns the max buffer size for this item
-
-		Returns:
-			int: The max buffer size for this item
-		"""
-		return self._max_buffer_size
 
 	def set_active_state(self, new_active_state : bool):
 		"""Sets the active state of the item (e.g. whether it is running or not)
@@ -123,93 +123,29 @@ class RunQueueConsoleItem(BaseConsoleItem):
 		"""
 		return self._active_state
 
-	# def set_runqueue(self, run_queue : RunQueue):
-	# 	self._run_queue = run_queue
-	# 	if self.runqueue_console_connection is not None:
-	# 		self.runqueue_console_connection.disconnect()
-	# 	# self.reset()
-	# 	#TODO: centralize the commandLineOutput into the ConsoleItemModel
-	# 	self.runqueue_console_connection = self._run_queue.newCommandLineOutput.connect(self.on_commandline_output)
-
-
-
-		# self.on_commandline_output(self._id, self._name, self._path, dt, 0, text)
 
 	def on_commandline_output(self,
 			   					item_id : int,
 								name : str,
-								output_path : str,
+								output_path : str, #pylint: disable=unused-argument
 								edit_dt : datetime.datetime,
-								filepos : int,
-								msg : str,
-								emit_datachanged : bool = True,
-								respect_max_buffer_emit_size : bool = True
-							): # pylint: disable=unused-argument
-		"""Called when new command line output is received, inserts the new text into the buffer and emits 
-		the currentTextChanged signal if the buffer changed
-		
+								# from_line : int, #The line-index of the first line (in the actual file)
+								lines : list[str],
+								emit_datachanged : bool = True
+							):
+		"""
+		TODO: we assume the lines are ALWAYS passed in-order and append eachother - maybe allow for out of order
+			passing by also providing a from-line index?
 		Args:
 			item_id (int): The id of the item for which the output is received
-			output_path (str): The path of the item
 			name (str): The name of the item
+			output_path (str): The path of the item
 			edit_dt (datetime.datetime): The last (known) change to the output file
-			filepos (int): The start-position where the new text should be inserted
-			msg (str): The new text message
-			emit_datachanged (bool, optional): Whether to emit the dataChanged signal if metadata changed. 
-				Defaults to True. Set to false when using this function when resetting a model that uses this item
-				to avoid emitting the dataChanged signal before the data of the model is fully reset.
-
-			respect_max_buffer_emit_size (bool, optional): Whether to respect the max_buffer_emit_size when emitting
-				the currentTextChanged signal. Defaults to True. Set to false when using this function when resetting
-				the contents of the buffer
+			lines (list[str]): The new text lines
+			emit_datachanged (bool, optional): Whether to emit the dataChanged signal if the metadata changed.
+				Defaults to True.
 		"""
-		self._process_commandline_output(
-			item_id,
-			name,
-			output_path,
-			edit_dt,
-			filepos,
-			msg,
-			emit_datachanged,
-			respect_max_buffer_emit_size
-		)
-
-		#TODO: maybe process in non main thread? The following works but throws some errors every now and then.
-		# thread = MethodExecutionThread(
-		# 	self._process_commandline_output,
-		# 	# print,
-		# 	item_id,
-		# 	name,
-		# 	output_path,
-		# 	edit_dt,
-		# 	filepos,
-		# 	msg,
-		# 	emit_datachanged,
-		# 	respect_max_buffer_emit_size
-		# )
-		# #NOTE: we move thread to main thread to avoid issues with Qt signals
-		# thread.moveToThread(QtCore.QCoreApplication.instance().thread())
-		# thread.setParent(self)
-		# thread.start()
-		# thread.finished.connect(thread.deleteLater)
-
-
-
-	def _process_commandline_output(
-		self,
-		item_id : int,
-		name : str,
-		output_path : str,
-		edit_dt : datetime.datetime,
-		filepos : int,
-		msg : str,
-		emit_datachanged : bool = True,
-		respect_max_buffer_emit_size : bool = True
-	):
-		"""
-		Actually processes the new command line output, inserts the new text into the buffer and emits a signal
-		Since appending to a large string is quite expensive, 
-		"""
+		#=============== First update the log-metadata==================
 		if item_id != self._id: #Skip if not the correct id
 			return
 		if name != self._name:
@@ -222,93 +158,25 @@ class RunQueueConsoleItem(BaseConsoleItem):
 				self._last_edited = edit_dt
 				data_changed = True
 
-			#NOTE: might be useful to use this?
-			# filled_text_positions_changed = False
+		if len(lines) > self._max_buffered_lines: #Don't just append useless new lines that will be removed anyway
+			lines = lines[-self._max_buffered_lines:]
 
-			# cur_filepositions = copy.copy(self._filled_filepositions)
+		self._loaded_lines.extend(lines) #Add the new lines to the loaded lines
+		self._total_loaded_lines += len(lines)
 
-			# #========== Insert new filled filepositions based on new msg ===========
-			# for i, (cur_min, cur_max) in enumerate(cur_filepositions):
-			# 	if filepos >= cur_min and filepos <= cur_max: #If filling from this interval
-			# 		if filepos + len(msg) <= cur_max: #If already filled this part
-			# 			break
-			# 		else:
-			# 			self._filled_filepositions[i] = (cur_min, filepos + len(msg))
-			# 			filled_text_positions_changed = True
-			# 			break
-			# 	elif i+1 < len(cur_filepositions): #If the next item is not the last item
-			# 		if filepos >= cur_max and filepos + len(msg) <= cur_filepositions[i+1][0]: #If filling in between 2
-			# 			self._filled_filepositions.insert(i+1, (filepos, filepos + len(msg)))
-			# 			filled_text_positions_changed = True
-			# 			break
-			# 	else: #If the last item, and filepos > max (already checked above)
-			# 		self._filled_filepositions.append((filepos, filepos + len(msg)))
-			# 		filled_text_positions_changed = True
-
-			# #===== Iterate over all filled filepositions and merge overlapping ones=======
-			# if filled_text_positions_changed:
-			# 	i = 0
-			# 	while i < (len(self._filled_filepositions)-1):
-			# 		if self._filled_filepositions[i][1] >= self._filled_filepositions[i+1][0]:
-			# 			# new_filled.append((cur_filepositions[i][0], cur_filepositions[i+1][1]))
-			# 			self._filled_filepositions[i] = (
-			# 				cur_filepositions[i][0], max(cur_filepositions[i+1][1], cur_filepositions[i][1]))
-			# 			del self._filled_filepositions[i+1]
-			# 			continue
-			# 		i+=1
-			# if filled_text_positions_changed:
-			# 	self.filledTextPositionsChanged.emit(self._filled_filepositions)
-
-
-			#=========== Insert actual text into the buffer ===========
-			if filepos > (self._buffer_startpos + 2*self._max_buffer_size) or \
-				(filepos+len(msg)) < (self._buffer_startpos - 2*self._max_buffer_size) or\
-				len(self._current_text) == 0: 
-				#If the buffer is more than 2x the max_buffer_size away from the current buffer, reset the buffer
-				#(or if the buffer is totally empty)
-				# print("Resetting buffer!")
-				# print(f"Filepos={filepos}, buffer_startpos={self._buffer_startpos}, "
-	  			# 	f"len(self._current_text)={len(self._current_text)} len msg = {len(msg)}" 
-	  			# )
-
-				new_text = msg
-				self._current_text = new_text
-				self._buffer_startpos = filepos
-			else:
-				#TODO: make use of a ringbuffer of user-specified size?
-
-				#If new before startpoint of current buffer
-				if filepos < self._buffer_startpos:
-					new_text = msg
-					#If some of the old text remains
-					new_text += self._current_text[filepos-self._buffer_startpos+len(msg):] if \
-							(filepos+len(msg)) > self._buffer_startpos\
-						else "X" * max(0, (self._buffer_startpos- (filepos+len(msg)))) + self._current_text #Fill voids with X's
-					self._buffer_startpos = filepos
-				
-				else: #If new after/on startpoint of current buffer
-					new_text = self._current_text[:filepos-self._buffer_startpos]
-					new_text += "X"* max(0, (filepos) - (self._buffer_startpos + len(self._current_text))) #If void 
-						#between cur buffer and new buffer, fill with X's
-					new_text += msg #Add new text
-
-				self._current_text = new_text
-
-			if self._max_buffer_size > 0 and len(self._current_text) > self._max_buffer_size: #If buffer too large
-				self._buffer_startpos = (len(self._current_text) - self._max_buffer_size) + self._buffer_startpos
-				self._current_text = self._current_text[-self._max_buffer_size:]
-
-
-			self.currentTextChanged.emit(self._current_text, self._buffer_startpos) #For now, the full buffer is always emitted
-			if respect_max_buffer_emit_size and len(self._current_text) > self._max_buffer_emit_size:
-				from_index = len(self._current_text) - self._max_buffer_emit_size
+		if len(self._loaded_lines) > self._max_buffered_lines: #If we have too many lines, remove the oldest ones
+			self._loaded_lines = self._loaded_lines[-self._max_buffered_lines:]
 
 		if data_changed and emit_datachanged: #If the metadata changed, emit the dataChanged signal
 			self.dataChanged.emit()
-			# if filepos + len(msg) > len(self._current_text):
 
-	def get_current_text(self) -> typing.Tuple[str, int]:
-		return self._current_text, self._buffer_startpos
+		self.loadedLinesChanged.emit(lines, self._total_loaded_lines-len(lines)) #Emit the new lines
+
+
+
+	def get_current_line_list(self) -> typing.Tuple[list[str], int]:
+		return self._loaded_lines, 0
+
 
 	def data(self, role : QtCore.Qt.ItemDataRole, column : int = 0):
 		if role == QtCore.Qt.ItemDataRole.DisplayRole:
@@ -347,7 +215,7 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 	"""
 
 
-	def __init__(self, 
+	def __init__(self,
 	    		parent: QtWidgets.QWidget | None = None,
 				max_initial_console_history : int = 200_000
 			) -> None:
@@ -355,14 +223,14 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 
 		Args:
 			parent (QtWidgets.QWidget | None, optional): The parent. Defaults to None.
-			max_initial_console_history (int, optional): Limits the max amount of characters that the model will 
-				fetch on-reset (per item) this makes sure that the initial load times on model-reset do not become 
-				too outrageous by only loading part of the data. Especially useful useful when working over network 
-				connections. NOTE: this limit is not enforced when gradually loading data from the runqueue as 
+			max_initial_console_history (int, optional): Limits the max amount of characters that the model will
+				fetch on-reset (per item) this makes sure that the initial load times on model-reset do not become
+				too outrageous by only loading part of the data. Especially useful useful when working over network
+				connections. NOTE: this limit is not enforced when gradually loading data from the runqueue as
 				we assume that it's not feasible to load too much text-data in a single session.
-				Defaults to 200_000. #TODO: probably better to do this anyway as creating new strings for each 
+				Defaults to 200_000. #TODO: probably better to do this anyway as creating new strings for each
 				append can be very expensive if the string is very large.
-				-1 for no limit. 
+				-1 for no limit.
 		"""
 
 		super().__init__(parent)
@@ -419,23 +287,25 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 					item = RunQueueConsoleItem(cur_id, name, path, running)
 					self._append_row(item)
 
-					if self._max_initial_console_history > 0 and file_size > self._max_initial_console_history: #if limit to initial console history
+					#if limit to initial console history:
+					if self._max_initial_console_history > 0 and file_size > self._max_initial_console_history: 
 						all_txt, last_edit_dt = self._run_queue.get_command_line_output(
 							cur_id, -1, self._max_initial_console_history) #TODO: this probably goes wrong if we resume
 							# logging on an existing logfile, as we will "start again" at filepos 0
 							# while the actual filepos = file_size-self._max_initial_console_history.
-							# probably best to put a start_pos inside run_queue_item 
-							#TODO: just 
+							# probably best to put a start_pos inside run_queue_item
+							#TODO: just
 					else: #Fetch all data NOTE: this can be very costly, especially over network connections
 						all_txt, last_edit_dt = self._run_queue.get_command_line_output(cur_id, -1, file_size)
+
+					lines = all_txt.splitlines()
 					item.on_commandline_output( #Append all text to the item #TODO: do this before reading file to avoid
 							# missing any of the data that was added during reading
 						item_id=cur_id,
 						name=name,
 						output_path=path,
 						edit_dt=last_edit_dt,
-						filepos=0,
-						msg=all_txt,
+						lines=lines,
 						emit_datachanged=False #Don't emit changes, otherwise we will try to update items that are not
 							# yet known to the model
 					) #TODO: maybe only import active items?
@@ -459,9 +329,9 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 							item_name : str,
 							item_path : str,
 							item_edit_dt : datetime.datetime,
-							item_filepos : int,
+							item_filepos : int, #pylint: disable=unused-argument
 							item_msg : str):
-		"""alled when new command line output is received
+		"""added when new command line output is received
 
 		Args:
 			item_id (int): The id of the item for which the output is received
@@ -478,7 +348,14 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 			self.append_row(item)
 
 		#TODO: maybe process in non-main thread? Settext probably most intensive though...
-		self._id_item_map[item_id].on_commandline_output(item_id, item_name, item_path, item_edit_dt, item_filepos, item_msg)
+		self._id_item_map[item_id].on_commandline_output(
+			item_id,
+			item_name,
+			item_path,
+			item_edit_dt,
+			lines=item_msg.splitlines(),
+			# item_filepos,
+		)
 
 	def running_ids_changed(self, runnings_ids : typing.List[int]):
 		"""Called when the running ids changed, updates the console-items to reflect the active/inactive state"""
@@ -518,13 +395,13 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 				#TODO: instead of re-requesting all data, only request the missing data - don't delete upon ignore,
 				#instead, simply don't show/update the item in the model
 				all_txt, last_edit_dt = self._run_queue.get_command_line_output(item_id, -1, file_size)
+				lines = all_txt.splitlines()
 				item.on_commandline_output( #Append all text to the item
 					item_id=item_id,
 					name=name,
 					output_path=path,
 					edit_dt=last_edit_dt,
-					filepos=0,
-					msg=all_txt
+					lines=lines
 				) #TODO: maybe only import active items?
 
 		# item = RunQueueConsoleItem()
@@ -548,9 +425,9 @@ class RunQueueConsoleModel(QtCore.QAbstractItemModel):
 	def _append_row(self, item : RunQueueConsoleItem):
 		"""Append a row to the model - consisting of a single ConsoleStandardItem.
 		NOTE: this is the same as appendRow, but without the begin/endInsertRows calls, better to be used during model
-		reset to avoid emitting dataChanged/rowInserted signals for new items as this might cause issues when 
+		reset to avoid emitting dataChanged/rowInserted signals for new items as this might cause issues when
 		begin/endresetModel is called during a reset
-		
+
 		Args:
 			item (ConsoleStandardItem): The item to append (each row corresponds to 1 item)
 		"""
@@ -692,9 +569,6 @@ if __name__ == "__main__":
 				item_msg = new_msg
 			)
 			cur_pos += len(new_msg)
-			# if 1 in model._id_item_map:
-			# 	print(f"Filled text: {model._id_item_map[1]._filled_filepositions}")
-			# time.sleep(1)
 			time.sleep(0.01)
 
 	# print("len curtext: ", len(cur_text))
