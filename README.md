@@ -1,11 +1,17 @@
 # Configurun
 
-Configurun is a cross-platform PySide6-based package that implements an application for managing, creating and (remotely) running python configurations.
-It was designed mainly with machine-learning tasks in mind, but can be used for any python script that takes arguments as an input. The editor-UI is created automatically using either an `argparse.Argumentparser` or python-`@dataclass`(es).
+<p align="center">
+	<img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/widget_creation_example.png"/>
+</p>
 
-The Configurun-app is especially useful for scripts/experiments that require a lot of arguments to be tweaked across many experiment-runs. It also makes the process of running experiments remotely much easier by enabling the user to edit, add and schedule tasks on any running Configurun server-instance reachable via a network connection.
+Configurun is a cross-platform PySide6-based package that implements an application for managing, creating and (remotely) running python configurations. 
+The app automatically generates editable GUIs based on an existing `argparse.Argumentparser` or a python-`@dataclass`, making it easy to view and edit parameters in an orginized manner - even when the amount of parameters is large.
 
-This package was created in tandem with [pyside6-utils](https://github.com/Woutah/pyside6-utils/).
+Configurun was designed mainly with machine-learning tasks in mind, but can be used for any python script or framework that takes arguments as an input.
+
+The Configurun-app is especially useful for scripts/experiments that require a lot of arguments to be tweaked across many experiment-runs. It also makes the process of running experiments remotely much easier by enabling the user to edit, add and schedule tasks on any running Configurun server-instance reachable via a network connection, or locally.
+
+Configurun was created in tandem with [pyside6-utils](https://github.com/Woutah/pyside6-utils/).
 
 <p align="center">
 	<img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/main_window_example.png" width="1200" />
@@ -39,7 +45,7 @@ This package was created in tandem with [pyside6-utils](https://github.com/Wouta
 
 ## Configuration Editor
 
-The configuration editor allows the user to specify a configuration-template using either (groups of) [`@dataclass`-class](#custom-options-dataclass) or an [`ArgumentParser`-instance](#custom-options-dataclass). The editor will then automatically create a UI based on the provided template. Editors are specifically created for each option-property based on provided template-types (and [extra constraints](#option-metadata)). 
+The configuration editor is automatically generated using either (groups of) [`@dataclass`-class](#custom-options-dataclass) or an [`ArgumentParser`-instance](#custom-options-dataclass). Editors are specifically created for each option-property based on the provided types (and [extra constraints](#option-metadata)). 
 Help-messages are displayed on hover, required arguments are highlighted when not filled in, etc.
 <p align="center">
 	<!-- <img src="./configurun/examples/images/configuration_editor_example.png" width="600" /> -->
