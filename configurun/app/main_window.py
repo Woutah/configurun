@@ -663,8 +663,8 @@ class MainWindow(QtCore.QObject):
 			if ret == QtWidgets.QMessageBox.StandardButton.No:
 				return False
 
-		self._cur_file_path = new_path
 		self.set_source(OptionsSource.FILE)
+		self._cur_file_path = new_path
 		self._config_file_picker_model.set_highlight_using_path(self._cur_file_path) #Also update the highlight path
 		try:
 			if new_path:

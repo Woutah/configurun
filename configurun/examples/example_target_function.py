@@ -24,10 +24,10 @@ def example_target_function(config : Configuration, *args, **kwargs): #pylint: d
 	for key, value in config.options.items():
 		log.info(f"{key} : {type(value).__name__}")
 
-	log.info("We will now be simulating a task that takes about 20 seconds to complete")
-
-	for i in range(20):
-		log.info(f"Progress: {i}/20")
-		time.sleep(1)
+	log.info("We will now be simulating a task that takes some time to complete...")
+	
+	for i in range(200):
+		log.info(f"Progress: {i}/200")
+		time.sleep(0.1)
 
 	log.info("Done with the example run function... Now exiting...")
