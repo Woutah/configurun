@@ -11,11 +11,13 @@ Configurun was designed mainly with machine-learning tasks in mind, but can be u
 
 The Configurun-app is especially useful for scripts/experiments that require a lot of arguments to be tweaked across many experiment-runs. It also makes the process of running experiments remotely much easier by enabling the user to edit, add and schedule tasks on any running Configurun server-instance reachable via a network connection, or locally.
 
-Configurun was created in tandem with [pyside6-utils](https://github.com/Woutah/pyside6-utils/).
-
+The following .gif, shows Configurun being used to generate a GUI for our multivariate time-series machine learning frameworks (MVTS-Learner)[https://github.com/Woutah/MVTS-Learner]:
 <p align="center">
-	<img src="https://raw.githubusercontent.com/Woutah/configurun/main/configurun/examples/images/main_window_example.png" width="1200" />
+	<img src="https://raw.githubusercontent.com/Woutah/MVTS-Learner/main/mvts_learner/examples/images/example_app_video_lowerquality_halfframerate.gif" />
 </p>
+Note that the colors are a bit washed-out due to compression. 
+
+Configurun was created in tandem with [pyside6-utils](https://github.com/Woutah/pyside6-utils/).
 
 # Table of contents
 
